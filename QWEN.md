@@ -100,6 +100,20 @@ npm run lint
 - **Path Aliases:** `@/*` maps to `./src/*`
 - **React Compiler:** Enabled for automatic optimizations
 
+### Tailwind CSS v4 Class Updates
+
+This project uses **Tailwind CSS v4** syntax. Use the following updated class names:
+
+| Old (v3) | New (v4) |
+|----------|----------|
+| `flex-shrink-0` | `shrink-0` |
+| `flex-grow` | `grow` |
+| `bg-gradient-to-br` | `bg-linear-to-br` |
+| `bg-gradient-to-r` | `bg-linear-to-r` |
+| `bg-gradient-to-l` | `bg-linear-to-l` |
+| `bg-gradient-to-t` | `bg-linear-to-t` |
+| `bg-gradient-to-b` | `bg-linear-to-b` |
+
 ### Component Patterns
 
 - All components use `"use client"` directive for client-side interactivity
