@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
+import { useState } from "react";
+import { ImportModal, StudentData } from "@/components/section";
 
 export default function TeacherDashboardPage() {
   return (
@@ -15,6 +17,24 @@ export default function TeacherDashboardPage() {
 
 function TeacherDashboardContent() {
   const { user } = useAuth();
+  const [showImportModal, setShowImportModal] = useState(false);
+
+  const handleOpenModal = () => {
+    setShowImportModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowImportModal(false);
+  };
+
+  const handleSave = (sectionName: string, gradeLevel: string, students: StudentData[]) => {
+    // TODO: Add Firestore storage function
+    console.log('Grade Level:', gradeLevel);
+    console.log('Section Name:', sectionName);
+    console.log('Students to save:', students);
+    // Will implement Firestore save in next step
+    handleCloseModal();
+  };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F3FA' }}>
@@ -40,6 +60,7 @@ function TeacherDashboardContent() {
               <h4 className="text-2xl font-bold mb-6" style={{ color: '#1F1F1F' }}>Quick Actions</h4>
               <div className="grid grid-cols-2 gap-4">
                 <button
+                  onClick={handleOpenModal}
                   className="p-4 rounded-2xl flex flex-col items-center gap-2 transition-all shadow-sm group"
                   style={{ backgroundColor: '#FFFFFF' }}
                   onMouseEnter={(e) => {
@@ -57,7 +78,7 @@ function TeacherDashboardContent() {
                   >
                     add_box
                   </span>
-                  <span className="text-xs font-bold" style={{ color: '#6B6B6B' }}>New Class</span>
+                  <span className="text-xs font-bold" style={{ color: '#6B6B6B' }}>New Section</span>
                 </button>
                 <button
                   className="p-4 rounded-2xl flex flex-col items-center gap-2 transition-all shadow-sm group"
@@ -124,6 +145,13 @@ function TeacherDashboardContent() {
           </div>
         </main>
       </div>
+
+      {/* Import Modal */}
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={handleCloseModal}
+        onSave={handleSave}
+      />
     </div>
   );
 }
