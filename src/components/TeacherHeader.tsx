@@ -10,7 +10,6 @@ interface TeacherHeaderProps {
     valueColor?: string;
   }>;
   searchPlaceholder?: string;
-  showNotificationBadge?: boolean;
   onSearch?: (query: string) => void;
 }
 
@@ -20,25 +19,24 @@ export default function TeacherHeader({
   subtitleColor = "#5b3ebf",
   stats = [],
   searchPlaceholder = "Search...",
-  showNotificationBadge = false,
   onSearch
 }: TeacherHeaderProps) {
   return (
     <>
       {/* Top Navigation Bar */}
       <header
-        className="h-16 flex items-center justify-between px-8 sticky top-0 z-20 backdrop-blur-md"
+        className="h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 backdrop-blur-md"
         style={{ backgroundColor: "rgba(253, 247, 255, 0.8)" }}
       >
         <h2
-          className="font-headline text-xl font-bold"
+          className="font-headline text-lg lg:text-xl font-bold"
           style={{ color: "#1c1a22" }}
         >
           Attendance Management
         </h2>
-        <div className="flex items-center gap-6">
-          {/* Search Bar */}
-          <div className="relative">
+        <div className="flex items-center gap-2 lg:gap-6">
+          {/* Search Bar - Hidden on small mobile, visible on md+ */}
+          <div className="hidden md:block relative">
             <span
               className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm"
               style={{ color: "#484553" }}
@@ -46,7 +44,7 @@ export default function TeacherHeader({
               search
             </span>
             <input
-              className="border-none rounded-full py-2 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-[#5b3ebf] transition-all outline-none"
+              className="border-none rounded-full py-2 pl-10 pr-4 text-sm w-48 lg:w-64 focus:ring-2 focus:ring-[#5b3ebf] transition-all outline-none"
               placeholder={searchPlaceholder}
               type="text"
               style={{ backgroundColor: "#e6e0ec", color: "#1c1a22" }}
@@ -54,9 +52,9 @@ export default function TeacherHeader({
             />
           </div>
           {/* Action Buttons */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 lg:gap-4">
             <button
-              className="w-10 h-10 flex items-center justify-center rounded-full transition-colors relative"
+              className="w-9 h-9 lg:w-10 lg:h-10 flex items-center justify-center rounded-full transition-colors"
               style={{ color: "#484553" }}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.backgroundColor = "#ece6f1")
@@ -65,27 +63,9 @@ export default function TeacherHeader({
                 (e.currentTarget.style.backgroundColor = "transparent")
               }
             >
-              <span className="material-symbols-outlined">notifications</span>
-              {showNotificationBadge && (
-                <span
-                  className="absolute top-2 right-2 w-2 h-2 rounded-full border-2"
-                  style={{ backgroundColor: "#ba1a1a", borderColor: "#fdf7ff" }}
-                ></span>
-              )}
+              <span className="material-symbols-outlined text-base lg:text-xl">help</span>
             </button>
-            <button
-              className="w-10 h-10 flex items-center justify-center rounded-full transition-colors"
-              style={{ color: "#484553" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#ece6f1")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "transparent")
-              }
-            >
-              <span className="material-symbols-outlined">help</span>
-            </button>
-            <div className="w-8 h-8 rounded-full overflow-hidden">
+            <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full overflow-hidden border-2" style={{ borderColor: '#e6e0ec' }}>
               <img
                 alt="User Avatar"
                 className="w-full h-full object-cover"
@@ -97,21 +77,21 @@ export default function TeacherHeader({
       </header>
 
       {/* Page Header Section */}
-      <section className="flex justify-between items-end px-8 pt-8 pb-4">
-        <div>
+      <section className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 px-4 lg:px-8 pt-6 lg:pt-8 pb-4">
+        <div className="w-full sm:w-auto">
           <h3
-            className="font-headline text-4xl font-extrabold -tracking-wide"
+            className="font-headline text-3xl sm:text-4xl font-extrabold -tracking-wide"
             style={{ color: "#1c1a22" }}
           >
             {title}
           </h3>
         </div>
         {stats.length > 0 && (
-          <div className="flex gap-4">
+          <div className="flex gap-2 lg:gap-4 w-full sm:w-auto overflow-x-auto">
             {stats.map((stat, index) => (
               <div
                 key={index}
-                className="px-6 py-3 rounded-lg text-right"
+                className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg text-right shrink-0"
                 style={{ backgroundColor: "#ffffff" }}
               >
                 <p
@@ -121,7 +101,7 @@ export default function TeacherHeader({
                   {stat.label}
                 </p>
                 <p
-                  className="font-headline text-2xl font-bold leading-none"
+                  className="font-headline text-xl lg:text-2xl font-bold leading-none"
                   style={{ color: stat.valueColor || "#1c1a22" }}
                 >
                   {stat.value}

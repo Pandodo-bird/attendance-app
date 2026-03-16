@@ -98,7 +98,7 @@ function SectionsContent() {
         <TeacherSidebar />
 
         {/* Main Content Area */}
-        <main className="flex-1 ml-64 min-h-screen flex flex-col">
+        <main className="flex-1 ml-0 lg:ml-64 min-h-screen flex flex-col transition-all duration-300">
           {/* Header */}
           <TeacherHeader
             title="Current Sections"
@@ -107,23 +107,22 @@ function SectionsContent() {
               { label: "AVG ATTENDANCE", value: `${avgAttendance}%`, valueColor: "#00625b" }
             ]}
             searchPlaceholder="Search sections..."
-            showNotificationBadge={true}
             onSearch={(query) => setSearchQuery(query)}
           />
 
           {/* Content Canvas */}
-          <div className="p-8 space-y-12">
+          <div className="p-4 lg:p-8 space-y-6 lg:space-y-12">
             {/* Bento Grid of Classes */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-8">
               {sections.map((section) => (
                 <div
                   key={section.id}
-                  className="group rounded-xl p-6 transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col"
+                  className="group rounded-xl p-4 lg:p-6 transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col"
                   style={{ backgroundColor: "#ffffff" }}
                 >
                   {/* Background glow effect */}
                   <div
-                    className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 rounded-full blur-3xl"
+                    className="absolute top-0 right-0 w-24 h-24 lg:w-32 lg:h-32 -mr-12 lg:-mr-16 -mt-12 lg:-mt-16 rounded-full blur-3xl"
                     style={{
                       backgroundColor:
                         section.status === "ACTION_REQ"
@@ -133,12 +132,12 @@ function SectionsContent() {
                   ></div>
 
                   {/* Card Header */}
-                  <div className="flex justify-between items-start mb-8 relative z-10">
+                  <div className="flex justify-between items-start mb-6 lg:mb-8 relative z-10">
                     <div
-                      className="p-3 rounded-lg"
+                      className="p-2 lg:p-3 rounded-lg"
                       style={{ backgroundColor: "#e6deff", color: "#493598" }}
                     >
-                      <span className="material-symbols-outlined">
+                      <span className="material-symbols-outlined text-base lg:text-xl">
                         {section.icon}
                       </span>
                     </div>
@@ -147,20 +146,20 @@ function SectionsContent() {
 
                   {/* Section Info */}
                   <h4
-                    className="font-headline text-2xl font-bold mb-1"
+                    className="font-headline text-xl lg:text-2xl font-bold mb-1"
                     style={{ color: "#1c1a22" }}
                   >
                     {section.name}
                   </h4>
                   <p
-                    className="font-body text-sm mb-6"
+                    className="font-body text-sm mb-4 lg:mb-6"
                     style={{ color: "#484553" }}
                   >
                     Participation across all active sections
                   </p>
 
                   {/* Attendance Progress */}
-                  <div className="space-y-4 mb-8">
+                  <div className="space-y-3 lg:space-y-4 mb-6 lg:mb-8">
                     <div className="flex justify-between items-center text-xs">
                       <span
                         className="text-on-surface-variant"
@@ -194,7 +193,7 @@ function SectionsContent() {
                       <span className="material-symbols-outlined text-sm">
                         schedule
                       </span>
-                      <span>{section.schedule}</span>
+                      <span className="truncate">{section.schedule}</span>
                     </div>
                   </div>
 
@@ -225,7 +224,7 @@ function SectionsContent() {
                       </div>
                     </div>
                     <button
-                      className="font-bold text-xs flex items-center gap-1 hover:underline transition-colors"
+                      className="font-bold text-xs flex items-center gap-1 hover:underline transition-colors whitespace-nowrap"
                       style={{ color: "#5b3ebf" }}
                     >
                       MANAGE <span className="material-symbols-outlined text-xs">arrow_forward</span>
@@ -236,7 +235,7 @@ function SectionsContent() {
 
               {/* Add New Class Button */}
               <button
-                className="group border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center gap-4 transition-all min-h-[320px]"
+                className="group border-2 border-dashed rounded-xl p-4 lg:p-6 flex flex-col items-center justify-center gap-3 lg:gap-4 transition-all min-h-[280px] lg:min-h-[320px]"
                 style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = "#f7f1fd";
@@ -250,7 +249,7 @@ function SectionsContent() {
                 }}
               >
                 <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center transition-colors"
+                  className="w-12 h-12 lg:w-16 lg:h-16 rounded-full flex items-center justify-center transition-colors"
                   style={{ backgroundColor: "#f1ecf7" }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.backgroundColor = "#e7deff")
@@ -259,9 +258,9 @@ function SectionsContent() {
                     (e.currentTarget.style.backgroundColor = "#f1ecf7")
                   }
                 >
-                  <span className="material-symbols-outlined text-3xl">add</span>
+                  <span className="material-symbols-outlined text-2xl lg:text-3xl">add</span>
                 </div>
-                <div className="text-center">
+                <div className="text-center px-2">
                   <h4
                     className="font-headline text-lg font-bold mb-1"
                     style={{ color: "#1c1a22" }}
