@@ -19,7 +19,7 @@ function DashboardRedirect() {
 
   useEffect(() => {
     if (userProfile?.role === "teacher") {
-      router.push("/dashboard/teacher");
+      router.push("/dashboard/teacher/dashboard");
     } else {
       router.push("/dashboard/secretary");
     }

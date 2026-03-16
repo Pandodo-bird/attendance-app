@@ -18,7 +18,7 @@ export default function TeacherSidebar({ onClose }: TeacherSidebarProps) {
   };
 
   const navItems = [
-    { icon: "dashboard", label: "Dashboard", href: "/dashboard/teacher" },
+    { icon: "dashboard", label: "Dashboard", href: "/dashboard/teacher/dashboard" },
     { icon: "class", label: "Sections", href: "/dashboard/teacher/sections" },
     { icon: "group", label: "Students", href: "/dashboard/teacher/students" },
     { icon: "check_circle", label: "Attendance", href: "/dashboard/teacher/attendance" },
@@ -96,15 +96,17 @@ export default function TeacherSidebar({ onClose }: TeacherSidebarProps) {
           className="flex items-center gap-3 p-3 rounded-xl shadow-sm mb-4"
           style={{ backgroundColor: '#FFFFFF' }}
         >
-          <img
-            alt="Teacher Profile Picture"
-            className="w-10 h-10 rounded-full object-cover"
-            style={{ backgroundColor: '#F0EDF7' }}
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfZXLCbV9x0LdZkoOHtWI-IClSKamJ2z7ngxrovAiGZbblJPMW0bCzGs25s3pMOMwj2V2FaiiwbKACtP69LLpSTGgzBD1M09rhewza6qA6iqatb7lu494X-7O4zjqyk-1EcLrVWKvYpAnhqP75KZx0lLE214Fz8NJu0FXF6HDe4FmpjPnJDYSqND8UyQcDgg_F2fV1VW0AqySyZ3TWNgvYeqyJVVmgKz7Gl_-ReyKKMBcjNtsbM88l6TVjLqWmxUQp0_tzbTKi"
-          />
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white"
+            style={{
+              background: 'linear-gradient(135deg, #6C5CE7, #5A4BD6)'
+            }}
+          >
+            {(user?.displayName || "T").charAt(0).toUpperCase()}
+          </div>
           <div className="overflow-hidden">
             <p className="text-sm font-bold truncate" style={{ color: '#1F1F1F' }}>{user?.displayName || "Teacher"}</p>
-            <p className="text-xs" style={{ color: '#9CA3AF' }}>Senior Educator</p>
+            <p className="text-xs" style={{ color: '#9CA3AF' }}>Admin</p>
           </div>
         </div>
         <button
