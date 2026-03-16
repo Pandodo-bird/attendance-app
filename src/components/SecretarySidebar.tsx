@@ -105,7 +105,7 @@ export default function SecretarySidebar({
                 ${isHighlighted && !isActive ? "ring-2 ring-orange-300 dark:ring-orange-600 ring-inset" : ""}
               `}
             >
-              <span className={`flex-shrink-0 ${isActive ? "text-white" : "text-gray-500 dark:text-gray-400 group-hover:text-orange-500 dark:group-hover:text-orange-400"}`}>
+              <span className={`shrink-0 ${isActive ? "text-white" : "text-gray-500 dark:text-gray-400 group-hover:text-orange-500 dark:group-hover:text-orange-400"}`}>
                 {item.icon}
               </span>
               <div className="flex-1 min-w-0">
@@ -117,7 +117,7 @@ export default function SecretarySidebar({
                 </p>
               </div>
               {isHighlighted && !isActive && (
-                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-orange-500 mt-1.5" />
+                <span className="shrink-0 w-2 h-2 rounded-full bg-orange-500 mt-1.5" />
               )}
             </button>
           );
