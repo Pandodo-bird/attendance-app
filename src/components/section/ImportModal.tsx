@@ -61,7 +61,11 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
   const findColumnIndex = (headers: string[], possibleNames: string[]): number => {
     for (let i = 0; i < headers.length; i++) {
       const header = headers[i].trim().toLowerCase();
-      if (possibleNames.some(name => name.toLowerCase() === header)) {
+      // Check for exact match or if header contains the possible name
+      if (possibleNames.some(name => {
+        const normalizedName = name.toLowerCase();
+        return header === normalizedName || header.includes(normalizedName);
+      })) {
         return i;
       }
     }
@@ -105,12 +109,20 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
 
       if (!lrn || !lastName || !firstName) continue;
 
+      // Normalize sex value from M/F to male/female, empty if not provided
+      const rawSex = sexIndex !== -1 ? String(row[sexIndex] || '') : '';
+      const normalizedSex = rawSex.toLowerCase() === 'f' || rawSex.toLowerCase() === 'female' 
+        ? 'female' 
+        : rawSex.toLowerCase() === 'm' || rawSex.toLowerCase() === 'male' 
+          ? 'male' 
+          : '';
+
       parsedStudents.push({
         lrn,
         lastName,
         firstName,
         middleName: middleNameIndex !== -1 ? String(row[middleNameIndex] || '') : '',
-        sex: sexIndex !== -1 ? String(row[sexIndex] || '') : '',
+        sex: normalizedSex,
         birthDate: birthDateIndex !== -1 ? String(row[birthDateIndex] || '') : '',
         religion: religionIndex !== -1 ? String(row[religionIndex] || '') : '',
         barangay: barangayIndex !== -1 ? String(row[barangayIndex] || '') : '',
@@ -167,12 +179,20 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
 
       if (!lrn || !lastName || !firstName) continue;
 
+      // Normalize sex value from M/F to male/female, empty if not provided
+      const rawSex = sexIndex !== -1 ? String(values[sexIndex] || '') : '';
+      const normalizedSex = rawSex.toLowerCase() === 'f' || rawSex.toLowerCase() === 'female' 
+        ? 'female' 
+        : rawSex.toLowerCase() === 'm' || rawSex.toLowerCase() === 'male' 
+          ? 'male' 
+          : '';
+
       parsedStudents.push({
         lrn,
         lastName,
         firstName,
         middleName: middleNameIndex !== -1 ? String(values[middleNameIndex] || '') : '',
-        sex: sexIndex !== -1 ? String(values[sexIndex] || '') : '',
+        sex: normalizedSex,
         birthDate: birthDateIndex !== -1 ? String(values[birthDateIndex] || '') : '',
         religion: religionIndex !== -1 ? String(values[religionIndex] || '') : '',
         barangay: barangayIndex !== -1 ? String(values[barangayIndex] || '') : '',

@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user's UID
+    function getUid() {
+      return request.auth.uid;
+    }
+    
+    // Helper function to check if user is a teacher
+    function isTeacher() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(getUid())).data.role == 'teacher';
+    }
+    
+    // Helper function to check if user is a secretary
+    function isSecretary() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(getUid())).data.role == 'secretary';
+    }
+    
+    // ==================== Users Collection ====================
+    match /users/{userId} {
+      allow read: if isAuthenticated() && getUid() == userId;
+      allow create: if isAuthenticated() && getUid() == userId;
+      allow update: if isAuthenticated() && getUid() == userId;
+      allow delete: if false;
+    }
+    
+    // ==================== Sections Collection ====================
+    match /sections/{sectionId} {
+      allow read: if isAuthenticated() && 
+                     resource.data.teacherId == getUid();
+      allow create: if isAuthenticated() && 
+                       request.resource.data.teacherId == getUid();
+      allow update: if isAuthenticated() && 
+                       resource.data.teacherId == getUid();
+      allow delete: if isAuthenticated() && 
+                       resource.data.teacherId == getUid();
+      
+      // Students subcollection
+      match /students/{studentLrn} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isAuthenticated() && 
+                                         get(/databases/$(database)/documents/sections/$(sectionId)).data.teacherId == getUid();
+      }
+    }
+    
+    // ==================== Appointments Collection ====================
+    match /appointments/{appointmentId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == getUid() || 
+                      resource.data.secretaryUid == getUid());
+      allow create: if isAuthenticated() && 
+                       isTeacher() &&
+                       request.resource.data.teacherId == getUid();
+      allow update: if isAuthenticated() && 
+                       resource.data.teacherId == getUid();
+      allow delete: if isAuthenticated() && 
+                       resource.data.teacherId == getUid();
+    }
+    
+    // ==================== Attendance Collection ====================
+    match /attendance/{attendanceId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.teacherId == getUid() || 
+                      resource.data.secretaryUid == getUid());
+      allow create: if isAuthenticated() && 
+                       isSecretary() &&
+                       request.resource.data.secretaryUid == getUid();
+      allow update, delete: if false;
+      
+      match /records/{recordId} {
+        allow read: if isAuthenticated() && 
+                       (get(/databases/$(database)/documents/attendance/$(attendanceId)).data.teacherId == getUid() ||
+                        get(/databases/$(database)/documents/attendance/$(attendanceId)).data.secretaryUid == getUid());
+        allow create, update, delete: if false;
+      }
+    }
+  }
+}

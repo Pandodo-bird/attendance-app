@@ -18,7 +18,8 @@ import {
   FirestoreError,
   addDoc,
   updateDoc,
-  Unsubscribe
+  Unsubscribe,
+  increment
 } from "firebase/firestore";
 
 // ==================== User Profile Types ====================
@@ -49,6 +50,7 @@ export interface Section {
   schoolYear: string;
   teacherId: string;
   status: "active" | "inactive" | "archived";
+  studentCount?: number;
   createdAt: Date | Timestamp;
 }
 
@@ -59,7 +61,7 @@ export interface Student {
   lastName: string;
   firstName: string;
   middleName: string;
-  sex: "male" | "female";
+  sex: "male" | "female" | "";
   birthDate: Date | Timestamp | string;
   religion: string;
   address: string;
@@ -251,7 +253,7 @@ export async function createSection(
   schoolYear: string
 ): Promise<string> {
   const sectionRef = doc(collection(db, "sections"));
-  
+
   const sectionData: Section = {
     id: sectionRef.id,
     sectionName,
@@ -259,6 +261,7 @@ export async function createSection(
     schoolYear,
     teacherId,
     status: "active",
+    studentCount: 0,
     createdAt: new Date(),
   };
 
@@ -357,14 +360,21 @@ export async function addStudentToSection(
   student: Omit<Student, "createdAt">
 ): Promise<void> {
   const studentRef = doc(db, `sections/${sectionId}/students`, student.lrn);
-  
+  const sectionRef = doc(db, "sections", sectionId);
+
   const studentData: Student = {
     ...student,
     createdAt: new Date(),
   };
 
-  await setDoc(studentRef, studentData);
+  // Add student and increment student count atomically
+  const batch = writeBatch(db);
+  batch.set(studentRef, studentData);
+  batch.update(sectionRef, { studentCount: increment(1) });
+  
+  await batch.commit();
   invalidateCache(`students_${sectionId}`);
+  invalidateCache(`sections_`);
 }
 
 /**
@@ -388,8 +398,16 @@ export async function deleteStudent(
   lrn: string
 ): Promise<void> {
   const studentRef = doc(db, `sections/${sectionId}/students`, lrn);
-  await deleteDoc(studentRef);
+  const sectionRef = doc(db, "sections", sectionId);
+
+  // Delete student and decrement student count atomically
+  const batch = writeBatch(db);
+  batch.delete(studentRef);
+  batch.update(sectionRef, { studentCount: increment(-1) });
+  
+  await batch.commit();
   invalidateCache(`students_${sectionId}`);
+  invalidateCache(`sections_`);
 }
 
 /**
@@ -399,8 +417,10 @@ export async function importStudentsBatch(
   sectionId: string,
   students: Array<Omit<Student, "createdAt">>
 ): Promise<void> {
+  const sectionRef = doc(db, "sections", sectionId);
   const batch = writeBatch(db);
 
+  // Add all students
   students.forEach((student) => {
     const studentRef = doc(db, `sections/${sectionId}/students`, student.lrn);
     batch.set(studentRef, {
@@ -408,6 +428,9 @@ export async function importStudentsBatch(
       createdAt: new Date(),
     });
   });
+  
+  // Update student count
+  batch.update(sectionRef, { studentCount: increment(students.length) });
 
   await batch.commit();
   invalidateCache(`students_${sectionId}`);
