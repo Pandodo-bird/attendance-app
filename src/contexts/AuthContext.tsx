@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
 import {
   User,
   onAuthStateChanged,
@@ -9,14 +9,14 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
-import { createUserProfile, getUserProfile, UserData } from "@/lib/firestore";
+import { auth } from "../lib/firebase";
+import { createUserProfile, getUserProfile, UserData } from "../lib/firestore";
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserData | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName: string, role: "teacher" | "secretary") => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, role: "teacher" | "secretary", lrn?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
@@ -24,15 +24,35 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// In-memory cache for user profiles to reduce Firestore reads
+const profileCache = new Map<string, { data: UserData; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Track the current user ID to detect user changes
+  const currentUserIdRef = useRef<string | null>(null);
 
-  // Memoized function to fetch user profile - avoids unnecessary re-fetches
-  const fetchUserProfile = useCallback(async (uid: string) => {
+  // Memoized function to fetch user profile with caching - avoids unnecessary re-fetches
+  const fetchUserProfile = useCallback(async (uid: string, forceRefresh = false) => {
+    // Check cache first
+    if (!forceRefresh) {
+      const cached = profileCache.get(uid);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        setUserProfile(cached.data);
+        setLoading(false);
+        return;
+      }
+    }
+    
     try {
       const profile = await getUserProfile(uid);
+      // Update cache
+      if (profile) {
+        profileCache.set(uid, { data: profile, timestamp: Date.now() });
+      }
       setUserProfile(profile);
     } catch (error) {
       console.error("Error fetching user profile:", error);
@@ -41,21 +61,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      const previousUserId = currentUserIdRef.current;
       setUser(user);
+      
       if (user) {
-        // Only fetch profile if not already loaded for this user
-        setUserProfile((prevProfile) => {
-          // Skip fetch if we already have a profile for this user
-          if (prevProfile) {
-            setLoading(false);
-            return prevProfile;
-          }
-          // Fetch profile for new user
+        // Only fetch profile if this is a different user or force refresh needed
+        if (previousUserId !== user.uid) {
+          currentUserIdRef.current = user.uid;
+          // Clear old user's profile and fetch new one
+          setUserProfile(null);
           fetchUserProfile(user.uid).finally(() => setLoading(false));
-          return null; // Will be set when fetch completes
-        });
+        } else {
+          // Same user, keep existing profile if available
+          setLoading(false);
+        }
       } else {
+        currentUserIdRef.current = null;
         setUserProfile(null);
         setLoading(false);
       }
@@ -64,10 +86,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile]);
 
-  const signUp = async (email: string, password: string, displayName: string, role: "teacher" | "secretary") => {
+  const signUp = async (
+    email: string,
+    password: string,
+    displayName: string,
+    role: "teacher" | "secretary",
+    lrn?: string  // Only for secretaries
+  ) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName });
-    await createUserProfile(userCredential.user.uid, role, displayName, email);
+    await createUserProfile(userCredential.user.uid, role, displayName, email, lrn);
     // Profile will be loaded automatically by onAuthStateChanged
   };
 
@@ -81,7 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUserProfile = async () => {
     if (user) {
-      await fetchUserProfile(user.uid);
+      // Force refresh by bypassing cache
+      await fetchUserProfile(user.uid, true);
     }
   };
 
