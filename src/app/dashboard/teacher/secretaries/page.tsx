@@ -291,8 +291,8 @@ function SecretariesContent() {
             title="Secretaries"
             stats={[
               {
-                label: "ACTIVE ASSISTANTS",
-                value: `${activeCount.toString().padStart(2, "0")}`,
+                label: "ACTIVE SECRETARIES",
+                value: activeCount,
                 valueColor: "#6C5CE7",
               },
             ]}
@@ -310,35 +310,6 @@ function SecretariesContent() {
               </p>
             </div>
 
-            {/* Quick Status Card */}
-            <div className="flex justify-start lg:justify-end mb-4 lg:mb-8">
-              <div
-                className="p-4 lg:p-6 rounded-3xl w-full lg:w-64 border-b-4"
-                style={{ backgroundColor: "#FFFFFF", borderColor: "#6C5CE7" }}
-              >
-                <p className="text-xs font-bold tracking-widest uppercase mb-2" style={{ color: "#484553" }}>
-                  Active Appointments
-                </p>
-                <div className="flex items-baseline gap-2 mb-4">
-                  <span className="text-4xl lg:text-5xl font-black" style={{ color: "#6C5CE7" }}>
-                    {activeCount.toString().padStart(2, "0")}
-                  </span>
-                  <span className="text-sm lg:text-base font-medium" style={{ color: "#484553" }}>
-                    {" "}
-                    appointments
-                  </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#ece6f1" }}>
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${secretaries.length > 0 ? (activeCount / secretaries.length) * 100 : 0}%`,
-                      backgroundColor: "#00625b",
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
 
             {/* Bento Grid of Secretaries */}
             <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-8">
@@ -602,91 +573,9 @@ function SecretariesContent() {
                 </div>
               </button>
             </section>
-
-            {/* Bottom Information Bar */}
-            <footer className="mt-auto pt-6 lg:pt-10 flex flex-col lg:flex-row gap-4 lg:gap-6 border-t" style={{ borderColor: "#e6e0ec" }}>
-              <div
-                className="flex-1 p-4 lg:p-6 rounded-2xl flex items-center gap-3 lg:gap-4"
-                style={{ backgroundColor: "#FFFFFF" }}
-              >
-                <div
-                  className="w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "#c5fff7", color: "#00201d" }}
-                >
-                  <span className="material-symbols-outlined text-base lg:text-xl">security</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: "#1c1a22" }}>
-                    Appointment-Based Access
-                  </p>
-                  <p className="text-xs" style={{ color: "#484553" }}>
-                    Secretaries can only log attendance for their appointed subjects and sections.
-                  </p>
-                </div>
-              </div>
-              <div
-                className="flex-1 p-4 lg:p-6 rounded-2xl flex items-center gap-3 lg:gap-4"
-                style={{ backgroundColor: "#FFFFFF" }}
-              >
-                <div
-                  className="w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: "#e6deff", color: "#1d0061" }}
-                >
-                  <span className="material-symbols-outlined text-base lg:text-xl">history_edu</span>
-                </div>
-                <div>
-                  <p className="text-sm font-bold" style={{ color: "#1c1a22" }}>
-                    Audit Trail
-                  </p>
-                  <p className="text-xs" style={{ color: "#484553" }}>
-                    Every attendance record is linked to the appointing teacher and secretary.
-                  </p>
-                </div>
-              </div>
-            </footer>
           </div>
         </main>
       </div>
-
-      {/* FAB - Hidden on mobile, visible on lg+ */}
-      <button
-        className="hidden lg:flex fixed bottom-10 right-10 h-14 px-6 rounded-full flex items-center gap-3 transition-transform z-50"
-        style={{
-          background: "linear-gradient(135deg, #6C5CE7, #5A4BD6)",
-          boxShadow: "0 4px 20px rgba(108, 92, 231, 0.4)",
-          color: "#FFFFFF",
-        }}
-        onClick={handleOpenRegisterModal}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.05)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-        }}
-        title="Create a new appointment"
-      >
-        <span className="material-symbols-outlined">person_add</span>
-        <span className="font-bold tracking-tight">Appoint Secretary</span>
-      </button>
-
-      {/* Mobile FAB - smaller, icon only */}
-      <button
-        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full flex items-center justify-center transition-transform z-50 shadow-lg"
-        style={{
-          background: "linear-gradient(135deg, #6C5CE7, #5A4BD6)",
-          color: "#FFFFFF",
-        }}
-        onClick={handleOpenRegisterModal}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.1)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-        }}
-        title="Create a new appointment"
-      >
-        <span className="material-symbols-outlined text-2xl">person_add</span>
-      </button>
 
       {/* Registration Modal */}
       {showRegisterModal && (
