@@ -20,6 +20,7 @@ interface SecretaryCreationFormProps {
   onSuccess: (credentials: { email: string; password: string }) => void;
   onCancel: () => void;
   createSecretaryAccount: (displayName: string, email: string, password: string) => Promise<{ email: string; password: string }>;
+  refreshTrigger?: number; // Increment this to force reload sections
 }
 
 // Combobox/Dropdown component for searchable selects
@@ -159,6 +160,7 @@ export default function SecretaryCreationForm({
   onSuccess,
   onCancel,
   createSecretaryAccount,
+  refreshTrigger = 0,
 }: SecretaryCreationFormProps) {
   // Form state
   const [selectedSectionId, setSelectedSectionId] = useState("");
@@ -194,14 +196,15 @@ export default function SecretaryCreationForm({
     password: false,
   });
 
-  // Load sections on mount
+  // Load sections on mount or when refreshTrigger changes
   useEffect(() => {
     const loadSections = async () => {
       if (!teacherId) return;
-      
+
       try {
         setIsLoadingSections(true);
-        const sections = await getTeacherSections(teacherId, false);
+        // Use cache by default (faster, reduces Firestore reads)
+        const sections = await getTeacherSections(teacherId);
         setAvailableSections(sections.map(s => ({ id: s.id, sectionName: s.sectionName, gradeLevel: s.gradeLevel })));
       } catch (err) {
         console.error("Error loading sections:", err);
@@ -211,7 +214,7 @@ export default function SecretaryCreationForm({
       }
     };
     loadSections();
-  }, [teacherId]);
+  }, [teacherId, refreshTrigger]);
 
   // Auto-generate email when LRN changes
   useEffect(() => {
@@ -263,7 +266,7 @@ export default function SecretaryCreationForm({
 
     setIsLoadingStudents(true);
     try {
-      const students = await getSectionStudents(sectionId, false);
+      const students = await getSectionStudents(sectionId);
       const section = availableSections.find((s) => s.id === sectionId);
 
       setAvailableStudents(

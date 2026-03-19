@@ -158,6 +158,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Clear profile cache before logging out
+    profileCache.clear();
+    currentUserIdRef.current = null;
+    setUserProfile(null);
     await signOut(auth);
   };
 

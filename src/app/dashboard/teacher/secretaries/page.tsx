@@ -63,6 +63,7 @@ function SecretariesContent() {
 
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -271,6 +272,7 @@ function SecretariesContent() {
 
   // Handle opening the registration modal
   const handleOpenRegisterModal = () => {
+    setRefreshTrigger(prev => prev + 1); // Force reload sections
     setShowRegisterModal(true);
     setGeneratedCredentials(null);
     setShowPassword(false);
@@ -732,6 +734,7 @@ function SecretariesContent() {
                   setGeneratedCredentials(credentials);
                 }}
                 onCancel={() => setShowRegisterModal(false)}
+                refreshTrigger={refreshTrigger}
                 createSecretaryAccount={async (displayName, email, password) => {
                   const credentials = await createSecretaryAccount(displayName, email, password);
                   setGeneratedCredentials(credentials);

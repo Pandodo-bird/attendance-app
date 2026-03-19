@@ -5,16 +5,7 @@ import AuthGuard from "@/components/AuthGuard";
 import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useState, useEffect } from "react";
-import {
-  subscribeToSections,
-  createSection,
-  importStudentsBatch,
-  Section,
-  Student,
-  deleteSection,
-  clearAllCaches
-} from "@/lib/firestore";
-import { Unsubscribe, FirestoreError } from "firebase/firestore";
+import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection } from "@/lib/firestore";
 import { useRouter } from "next/navigation";
 import { ImportModal, StudentData } from "@/components/section";
 import { PopupAlert } from "@/components/ui";
@@ -43,6 +34,7 @@ function SectionsContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingSectionData, setPendingSectionData] = useState<{
     sectionName: string;
     gradeLevel: string;
@@ -53,60 +45,40 @@ function SectionsContent() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'error' | 'success' | 'info'>('info');
 
-  // Real-time subscription to sections data with student counts
+  // Load sections on mount or when refreshTrigger changes
   useEffect(() => {
-    let unsubscribe: Unsubscribe | undefined;
+    const loadSections = async () => {
+      if (!user?.uid) return;
 
-    if (user?.uid) {
       setIsLoading(true);
       setError(null);
 
-      console.log("Subscribing to sections for teacher:", user.uid);
+      try {
+        console.log("Loading sections for teacher:", user.uid);
+        
+        // Fetch sections (uses cache if < 2 min old)
+        const fetchedSections = await getTeacherSections(user.uid);
+        
+        console.log("Fetched sections:", fetchedSections.length);
 
-      // Subscribe to real-time updates for teacher's sections
-      // Student count is now stored in the section document (denormalized)
-      unsubscribe = subscribeToSections(
-        user.uid,
-        (fetchedSections) => {
-          try {
-            console.log("Fetched sections:", fetchedSections.length);
+        // Use stored studentCount, default to 0 if not set
+        const sectionsWithCounts = fetchedSections.map((section) => ({
+          ...section,
+          studentCount: section.studentCount || 0,
+        } as SectionWithCount));
 
-            // Use stored studentCount, default to 0 if not set
-            const sectionsWithCounts = fetchedSections.map((section) => ({
-              ...section,
-              studentCount: section.studentCount || 0,
-            } as SectionWithCount));
-
-            console.log("Sections with counts:", sectionsWithCounts);
-            setSections(sectionsWithCounts);
-            setIsLoading(false);
-          } catch (err) {
-            console.error("Error processing sections:", err);
-            setError("Failed to load section data. Please try again.");
-            setIsLoading(false);
-          }
-        },
-        (err: FirestoreError) => {
-          console.error("Error fetching sections:", err);
-          if (err.code === "permission-denied") {
-            setError(
-              "Unable to load sections. Firestore security rules may need to be configured."
-            );
-          } else {
-            setError("Failed to load sections. Please try again.");
-          }
-          setIsLoading(false);
-        }
-      );
-    }
-
-    // Cleanup: Unsubscribe when component unmounts or user changes
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
+        console.log("Sections with counts:", sectionsWithCounts);
+        setSections(sectionsWithCounts);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Error loading sections:", err);
+        setError("Failed to load sections. Please try again.");
+        setIsLoading(false);
       }
     };
-  }, [user?.uid]);
+    
+    loadSections();
+  }, [user?.uid, refreshTrigger]);
 
   // Calculate derived statistics
   const totalStudents = sections.reduce((sum, section) => sum + section.studentCount, 0);
@@ -188,7 +160,8 @@ function SectionsContent() {
 
     try {
       await deleteSection(sectionId, user?.uid || "");
-      setSections((prev) => prev.filter((s) => s.id !== sectionId));
+      // Refresh sections list
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error("Error deleting section:", error);
       alert("Failed to delete section. Please try again.");
@@ -262,8 +235,8 @@ function SectionsContent() {
       setPendingSectionData(null);
       setShowImportModal(false);
 
-      // Clear cache to force refresh of sections list
-      clearAllCaches();
+      // Refresh sections list
+      setRefreshTrigger(prev => prev + 1);
 
       // Show success message
       setAlertMessage(`Section "${sectionName}" created with ${students.length} student(s)!`);

@@ -53,7 +53,7 @@ export function useRequireRole(requiredRole: UserRole): UseRequireRoleReturn {
       if (role !== requiredRole) {
         // Redirect to the appropriate dashboard based on user's actual role
         if (role === "teacher") {
-          router.push("/dashboard/teacher");
+          router.push("/dashboard/teacher/dashboard");
         } else if (role === "secretary") {
           router.push("/dashboard/secretary");
         } else {
