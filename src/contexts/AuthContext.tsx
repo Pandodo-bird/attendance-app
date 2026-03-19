@@ -87,27 +87,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile]);
 
-  // Create a secretary account with provided email and password
+  // Create a secretary account using server-side API (keeps current user logged in)
   const createSecretaryAccount = async (
     displayName: string,
     email: string,
     password: string
   ) => {
-    
     // Extract LRN from email (format: LRN@app.local)
     const lrn = email.split('@')[0];
     
     try {
-      console.log("Creating Firebase Auth user...");
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      console.log("Firebase Auth user created:", userCredential.user.uid);
+      console.log("Creating secretary via API...");
       
-      console.log("Updating Firebase profile...");
-      await updateProfile(userCredential.user, { displayName });
+      const response = await fetch('/api/create-secretary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          displayName,
+          email,
+          password,
+          lrn,
+        }),
+      });
       
-      console.log("Creating Firestore profile for:", userCredential.user.uid);
-      await createUserProfile(userCredential.user.uid, "secretary", displayName, email, lrn);
-      console.log("Firestore profile created successfully");
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create secretary account');
+      }
+      
+      console.log("Secretary created successfully via API:", data.userId);
       
       return { email, password };
     } catch (error) {

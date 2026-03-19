@@ -18,6 +18,7 @@ import { Unsubscribe, FirestoreError } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { ImportModal, StudentData } from "@/components/section";
 import { PopupAlert } from "@/components/ui";
+import { RoleGuard } from "@/hooks/useRequireRole";
 
 // Extended section with student count
 interface SectionWithCount extends Section {
@@ -27,7 +28,9 @@ interface SectionWithCount extends Section {
 export default function SectionsPage() {
   return (
     <AuthGuard>
-      <SectionsContent />
+      <RoleGuard requiredRole="teacher">
+        <SectionsContent />
+      </RoleGuard>
     </AuthGuard>
   );
 }

@@ -5,11 +5,14 @@ import AuthGuard from "@/components/AuthGuard";
 import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useRouter } from "next/navigation";
+import { RoleGuard } from "@/hooks/useRequireRole";
 
 export default function TeacherDashboardPage() {
   return (
     <AuthGuard>
-      <TeacherDashboardContent />
+      <RoleGuard requiredRole="teacher">
+        <TeacherDashboardContent />
+      </RoleGuard>
     </AuthGuard>
   );
 }

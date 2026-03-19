@@ -15,6 +15,7 @@ import {
   Student,
 } from "@/lib/firestore";
 import { Unsubscribe, FirestoreError } from "firebase/firestore";
+import { RoleGuard } from "@/hooks/useRequireRole";
 
 // Extended appointment with enriched data
 interface EnrichedAppointment {
@@ -37,7 +38,9 @@ interface EnrichedAppointment {
 export default function SecretaryDashboardPage() {
   return (
     <AuthGuard>
-      <SecretaryDashboardContent />
+      <RoleGuard requiredRole="secretary">
+        <SecretaryDashboardContent />
+      </RoleGuard>
     </AuthGuard>
   );
 }
