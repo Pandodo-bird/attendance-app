@@ -17,6 +17,7 @@ interface AuthContextType {
   userProfile: UserData | null;
   loading: boolean;
   signUp: (email: string, password: string, displayName: string, role: "teacher" | "secretary", lrn?: string) => Promise<void>;
+  createSecretaryAccount: (displayName: string, email: string, password: string) => Promise<{ email: string; password: string }>;
   signIn: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
@@ -86,6 +87,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [fetchUserProfile]);
 
+  // Create a secretary account with provided email and password
+  const createSecretaryAccount = async (
+    displayName: string,
+    email: string,
+    password: string
+  ) => {
+    
+    // Extract LRN from email (format: LRN@app.local)
+    const lrn = email.split('@')[0];
+    
+    try {
+      console.log("Creating Firebase Auth user...");
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      console.log("Firebase Auth user created:", userCredential.user.uid);
+      
+      console.log("Updating Firebase profile...");
+      await updateProfile(userCredential.user, { displayName });
+      
+      console.log("Creating Firestore profile for:", userCredential.user.uid);
+      await createUserProfile(userCredential.user.uid, "secretary", displayName, email, lrn);
+      console.log("Firestore profile created successfully");
+      
+      return { email, password };
+    } catch (error) {
+      console.error("Error in createSecretaryAccount:", error);
+      throw error;
+    }
+  };
+
+  // Generate a secure random password
+  const generateSecurePassword = (): string => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let password = "";
+    // First char should be a letter
+    password += chars.charAt(Math.floor(Math.random() * 52));
+    // Rest of the password (11 more characters = 12 total)
+    for (let i = 0; i < 11; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
   const signUp = async (
     email: string,
     password: string,
@@ -114,11 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     userProfile,
     loading,
     signUp,
+    createSecretaryAccount,
     signIn,
     logout,
     refreshUserProfile,

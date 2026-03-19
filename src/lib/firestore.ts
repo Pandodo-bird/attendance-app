@@ -295,6 +295,60 @@ export async function deleteSection(sectionId: string, teacherId: string): Promi
 // ==================== Student Functions (sections/{id}/students subcollection) ====================
 
 /**
+ * Get all students from all sections for a teacher
+ */
+export async function getAllTeacherStudents(
+  teacherId: string,
+  useCache = true
+): Promise<{ sectionId: string; sectionName: string; gradeLevel: string; student: Student }[]> {
+  const sections = await getTeacherSections(teacherId, useCache);
+  const allStudents: { sectionId: string; sectionName: string; gradeLevel: string; student: Student }[] = [];
+
+  for (const section of sections) {
+    if (section.status === 'active') {
+      const students = await getSectionStudents(section.id, useCache);
+      for (const student of students) {
+        if (student.studentStatus === 'active') {
+          allStudents.push({
+            sectionId: section.id,
+            sectionName: section.sectionName,
+            gradeLevel: section.gradeLevel,
+            student
+          });
+        }
+      }
+    }
+  }
+
+  return allStudents;
+}
+
+/**
+ * Check if a student LRN already has a secretary account
+ */
+export async function checkSecretaryAccountExists(lrn: string): Promise<boolean> {
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, where("lrn", "==", lrn), where("role", "==", "secretary"));
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+}
+
+/**
+ * Get user by email
+ */
+export async function getUserByEmail(email: string): Promise<UserData | null> {
+  const usersRef = collection(db, "users");
+  const q = query(usersRef, where("email", "==", email));
+  const snapshot = await getDocs(q);
+
+  if (!snapshot.empty) {
+    return snapshot.docs[0].data() as UserData;
+  }
+
+  return null;
+}
+
+/**
  * Get all students in a section
  */
 export async function getSectionStudents(

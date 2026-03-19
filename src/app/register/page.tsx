@@ -6,14 +6,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "@/contexts/ThemeContext";
 
-type Role = "teacher" | "secretary";
-
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<Role>("teacher");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
@@ -37,7 +34,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await signUp(email, password, name, role);
+      await signUp(email, password, name, "teacher");
       router.push("/dashboard");
     } catch (err: unknown) {
       const firebaseError = err as { code?: string; message?: string };
@@ -55,32 +52,18 @@ export default function RegisterPage() {
     }
   };
 
-  const getRoleStyles = () => {
-    return role === "teacher"
-      ? {
-          gradient: "from-purple-500 to-fuchsia-600",
-          hoverGradient: "from-purple-600 to-fuchsia-700",
-          ring: "focus:ring-purple-200",
-          bg: "bg-purple-50",
-          border: "border-purple-200",
-          text: "text-purple-700",
-          checkBg: "bg-purple-600",
-        }
-      : {
-          gradient: "from-orange-500 to-rose-500",
-          hoverGradient: "from-orange-600 to-rose-600",
-          ring: "focus:ring-orange-200",
-          bg: "bg-orange-50",
-          border: "border-orange-200",
-          text: "text-orange-700",
-          checkBg: "bg-orange-500",
-        };
+  const roleStyles = {
+    gradient: "from-purple-500 to-fuchsia-600",
+    hoverGradient: "from-purple-600 to-fuchsia-700",
+    ring: "focus:ring-purple-200",
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    text: "text-purple-700",
+    checkBg: "bg-purple-600",
   };
 
-  const roleStyles = getRoleStyles();
-
   return (
-    <div className={`min-h-screen flex items-center justify-center bg-gradient-to-br ${role === "teacher" ? "from-purple-50 via-fuchsia-50 to-pink-50" : "from-orange-50 via-rose-50 to-pink-50"} dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 transition-colors duration-500`}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-fuchsia-50 to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 transition-colors duration-500">
       {/* Theme Toggle */}
       <button
         onClick={toggleTheme}
@@ -181,69 +164,34 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Select Your Role
+              Account Type
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label
-                className={`relative flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                  role === "teacher"
-                    ? `${roleStyles.bg} dark:bg-purple-900/30 ${roleStyles.border} dark:border-purple-700 shadow-md`
-                    : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-gray-50 dark:bg-gray-700/50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="role"
-                  value="teacher"
-                  checked={role === "teacher"}
-                  onChange={(e) => setRole(e.target.value as Role)}
-                  className="sr-only"
-                />
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                  role === "teacher" ? roleStyles.checkBg : "bg-gray-300 dark:bg-gray-600"
-                } transition-colors`}>
+            <div className="p-4 rounded-xl border-2" style={{ backgroundColor: "#f1ecf7", borderColor: "#e6e0ec" }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "#6C5CE7" }}>
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
                 </div>
-                <span className={`font-semibold text-sm ${role === "teacher" ? roleStyles.text : "text-gray-600 dark:text-gray-400"}`}>
-                  Teacher
-                </span>
-              </label>
-
-              <label
-                className={`relative flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                  role === "secretary"
-                    ? `${roleStyles.bg} dark:bg-orange-900/30 ${roleStyles.border} dark:border-orange-700 shadow-md`
-                    : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 bg-gray-50 dark:bg-gray-700/50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="role"
-                  value="secretary"
-                  checked={role === "secretary"}
-                  onChange={(e) => setRole(e.target.value as Role)}
-                  className="sr-only"
-                />
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
-                  role === "secretary" ? roleStyles.checkBg : "bg-gray-300 dark:bg-gray-600"
-                } transition-colors`}>
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
+                <div>
+                  <span className="font-semibold text-sm" style={{ color: "#1c1a22" }}>
+                    Teacher Account
+                  </span>
+                  <p className="text-xs" style={{ color: "#484553" }}>
+                    Create sections and manage students
+                  </p>
                 </div>
-                <span className={`font-semibold text-sm ${role === "secretary" ? roleStyles.text : "text-gray-600 dark:text-gray-400"}`}>
-                  Secretary
-                </span>
-              </label>
+              </div>
             </div>
+            <p className="text-xs mt-2" style={{ color: "#9CA3AF" }}>
+              Secretary accounts can only be created by teachers through their dashboard.
+            </p>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className={`w-full bg-gradient-to-r ${roleStyles.gradient} text-white py-3 px-4 rounded-xl hover:${roleStyles.hoverGradient} focus:ring-4 ${roleStyles.ring} transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl`}
+            className="w-full bg-gradient-to-r from-purple-500 to-fuchsia-600 text-white py-3 px-4 rounded-xl hover:from-purple-600 hover:to-fuchsia-700 focus:ring-4 focus:ring-purple-200 transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-lg hover:shadow-xl"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -254,7 +202,7 @@ export default function RegisterPage() {
                 Creating Account...
               </span>
             ) : (
-              `Register as ${role === "teacher" ? "Teacher" : "Secretary"}`
+              "Register as Teacher"
             )}
           </button>
         </form>

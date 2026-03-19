@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
+import SecretaryCreationForm from "@/components/teacher/SecretaryCreationForm";
 import { useState, useEffect } from "react";
 import {
   subscribeToTeacherAppointments,
@@ -46,7 +47,7 @@ export default function SecretariesPage() {
 }
 
 function SecretariesContent() {
-  const { user, userProfile } = useAuth();
+  const { user, createSecretaryAccount } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [secretaries, setSecretaries] = useState<SecretaryAppointment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,6 +57,11 @@ function SecretariesContent() {
   const [sectionsCache, setSectionsCache] = useState<Map<string, Section>>(new Map());
   const [studentsCache, setStudentsCache] = useState<Map<string, Map<string, Student>>>(new Map());
   const [usersCache, setUsersCache] = useState<Map<string, UserData>>(new Map());
+
+  // Registration modal state
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Real-time subscription to appointments data
   useEffect(() => {
@@ -258,6 +264,13 @@ function SecretariesContent() {
       console.error("Error deleting appointment:", error);
       alert("Failed to delete appointment. Please try again.");
     }
+  };
+
+  // Handle opening the registration modal
+  const handleOpenRegisterModal = () => {
+    setShowRegisterModal(true);
+    setGeneratedCredentials(null);
+    setShowPassword(false);
   };
 
   return (
@@ -551,6 +564,7 @@ function SecretariesContent() {
               <button
                 className="border-2 border-dashed p-4 lg:p-8 rounded-[2rem] flex flex-col items-center justify-center gap-3 lg:gap-4 transition-colors cursor-pointer min-h-[280px] lg:min-h-[320px]"
                 style={{ borderColor: "#cac4d6" }}
+                onClick={handleOpenRegisterModal}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "#6C5CE7";
                   e.currentTarget.style.color = "#6C5CE7";
@@ -637,6 +651,7 @@ function SecretariesContent() {
           boxShadow: "0 4px 20px rgba(108, 92, 231, 0.4)",
           color: "#FFFFFF",
         }}
+        onClick={handleOpenRegisterModal}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "scale(1.05)";
         }}
@@ -656,6 +671,7 @@ function SecretariesContent() {
           background: "linear-gradient(135deg, #6C5CE7, #5A4BD6)",
           color: "#FFFFFF",
         }}
+        onClick={handleOpenRegisterModal}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = "scale(1.1)";
         }}
@@ -666,6 +682,63 @@ function SecretariesContent() {
       >
         <span className="material-symbols-outlined text-2xl">person_add</span>
       </button>
+
+      {/* Registration Modal */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowRegisterModal(false)}
+          ></div>
+          
+          {/* Modal Content */}
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            {/* Header */}
+            <div className="p-6 lg:p-8 border-b flex-shrink-0" style={{ borderColor: "#e6e0ec", backgroundColor: "#faf8fc" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold" style={{ color: "#1c1a22" }}>
+                    Register Secretary
+                  </h2>
+                  <p className="text-sm mt-1" style={{ color: "#484553" }}>
+                    Create a new secretary account for your section
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowRegisterModal(false)}
+                  className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                  style={{ backgroundColor: "#f1ecf7", color: "#484553" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#e7deff";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#f1ecf7";
+                  }}
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Form */}
+            <div className="p-6 lg:p-8 flex-1 overflow-y-auto">
+              <SecretaryCreationForm
+                teacherId={user?.uid || ''}
+                onSuccess={(credentials) => {
+                  setGeneratedCredentials(credentials);
+                }}
+                onCancel={() => setShowRegisterModal(false)}
+                createSecretaryAccount={async (displayName, email, password) => {
+                  const credentials = await createSecretaryAccount(displayName, email, password);
+                  setGeneratedCredentials(credentials);
+                  return credentials;
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

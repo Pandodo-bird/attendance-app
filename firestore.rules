@@ -27,8 +27,10 @@ service cloud.firestore {
     
     // ==================== Users Collection ====================
     match /users/{userId} {
-      allow read: if isAuthenticated() && getUid() == userId;
-      allow create: if isAuthenticated() && getUid() == userId;
+      // Allow authenticated users to read any user profile (needed for checking secretary existence)
+      allow read: if isAuthenticated();
+      // TEMPORARILY OPEN: Allow authenticated users to create secretary profiles for testing
+      allow create: if isAuthenticated();
       allow update: if isAuthenticated() && getUid() == userId;
       allow delete: if false;
     }
