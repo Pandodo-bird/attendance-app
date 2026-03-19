@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
-import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useRouter } from "next/navigation";
 import { RoleGuard } from "@/hooks/useRequireRole";
@@ -22,21 +21,15 @@ function TeacherDashboardContent() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F5F3FA' }}>
-      <div className="flex min-h-screen">
-        {/* Side Navigation Bar */}
-        <TeacherSidebar />
+    <>
+      {/* Header */}
+      <TeacherHeader
+        title="Dashboard Overview"
+        searchPlaceholder="Search students, classes..."
+      />
 
-        {/* Main Content Area */}
-        <main className="flex-1 ml-0 lg:ml-64 min-h-screen flex flex-col transition-all duration-300">
-          {/* Header */}
-          <TeacherHeader
-            title="Dashboard Overview"
-            searchPlaceholder="Search students, classes..."
-          />
-
-          {/* Content Canvas */}
-          <div className="p-4 lg:p-8 space-y-6 lg:space-y-12">
+      {/* Content Canvas */}
+      <div className="p-4 lg:p-8 space-y-6 lg:space-y-12">
             {/* Quick Actions */}
             <div
               className="p-4 lg:p-8 rounded-3xl shadow-sm"
@@ -128,8 +121,6 @@ function TeacherDashboardContent() {
               </div>
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+    </>
   );
 }

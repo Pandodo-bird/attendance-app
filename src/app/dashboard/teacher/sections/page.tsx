@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
-import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useState, useEffect } from "react";
 import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection } from "@/lib/firestore";
@@ -256,17 +255,11 @@ function SectionsContent() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
-      <div className="flex min-h-screen">
-        {/* Teacher Sidebar */}
-        <TeacherSidebar />
-
-        {/* Main Content Area */}
-        <main className="flex-1 ml-0 lg:ml-64 min-h-screen flex flex-col transition-all duration-300">
-          {/* Header */}
-          <TeacherHeader
-            title="Current Sections"
-            stats={[
+    <>
+      {/* Header */}
+      <TeacherHeader
+        title="Current Sections"
+        stats={[
               { label: "TOTAL STUDENTS", value: totalStudents },
               {
                 label: "ACTIVE SECTIONS",
@@ -509,8 +502,6 @@ function SectionsContent() {
               </button>
             </section>
           </div>
-        </main>
-      </div>
 
       {/* Import Modal */}
       <ImportModal
@@ -596,6 +587,6 @@ function SectionsContent() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

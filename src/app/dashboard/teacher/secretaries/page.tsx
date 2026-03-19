@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
-import TeacherSidebar from "@/components/TeacherSidebar";
 import TeacherHeader from "@/components/TeacherHeader";
 import SecretaryCreationForm from "@/components/teacher/SecretaryCreationForm";
 import { useState, useEffect } from "react";
@@ -279,29 +278,23 @@ function SecretariesContent() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
-      <div className="flex min-h-screen">
-        {/* Teacher Sidebar */}
-        <TeacherSidebar />
+    <>
+      {/* Header */}
+      <TeacherHeader
+        title="Secretaries"
+        stats={[
+          {
+            label: "ACTIVE SECRETARIES",
+            value: activeCount,
+            valueColor: "#6C5CE7",
+          },
+        ]}
+        searchPlaceholder="Search by name, subject, or section..."
+        onSearch={(query) => setSearchQuery(query)}
+      />
 
-        {/* Main Content Area */}
-        <main className="flex-1 ml-0 lg:ml-64 min-h-screen flex flex-col transition-all duration-300">
-          {/* Header */}
-          <TeacherHeader
-            title="Secretaries"
-            stats={[
-              {
-                label: "ACTIVE SECRETARIES",
-                value: activeCount,
-                valueColor: "#6C5CE7",
-              },
-            ]}
-            searchPlaceholder="Search by name, subject, or section..."
-            onSearch={(query) => setSearchQuery(query)}
-          />
-
-          {/* Content Canvas */}
-          <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
+      {/* Content Canvas */}
+      <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
             {/* Bento Grid of Secretaries */}
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
               {error ? (
@@ -536,8 +529,6 @@ function SecretariesContent() {
               )}
             </section>
           </div>
-        </main>
-      </div>
 
       {/* Registration Modal */}
       {showRegisterModal && (
@@ -596,6 +587,6 @@ function SecretariesContent() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
