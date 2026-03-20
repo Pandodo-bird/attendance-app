@@ -84,7 +84,7 @@ export default function SecretaryCard({
 
         {/* Secretary Info */}
         <h3 className="text-xl lg:text-2xl font-bold" style={{ color: "#1c1a22" }}>
-          {secretaryName}
+          {secretaryName || `Secretary (${secretaryLrn})`}
         </h3>
         <p className="mb-2 lg:mb-4" style={{ color: "#484553" }}>
           {subject} • {sectionName}

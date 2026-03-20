@@ -127,16 +127,23 @@ export function getCachedData<T>(key: string): T | null {
   return null;
 }
 
-function setCachedData<T>(key: string, data: T): void {
+export function setCachedData<T>(key: string, data: T): void {
   queryCache.set(key, { data, timestamp: Date.now() });
 }
 
-function invalidateCache(pattern: string): void {
+export function invalidateCache(pattern: string): void {
   for (const key of queryCache.keys()) {
     if (key.includes(pattern)) {
       queryCache.delete(key);
     }
   }
+}
+
+/**
+ * Export function to clear all caches (useful for testing or manual refresh)
+ */
+export function clearAllCaches(): void {
+  queryCache.clear();
 }
 
 // ==================== User Profile Functions ====================
@@ -843,13 +850,4 @@ export async function getAttendanceRecords(
   });
 
   return records;
-}
-
-// ==================== Utility Functions ====================
-
-/**
- * Export function to clear all caches (useful for testing or manual refresh)
- */
-export function clearAllCaches(): void {
-  queryCache.clear();
 }
