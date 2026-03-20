@@ -111,10 +111,10 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
 
       // Normalize sex value from M/F to male/female, empty if not provided
       const rawSex = sexIndex !== -1 ? String(row[sexIndex] || '') : '';
-      const normalizedSex = rawSex.toLowerCase() === 'f' || rawSex.toLowerCase() === 'female' 
-        ? 'female' 
-        : rawSex.toLowerCase() === 'm' || rawSex.toLowerCase() === 'male' 
-          ? 'male' 
+      const normalizedSex = rawSex.toLowerCase() === 'f' || rawSex.toLowerCase() === 'female'
+        ? 'female'
+        : rawSex.toLowerCase() === 'm' || rawSex.toLowerCase() === 'male'
+          ? 'male'
           : '';
 
       parsedStudents.push({
@@ -181,10 +181,10 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
 
       // Normalize sex value from M/F to male/female, empty if not provided
       const rawSex = sexIndex !== -1 ? String(values[sexIndex] || '') : '';
-      const normalizedSex = rawSex.toLowerCase() === 'f' || rawSex.toLowerCase() === 'female' 
-        ? 'female' 
-        : rawSex.toLowerCase() === 'm' || rawSex.toLowerCase() === 'male' 
-          ? 'male' 
+      const normalizedSex = rawSex.toLowerCase() === 'f' || rawSex.toLowerCase() === 'female'
+        ? 'female'
+        : rawSex.toLowerCase() === 'm' || rawSex.toLowerCase() === 'male'
+          ? 'male'
           : '';
 
       parsedStudents.push({

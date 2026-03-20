@@ -362,11 +362,11 @@ export default function SecretaryCreationForm({
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("lrn", "==", selectedStudentLrn));
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
         throw new Error("Failed to find created secretary account");
       }
-      
+
       const secretaryDoc = snapshot.docs[0];
       const secretaryUid = secretaryDoc.id;
 
@@ -639,7 +639,7 @@ export default function SecretaryCreationForm({
                 Generated Credentials
               </p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3">
               {/* Secretary Name */}
               <div>

@@ -1,2 +1,4 @@
-export { default as SecretaryCard } from "./SecretaryCard";
-export { default as ActiveSecretariesCounter } from "./ActiveSecretariesCounter";
+// Re-export all secretary components
+export * from "./dashboard";
+export * from "./attendance";
+export * from "./reports";

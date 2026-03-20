@@ -3,8 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
-import SecretaryCreationForm from "@/components/teacher/SecretaryCreationForm";
-import { SecretaryCard, ActiveSecretariesCounter } from "@/components/secretary";
+import { SecretaryCard, ActiveSecretariesCounter, SecretaryCreationForm } from "@/components/teacher/secretaries";
 import { useState, useEffect } from "react";
 import {
   getTeacherAppointments,

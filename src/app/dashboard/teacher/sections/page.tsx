@@ -6,7 +6,7 @@ import TeacherHeader from "@/components/TeacherHeader";
 import { useState, useEffect } from "react";
 import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection } from "@/lib/firestore";
 import { useRouter } from "next/navigation";
-import { ImportModal, StudentData } from "@/components/section";
+import { ImportModal, StudentData } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
 import { RoleGuard } from "@/hooks/useRequireRole";
 
