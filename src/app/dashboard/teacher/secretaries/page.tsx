@@ -58,12 +58,19 @@ function SecretariesContent() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
 
   // Format Firestore timestamp to readable string
-  const formatLastActive = (timestamp: any): string => {
+  const formatLastActive = (timestamp: Date | { toDate: () => Date } | string | null): string => {
     if (!timestamp) return "Unknown";
 
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    // Handle Firestore Timestamp (has toDate method)
+    if ('toDate' in timestamp && typeof timestamp.toDate === 'function') {
+      return formatLastActive(timestamp.toDate());
+    }
+    
+    // Handle string or Date
+    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -174,7 +181,7 @@ function SecretariesContent() {
     };
 
     loadSecretaries();
-  }, [user?.uid]);
+  }, [user?.uid, refreshTrigger]);
 
   // Filter secretaries based on search query
   const filteredSecretaries = secretaries.filter(
@@ -234,8 +241,20 @@ function SecretariesContent() {
 
   // Handle opening the registration modal
   const handleOpenRegisterModal = () => {
-    setRefreshTrigger(prev => prev + 1); // Force reload sections
     setShowRegisterModal(true);
+    setGeneratedCredentials(null);
+    setShowPassword(false);
+    setShouldRefreshAfterClose(false); // Reset refresh flag
+  };
+
+  // Handle closing the registration modal (refresh data only if secretary was created)
+  const handleCloseRegisterModal = () => {
+    // Only refresh if a secretary was successfully created
+    if (shouldRefreshAfterClose) {
+      setRefreshTrigger(prev => prev + 1);
+      setShouldRefreshAfterClose(false);
+    }
+    setShowRegisterModal(false);
     setGeneratedCredentials(null);
     setShowPassword(false);
   };
@@ -382,9 +401,13 @@ function SecretariesContent() {
       {showRegisterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setShowRegisterModal(false)}
+            onClick={() => {
+              setShowRegisterModal(false);
+              setGeneratedCredentials(null);
+              setShowPassword(false);
+            }}
           ></div>
           
           {/* Modal Content */}
@@ -401,7 +424,7 @@ function SecretariesContent() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowRegisterModal(false)}
+                  onClick={handleCloseRegisterModal}
                   className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                   style={{ backgroundColor: "#f1ecf7", color: "#484553" }}
                   onMouseEnter={(e) => {
@@ -422,18 +445,9 @@ function SecretariesContent() {
                 teacherId={user?.uid || ''}
                 onSuccess={(credentials) => {
                   setGeneratedCredentials(credentials);
-                  // Invalidate cache to force refresh when modal closes
-                  if (user?.uid) {
-                    const cacheKey = `secretaries_enriched_${user.uid}`;
-                    // Clear the cache so it refetches on next load
-                    const cached = getCachedData<SecretaryAppointment[]>(cacheKey);
-                    if (cached) {
-                      // Don't clear, just mark for refresh by incrementing trigger
-                      setRefreshTrigger(prev => prev + 1);
-                    }
-                  }
+                  setShouldRefreshAfterClose(true); // Mark for refresh on close
                 }}
-                onCancel={() => setShowRegisterModal(false)}
+                onCancel={handleCloseRegisterModal}
                 refreshTrigger={refreshTrigger}
                 createSecretaryAccount={async (displayName, email, password) => {
                   const credentials = await createSecretaryAccount(displayName, email, password);

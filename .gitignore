@@ -23,8 +23,8 @@
 # misc
 .DS_Store
 *.pem
-QWEN.md
 AGENTS.md
+.qwen/
 
 # debug
 npm-debug.log*
