@@ -118,7 +118,7 @@ interface CacheEntry<T> {
 const queryCache = new Map<string, CacheEntry<any>>();
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes cache TTL for queries
 
-function getCachedData<T>(key: string): T | null {
+export function getCachedData<T>(key: string): T | null {
   const entry = queryCache.get(key);
   if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
     return entry.data as T;

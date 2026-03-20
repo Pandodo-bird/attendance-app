@@ -1,12 +1,14 @@
 "use client";
 
+import { ReactNode } from "react";
+
 interface TeacherHeaderProps {
   title: string;
   subtitle?: string;
   subtitleColor?: string;
   stats?: Array<{
     label: string;
-    value: string | number;
+    value: string | number | ReactNode;
     valueColor?: string;
   }>;
   searchPlaceholder?: string;
@@ -100,12 +102,21 @@ export default function TeacherHeader({
                 >
                   {stat.label}
                 </p>
-                <p
-                  className="font-headline text-xl lg:text-2xl font-bold leading-none"
-                  style={{ color: stat.valueColor || "#1c1a22" }}
-                >
-                  {stat.value}
-                </p>
+                {typeof stat.value === "string" || typeof stat.value === "number" ? (
+                  <p
+                    className="font-headline text-xl lg:text-2xl font-bold leading-none"
+                    style={{ color: stat.valueColor || "#1c1a22" }}
+                  >
+                    {stat.value}
+                  </p>
+                ) : (
+                  <div
+                    className="font-headline text-xl lg:text-2xl font-bold leading-none"
+                    style={{ color: stat.valueColor || "#1c1a22" }}
+                  >
+                    {stat.value}
+                  </div>
+                )}
               </div>
             ))}
           </div>

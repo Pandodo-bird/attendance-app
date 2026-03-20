@@ -5,8 +5,11 @@ import {
   getTeacherSections,
   getSectionStudents,
   checkSecretaryAccountExists,
+  createAppointment,
   Student,
 } from "@/lib/firestore";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface AvailableStudent {
   sectionId: string;
@@ -167,19 +170,20 @@ export default function SecretaryCreationForm({
   const [selectedStudentLrn, setSelectedStudentLrn] = useState("");
   const [secretaryName, setSecretaryName] = useState("");
   const [generatedEmail, setGeneratedEmail] = useState("");
-  
+  const [subject, setSubject] = useState("");
+
   // Password state
   const [useLrnAsPassword, setUseLrnAsPassword] = useState(true);
   const [customPassword, setCustomPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Data state
   const [availableSections, setAvailableSections] = useState<{ id: string; sectionName: string; gradeLevel: string }[]>([]);
   const [availableStudents, setAvailableStudents] = useState<AvailableStudent[]>([]);
   const [isLoadingSections, setIsLoadingSections] = useState(true);
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // UI state
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -189,10 +193,12 @@ export default function SecretaryCreationForm({
   const [touched, setTouched] = useState<{
     section: boolean;
     student: boolean;
+    subject: boolean;
     password: boolean;
   }>({
     section: false,
     student: false,
+    subject: false,
     password: false,
   });
 
@@ -236,6 +242,7 @@ export default function SecretaryCreationForm({
   // Validation functions
   const validateSection = () => !!selectedSectionId;
   const validateStudent = () => !!selectedStudentLrn;
+  const validateSubject = () => !!subject.trim();
   const validatePassword = () => {
     const pwd = getCurrentPassword();
     return pwd.length >= 6;
@@ -246,6 +253,7 @@ export default function SecretaryCreationForm({
     return (
       validateSection() &&
       validateStudent() &&
+      validateSubject() &&
       validatePassword()
     );
   };
@@ -256,7 +264,8 @@ export default function SecretaryCreationForm({
     setSelectedStudentLrn("");
     setSecretaryName("");
     setGeneratedEmail("");
-    setTouched((prev) => ({ ...prev, section: true, student: false }));
+    setSubject("");
+    setTouched((prev) => ({ ...prev, section: true, student: false, subject: false }));
     setError(null);
 
     if (!sectionId) {
@@ -322,7 +331,7 @@ export default function SecretaryCreationForm({
     setError(null);
 
     // Validate all fields
-    setTouched({ section: true, student: true, password: true });
+    setTouched({ section: true, student: true, subject: true, password: true });
 
     if (!isFormValid()) {
       setError("Please fill in all required fields correctly.");
@@ -346,6 +355,33 @@ export default function SecretaryCreationForm({
         secretaryName.trim(),
         generatedEmail,
         password
+      );
+
+      // Get the secretary's UID from the created account
+      // We need to query Firestore to get the UID by LRN
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("lrn", "==", selectedStudentLrn));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        throw new Error("Failed to find created secretary account");
+      }
+      
+      const secretaryDoc = snapshot.docs[0];
+      const secretaryUid = secretaryDoc.id;
+
+      // Get the school year from the section
+      const section = availableSections.find(s => s.id === selectedSectionId);
+      const schoolYear = section?.gradeLevel ? "2025-2026" : "2025-2026";
+
+      // Create the appointment linking secretary to section and subject
+      await createAppointment(
+        teacherId,
+        secretaryUid,
+        selectedStudentLrn,
+        selectedSectionId,
+        subject.trim(),
+        schoolYear
       );
 
       setGeneratedCredentials(credentials);
@@ -564,6 +600,35 @@ export default function SecretaryCreationForm({
             </>
           )}
         </div>
+
+        {/* Subject Input - Step 3 (appears after student selection) */}
+        {selectedStudentLrn && (
+          <div>
+            <label className="block text-sm font-bold mb-2" style={{ color: "#1c1a22" }}>
+              Subject <span style={{ color: "#EF4444" }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => {
+                setSubject(e.target.value);
+                setTouched((prev) => ({ ...prev, subject: true }));
+              }}
+              className="w-full px-4 py-3 rounded-xl border-2 outline-none transition-colors text-sm"
+              style={{
+                backgroundColor: "#ffffff",
+                borderColor: subject ? "#6C5CE7" : "#e6e0ec",
+                color: "#1c1a22",
+              }}
+              placeholder="e.g. Mathematics, Science, English"
+            />
+            {touched.subject && !validateSubject() && (
+              <p className="text-xs mt-1" style={{ color: "#EF4444" }}>
+                Please enter a subject
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Generated Credentials Summary Card - appears after student selection */}
         {selectedStudentLrn && secretaryName && (

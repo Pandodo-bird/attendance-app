@@ -4,9 +4,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import SecretaryCreationForm from "@/components/teacher/SecretaryCreationForm";
-import { useState, useEffect } from "react";
+import { SecretaryCard, ActiveSecretariesCounter } from "@/components/secretary";
+import { useState, useEffect, useRef } from "react";
 import {
-  subscribeToTeacherAppointments,
+  getTeacherAppointments,
   getSectionStudents,
   getUserProfile,
   Appointment,
@@ -15,9 +16,9 @@ import {
   updateAppointmentStatus,
   deleteAppointment,
   getTeacherSections,
-  Section
+  Section,
+  getCachedData
 } from "@/lib/firestore";
-import { Unsubscribe, FirestoreError } from "firebase/firestore";
 import { RoleGuard } from "@/hooks/useRequireRole";
 
 // Extended appointment with enriched data
@@ -55,10 +56,10 @@ function SecretariesContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Cache for sections and students to avoid repeated lookups
-  const [sectionsCache, setSectionsCache] = useState<Map<string, Section>>(new Map());
-  const [studentsCache, setStudentsCache] = useState<Map<string, Map<string, Student>>>(new Map());
-  const [usersCache, setUsersCache] = useState<Map<string, UserData>>(new Map());
+  // Use refs for caches to avoid re-triggering useEffect
+  const sectionsCacheRef = useRef<Map<string, Section>>(new Map());
+  const studentsCacheRef = useRef<Map<string, Map<string, Student>>>(new Map());
+  const usersCacheRef = useRef<Map<string, UserData>>(new Map());
 
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -66,98 +67,14 @@ function SecretariesContent() {
   const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  // Real-time subscription to appointments data
-  useEffect(() => {
-    let unsubscribe: Unsubscribe | undefined;
-
-    if (user?.uid) {
-      setIsLoading(true);
-      setError(null);
-
-      // Subscribe to real-time updates for teacher's appointments
-      unsubscribe = subscribeToTeacherAppointments(
-        user.uid,
-        async (appointments) => {
-          try {
-            // First, fetch all sections for this teacher
-            const sections = await getTeacherSections(user.uid);
-            const sectionsMap = new Map<string, Section>();
-            sections.forEach((section) => {
-              sectionsMap.set(section.id, section);
-            });
-            setSectionsCache(sectionsMap);
-
-            // Enrich appointments with secretary and section data
-            const enriched = await Promise.all(
-              appointments.map(async (apt) => {
-                const secretaryName = await getSecretaryName(
-                  apt.secretaryUid,
-                  apt.secretaryLrn,
-                  apt.sectionId,
-                  usersCache,
-                  studentsCache
-                );
-                const section = sectionsMap.get(apt.sectionId);
-
-                return {
-                  id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
-                  appointmentId: apt.id,
-                  secretaryUid: apt.secretaryUid,
-                  secretaryLrn: apt.secretaryLrn,
-                  secretaryName: secretaryName.displayName,
-                  secretaryEmail: secretaryName.email,
-                  sectionId: apt.sectionId,
-                  sectionName: section?.sectionName || "Unknown Section",
-                  gradeLevel: section?.gradeLevel || "",
-                  subject: apt.subject,
-                  schoolYear: apt.schoolYear,
-                  status: apt.status,
-                  appointedAt: apt.appointedAt,
-                  lastActive: formatLastActive(apt.appointedAt),
-                } as SecretaryAppointment;
-              })
-            );
-
-            setSecretaries(enriched);
-            setIsLoading(false);
-          } catch (err) {
-            console.error("Error enriching appointments:", err);
-            setError("Failed to load secretary data. Please try again.");
-            setIsLoading(false);
-          }
-        },
-        (err: FirestoreError) => {
-          console.error("Error fetching appointments:", err);
-          if (err.code === "permission-denied") {
-            setError(
-              "Unable to load appointments. Firestore security rules may need to be configured."
-            );
-          } else {
-            setError("Failed to load appointments. Please try again.");
-          }
-          setIsLoading(false);
-        }
-      );
-    }
-
-    // Cleanup: Unsubscribe when component unmounts or user changes
-    return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
-    };
-  }, [user?.uid]);
-
   // Helper function to get secretary name from cache or Firestore
   const getSecretaryName = async (
     secretaryUid: string,
     secretaryLrn: string,
-    sectionId: string,
-    usersCache: Map<string, UserData>,
-    studentsCache: Map<string, Map<string, Student>>
+    sectionId: string
   ): Promise<{ displayName: string; email: string }> => {
     // Try users cache first
-    let user = usersCache.get(secretaryUid);
+    const user = usersCacheRef.current.get(secretaryUid);
     if (user) {
       return { displayName: user.displayName, email: user.email };
     }
@@ -166,7 +83,7 @@ function SecretariesContent() {
     try {
       const userProfile = await getUserProfile(secretaryUid);
       if (userProfile) {
-        setUsersCache((prev) => new Map(prev).set(secretaryUid, userProfile));
+        usersCacheRef.current.set(secretaryUid, userProfile);
         return { displayName: userProfile.displayName, email: userProfile.email };
       }
     } catch (error) {
@@ -174,7 +91,7 @@ function SecretariesContent() {
     }
 
     // Fallback: Try to get from students cache
-    const sectionStudents = studentsCache.get(sectionId);
+    const sectionStudents = studentsCacheRef.current.get(sectionId);
     if (sectionStudents) {
       const student = sectionStudents.get(secretaryLrn);
       if (student) {
@@ -192,7 +109,7 @@ function SecretariesContent() {
       students.forEach((student) => {
         studentsMap.set(student.lrn, student);
       });
-      setStudentsCache((prev) => new Map(prev).set(sectionId, studentsMap));
+      studentsCacheRef.current.set(sectionId, studentsMap);
 
       const student = studentsMap.get(secretaryLrn);
       if (student) {
@@ -228,7 +145,119 @@ function SecretariesContent() {
     return date.toLocaleDateString();
   };
 
-  const activeCount = secretaries.filter((s) => s.status === "active").length;
+  // Load secretaries on mount or when refreshTrigger changes
+  useEffect(() => {
+    const loadSecretaries = async () => {
+      if (!user?.uid) return;
+
+      // Check cache first to avoid showing loading state
+      const cachedAppointments = getCachedData<Appointment[]>(`appointments_teacher_${user.uid}`);
+      const cachedSections = getCachedData<Section[]>(`sections_${user.uid}`);
+      
+      // If we have both caches, load immediately without showing loading
+      if (cachedAppointments && cachedSections) {
+        try {
+          const sectionsMap = new Map<string, Section>();
+          cachedSections.forEach((section) => {
+            sectionsMap.set(section.id, section);
+          });
+          sectionsCacheRef.current = sectionsMap;
+
+          // Enrich appointments with secretary and section data
+          const enriched = await Promise.all(
+            cachedAppointments.map(async (apt) => {
+              const secretaryName = await getSecretaryName(
+                apt.secretaryUid,
+                apt.secretaryLrn,
+                apt.sectionId
+              );
+              const section = sectionsMap.get(apt.sectionId);
+
+              return {
+                id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
+                appointmentId: apt.id,
+                secretaryUid: apt.secretaryUid,
+                secretaryLrn: apt.secretaryLrn,
+                secretaryName: secretaryName.displayName,
+                secretaryEmail: secretaryName.email,
+                sectionId: apt.sectionId,
+                sectionName: section?.sectionName || "Unknown Section",
+                gradeLevel: section?.gradeLevel || "",
+                subject: apt.subject,
+                schoolYear: apt.schoolYear,
+                status: apt.status,
+                appointedAt: apt.appointedAt,
+                lastActive: formatLastActive(apt.appointedAt),
+              } as SecretaryAppointment;
+            })
+          );
+
+          setSecretaries(enriched);
+          setIsLoading(false);
+          setError(null);
+          return; // Exit early - no need to fetch from Firestore
+        } catch (err) {
+          console.error("Error processing cached data:", err);
+          // Fall through to fetch from Firestore
+        }
+      }
+
+      // No cache or error processing cache - show loading and fetch from Firestore
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Fetch appointments (uses cache if < 2 min old)
+        const appointments = await getTeacherAppointments(user.uid, true);
+
+        // Fetch sections for this teacher (uses cache)
+        const sections = await getTeacherSections(user.uid, true);
+        const sectionsMap = new Map<string, Section>();
+        sections.forEach((section) => {
+          sectionsMap.set(section.id, section);
+        });
+        sectionsCacheRef.current = sectionsMap;
+
+        // Enrich appointments with secretary and section data
+        const enriched = await Promise.all(
+          appointments.map(async (apt) => {
+            const secretaryName = await getSecretaryName(
+              apt.secretaryUid,
+              apt.secretaryLrn,
+              apt.sectionId
+            );
+            const section = sectionsMap.get(apt.sectionId);
+
+            return {
+              id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
+              appointmentId: apt.id,
+              secretaryUid: apt.secretaryUid,
+              secretaryLrn: apt.secretaryLrn,
+              secretaryName: secretaryName.displayName,
+              secretaryEmail: secretaryName.email,
+              sectionId: apt.sectionId,
+              sectionName: section?.sectionName || "Unknown Section",
+              gradeLevel: section?.gradeLevel || "",
+              subject: apt.subject,
+              schoolYear: apt.schoolYear,
+              status: apt.status,
+              appointedAt: apt.appointedAt,
+              lastActive: formatLastActive(apt.appointedAt),
+            } as SecretaryAppointment;
+          })
+        );
+
+        setSecretaries(enriched);
+        setIsLoading(false);
+      } catch (err) {
+        console.error("Error loading secretaries:", err);
+        setError("Failed to load secretary data. Please refresh the page.");
+        setIsLoading(false);
+      }
+    };
+
+    loadSecretaries();
+  }, [user?.uid, refreshTrigger]);
 
   // Filter secretaries based on search query
   const filteredSecretaries = secretaries.filter(
@@ -277,6 +306,29 @@ function SecretariesContent() {
     setShowPassword(false);
   };
 
+  // Handle viewing records (placeholder - to be implemented)
+  const handleViewRecords = (appointmentId: string) => {
+    console.log("View records for appointment:", appointmentId);
+    // TODO: Navigate to attendance records page
+  };
+
+  // Handle restoring a secretary (reactivating appointment)
+  const handleRestoreSecretary = async (appointmentId: string) => {
+    if (!confirm("Are you sure you want to restore this secretary?")) return;
+
+    try {
+      await updateAppointmentStatus(appointmentId, "active", user?.uid);
+      setSecretaries((prev) =>
+        prev.map((sec) =>
+          sec.appointmentId === appointmentId ? { ...sec, status: "active" } : sec
+        )
+      );
+    } catch (error) {
+      console.error("Error restoring secretary:", error);
+      alert("Failed to restore secretary. Please try again.");
+    }
+  };
+
   return (
     <>
       {/* Header */}
@@ -285,7 +337,7 @@ function SecretariesContent() {
         stats={[
           {
             label: "ACTIVE SECRETARIES",
-            value: activeCount,
+            value: <ActiveSecretariesCounter teacherId={user?.uid || ""} />,
             valueColor: "#6C5CE7",
           },
         ]}
@@ -331,173 +383,25 @@ function SecretariesContent() {
               ) : (
                 <>
                   {filteredSecretaries.map((secretary) => (
-                    <div
+                    <SecretaryCard
                       key={secretary.appointmentId}
-                      className="group p-4 lg:p-8 rounded-[2rem] flex flex-col justify-between transition-all"
-                      style={{
-                        backgroundColor: "#FFFFFF",
-                        opacity: secretary.status === "removed" ? 0.8 : 1,
-                        filter: secretary.status === "removed" ? "grayscale(0.5)" : "none",
-                      }}
-                      onMouseEnter={(e) => {
-                        if (secretary.status === "active") {
-                          e.currentTarget.style.backgroundColor = "#F7F6FB";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (secretary.status === "active") {
-                          e.currentTarget.style.backgroundColor = "#FFFFFF";
-                        }
-                      }}
-                    >
-                      <div>
-                        <div className="flex justify-between items-start mb-4 lg:mb-6">
-                          {/* Avatar */}
-                          <div
-                            className="w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center"
-                            style={{ backgroundColor: "#e6e0ec" }}
-                          >
-                            <span
-                              className="material-symbols-outlined text-3xl lg:text-4xl"
-                              style={{ color: "#484553" }}
-                            >
-                              person
-                            </span>
-                          </div>
-                          <span
-                            className="px-2 lg:px-3 py-1 rounded-full font-bold text-[10px] uppercase tracking-widest"
-                            style={
-                              secretary.status === "active"
-                                ? { backgroundColor: "#c5fff7", color: "#00201d" }
-                                : { backgroundColor: "#ffdad6", color: "#93000a" }
-                            }
-                          >
-                            {secretary.status === "active" ? "Active" : "Removed"}
-                          </span>
-                        </div>
-
-                        {/* Secretary Info */}
-                        <h3 className="text-xl lg:text-2xl font-bold" style={{ color: "#1c1a22" }}>
-                          {secretary.secretaryName}
-                        </h3>
-                        <p className="mb-2 lg:mb-4" style={{ color: "#484553" }}>
-                          {secretary.subject} • {secretary.sectionName}
-                        </p>
-                        <p className="text-sm mb-4 lg:mb-6" style={{ color: "#484553" }}>
-                          Grade {secretary.gradeLevel} • {secretary.schoolYear}
-                        </p>
-
-                        {/* Last Active */}
-                        <div className="flex items-center gap-2 mb-6 lg:mb-8">
-                          <span
-                            className="material-symbols-outlined text-sm"
-                            style={{
-                              color: secretary.status === "active" ? "#6C5CE7" : "#EF4444",
-                            }}
-                          >
-                            {secretary.status === "active" ? "history" : "block"}
-                          </span>
-                          <span className="text-sm italic" style={{ color: "#484553" }}>
-                            {secretary.status === "active"
-                              ? `Appointed: ${secretary.lastActive}`
-                              : "Access revoked"}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-2">
-                        {secretary.status === "active" ? (
-                          <>
-                            <button
-                              className="flex-1 py-2 lg:py-3 rounded-xl font-bold text-xs lg:text-sm flex items-center justify-center gap-2 border transition-colors"
-                              style={{
-                                backgroundColor: "#FFFFFF",
-                                color: "#484553",
-                                borderColor: "transparent",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.color = "#6C5CE7";
-                                e.currentTarget.style.borderColor = "#e7deff";
-                                e.currentTarget.style.backgroundColor = "#e7deff";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.color = "#484553";
-                                e.currentTarget.style.borderColor = "transparent";
-                                e.currentTarget.style.backgroundColor = "#FFFFFF";
-                              }}
-                              title="View attendance records for this secretary"
-                            >
-                              <span className="material-symbols-outlined text-base lg:text-lg">
-                                visibility
-                              </span>
-                              <span className="hidden sm:inline">View Records</span>
-                              <span className="sm:hidden">View</span>
-                            </button>
-                            <button
-                              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl transition-colors"
-                              style={{ backgroundColor: "#FFFFFF", color: "#484553" }}
-                              onClick={() => handleRemoveSecretary(secretary.appointmentId)}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#e7deff";
-                                e.currentTarget.style.color = "#6C5CE7";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "#FFFFFF";
-                                e.currentTarget.style.color = "#484553";
-                              }}
-                              title="Remove secretary from this subject"
-                            >
-                              <span className="material-symbols-outlined text-base lg:text-xl">
-                                person_remove
-                              </span>
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              className="flex-1 py-2 lg:py-3 rounded-xl font-bold text-xs lg:text-sm flex items-center justify-center gap-2 transition-colors"
-                              style={{
-                                backgroundColor: "#e7deff",
-                                color: "#1e0061",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#6C5CE7";
-                                e.currentTarget.style.color = "#FFFFFF";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "#e7deff";
-                                e.currentTarget.style.color = "#1e0061";
-                              }}
-                              title="Restore this appointment"
-                            >
-                              <span className="material-symbols-outlined text-base lg:text-lg">
-                                power_settings_new
-                              </span>
-                              <span className="hidden sm:inline">Restore</span>
-                            </button>
-                            <button
-                              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl transition-colors"
-                              style={{ backgroundColor: "#FFFFFF", color: "#484553" }}
-                              onClick={() => handleDeleteAppointment(secretary.appointmentId)}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = "#ffdad6";
-                                e.currentTarget.style.color = "#93000a";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = "#FFFFFF";
-                                e.currentTarget.style.color = "#484553";
-                              }}
-                              title="Permanently delete this appointment"
-                            >
-                              <span className="material-symbols-outlined text-base lg:text-xl">
-                                delete
-                              </span>
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                      secretaryUid={secretary.secretaryUid}
+                      secretaryLrn={secretary.secretaryLrn}
+                      secretaryName={secretary.secretaryName}
+                      secretaryEmail={secretary.secretaryEmail}
+                      sectionId={secretary.sectionId}
+                      sectionName={secretary.sectionName}
+                      gradeLevel={secretary.gradeLevel}
+                      subject={secretary.subject}
+                      schoolYear={secretary.schoolYear}
+                      status={secretary.status}
+                      appointedAt={secretary.appointedAt}
+                      lastActive={secretary.lastActive}
+                      onViewRecords={() => handleViewRecords(secretary.appointmentId)}
+                      onRemove={() => handleRemoveSecretary(secretary.appointmentId)}
+                      onRestore={() => handleRestoreSecretary(secretary.appointmentId)}
+                      onDelete={() => handleDeleteAppointment(secretary.appointmentId)}
+                    />
                   ))}
                   {/* Add New Secretary Card */}
                   <button
