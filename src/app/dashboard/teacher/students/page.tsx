@@ -143,7 +143,7 @@ function StudentsContent() {
       // Use sectionId (document ID) for Firestore operations
       await updateStudent(studentData.sectionId, selectedStudent.lrn, updates);
 
-      // Update local state
+      // Firestore update succeeded - now update local state (no refetch needed)
       setStudents(prev => prev.map(s =>
         s.lrn === selectedStudent.lrn ? { ...s, ...updates } : s
       ));
@@ -151,7 +151,8 @@ function StudentsContent() {
       setSelectedStudent(prev => prev ? { ...prev, ...updates } : null);
     } catch (err) {
       console.error("Error updating student:", err);
-      throw err;
+      setError("Failed to save changes. Please try again.");
+      throw err; // Re-throw so drawer knows it failed
     }
   }, [selectedStudent, user, students]);
 

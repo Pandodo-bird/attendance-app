@@ -117,10 +117,13 @@ export default function StudentProfileDrawer({
 
       if (Object.keys(updates).length > 0) {
         await onSave(updates);
+        // Success - close edit mode
+        setIsEditMode(false);
       }
-      setIsEditMode(false);
     } catch (error) {
       console.error("Error saving student:", error);
+      // Don't close edit mode - let user try again
+      // Error is shown by parent component via setError
     } finally {
       setIsSaving(false);
     }
