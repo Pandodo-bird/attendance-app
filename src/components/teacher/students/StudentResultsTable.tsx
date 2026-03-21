@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
 import StudentActionsMenu from "./StudentActionsMenu";
 
 export interface StudentRow {
@@ -16,6 +17,12 @@ export interface StudentRow {
   sex: "male" | "female" | "";
   learningModality: string;
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
+  birthDate?: Date | Timestamp | string;
+  religion?: string;
+  address?: string;
+  parentFather?: string;
+  parentMother?: string;
+  guardian?: string;
 }
 
 interface StudentResultsTableProps {

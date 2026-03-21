@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Pencil } from "lucide-react";
+import { Timestamp } from "firebase/firestore";
 
 export interface StudentProfile {
   lrn: string;
@@ -14,7 +15,7 @@ export interface StudentProfile {
   sex: "male" | "female" | "";
   learningModality: string;
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
-  birthDate: Date | string;
+  birthDate: Date | Timestamp | string;
   religion: string;
   address: string;
   parentFather: string;
@@ -35,20 +36,20 @@ interface InputFieldProps {
   field: keyof StudentProfile;
   type?: string;
   isEditMode: boolean;
-  value: string | Date;
+  value: string | Date | Timestamp;
   onChange: (field: keyof StudentProfile, value: string) => void;
 }
 
 function InputField({ label, field, type = "text", isEditMode, value, onChange }: InputFieldProps) {
-  const formatDate = (date: Date | string) => {
+  const formatDate = (date: Date | Timestamp | string) => {
     if (!date) return "";
-    const d = new Date(date);
+    const d = new Date(date as any);
     return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   };
 
-  const formatDateInput = (date: Date | string) => {
+  const formatDateInput = (date: Date | Timestamp | string) => {
     if (!date) return "";
-    const d = new Date(date);
+    const d = new Date(date as any);
     return d.toISOString().split("T")[0];
   };
 
@@ -70,6 +71,69 @@ function InputField({ label, field, type = "text", isEditMode, value, onChange }
       ) : (
         <p className="text-sm" style={{ color: isEmpty ? "#9CA3AF" : "#1F1F1F" }}>
           {type === "date" ? formatDate(value) : String(value || "N/A")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Religion field with predefined options + custom input
+interface ReligionFieldProps {
+  label: string;
+  isEditMode: boolean;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const RELIGION_OPTIONS = [
+  "Christianity",
+  "Islam",
+  "Hinduism",
+  "Buddhism",
+];
+
+function ReligionField({ label, isEditMode, value, onChange }: ReligionFieldProps) {
+  const isEmpty = !value || value.trim() === "";
+  const isCustom = !RELIGION_OPTIONS.includes(value);
+
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-medium uppercase tracking-wide" style={{ color: "#6B7280" }}>
+        {label}
+      </label>
+      {isEditMode ? (
+        <div className="space-y-2">
+          <select
+            value={isCustom && value !== "" ? "custom" : value}
+            onChange={(e) => {
+              const selected = e.target.value;
+              onChange(selected);
+            }}
+            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all"
+            style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#1F1F1F" }}
+          >
+            <option value="">Select religion...</option>
+            {RELIGION_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+            <option value="custom">Type custom...</option>
+          </select>
+          {(value === "custom" || (isCustom && value !== "")) && (
+            <input
+              type="text"
+              value={value === "custom" ? "" : value}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="Enter custom religion..."
+              className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all"
+              style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#1F1F1F" }}
+            />
+          )}
+        </div>
+      ) : (
+        <p className="text-sm" style={{ color: isEmpty ? "#9CA3AF" : "#1F1F1F" }}>
+          {value || "N/A"}
         </p>
       )}
     </div>
@@ -274,12 +338,11 @@ export default function StudentProfileDrawer({
                     value={editedStudent.birthDate}
                     onChange={handleChange}
                   />
-                  <InputField
+                  <ReligionField
                     label="Religion"
-                    field="religion"
                     isEditMode={isEditMode}
                     value={editedStudent.religion}
-                    onChange={handleChange}
+                    onChange={(value) => handleChange("religion", value)}
                   />
                 </div>
               </section>

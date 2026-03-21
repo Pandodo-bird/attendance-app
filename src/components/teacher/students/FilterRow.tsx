@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Timestamp } from "firebase/firestore";
 
 export interface StudentRow {
   lrn: string;
@@ -13,6 +14,12 @@ export interface StudentRow {
   sex: "male" | "female" | "";
   learningModality: string;
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
+  birthDate?: Date | Timestamp | string;
+  religion?: string;
+  address?: string;
+  parentFather?: string;
+  parentMother?: string;
+  guardian?: string;
 }
 
 interface FilterRowProps {

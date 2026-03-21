@@ -104,6 +104,12 @@ function StudentsContent() {
           sex: student.sex,
           learningModality: student.learningModality,
           studentStatus: student.studentStatus,
+          birthDate: student.birthDate,
+          religion: student.religion,
+          address: student.address,
+          parentFather: student.parentFather,
+          parentMother: student.parentMother,
+          guardian: student.guardian,
         }));
 
         setStudents(studentRows);
@@ -122,13 +128,21 @@ function StudentsContent() {
   // Handle viewing a student
   const handleViewStudent = useCallback((student: StudentRow) => {
     const fullProfile: StudentProfile = {
-      ...student,
-      birthDate: new Date(),
-      religion: "",
-      address: "",
-      parentFather: "",
-      parentMother: "",
-      guardian: "",
+      lrn: student.lrn,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      middleName: student.middleName,
+      sectionName: student.sectionName,
+      gradeLevel: student.gradeLevel,
+      sex: student.sex,
+      learningModality: student.learningModality,
+      studentStatus: student.studentStatus,
+      birthDate: student.birthDate || new Date(),
+      religion: student.religion || "",
+      address: student.address || "",
+      parentFather: student.parentFather || "",
+      parentMother: student.parentMother || "",
+      guardian: student.guardian || "",
     };
     setSelectedStudent(fullProfile);
     setIsDrawerOpen(true);
@@ -137,13 +151,21 @@ function StudentsContent() {
   // Handle editing a student
   const handleEditStudent = useCallback((student: StudentRow) => {
     const fullProfile: StudentProfile = {
-      ...student,
-      birthDate: new Date(),
-      religion: "",
-      address: "",
-      parentFather: "",
-      parentMother: "",
-      guardian: "",
+      lrn: student.lrn,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      middleName: student.middleName,
+      sectionName: student.sectionName,
+      gradeLevel: student.gradeLevel,
+      sex: student.sex,
+      learningModality: student.learningModality,
+      studentStatus: student.studentStatus,
+      birthDate: student.birthDate || new Date(),
+      religion: student.religion || "",
+      address: student.address || "",
+      parentFather: student.parentFather || "",
+      parentMother: student.parentMother || "",
+      guardian: student.guardian || "",
     };
     setSelectedStudent(fullProfile);
     setIsDrawerOpen(true);
