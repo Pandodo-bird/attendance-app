@@ -77,9 +77,9 @@ export default function StudentPreviewTable({
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-10">
               <tr style={{ backgroundColor: '#F0EDF7' }}>
-                {displayColumns.map((col) => (
+                {displayColumns.map((col, colIndex) => (
                   <th
-                    key={col.key}
+                    key={`${col.key}-${colIndex}`}
                     className="px-4 py-3 text-left text-xs font-bold uppercase whitespace-nowrap border-b"
                     style={{ color: '#6B6B6B', borderColor: '#E5E7EB' }}
                   >
@@ -89,23 +89,26 @@ export default function StudentPreviewTable({
               </tr>
             </thead>
             <tbody>
-              {students.map((student, index) => (
-                <tr
-                  key={index}
-                  className="border-b last:border-b-0"
-                  style={{ borderColor: '#E5E7EB' }}
-                >
-                  {displayColumns.map((col) => (
-                    <td
-                      key={col.key}
-                      className="px-4 py-3 text-sm whitespace-nowrap"
-                      style={{ color: '#1F1F1F' }}
-                    >
-                      {student[col.key]}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              {students.map((student, studentIndex) => {
+                const rowKey = student.lrn.trim() || `student-${studentIndex}-${student.createdAt}`;
+                return (
+                  <tr
+                    key={rowKey}
+                    className="border-b last:border-b-0"
+                    style={{ borderColor: '#E5E7EB' }}
+                  >
+                    {displayColumns.map((col, colIndex) => (
+                      <td
+                        key={`${rowKey}-${col.key}-${colIndex}`}
+                        className="px-4 py-3 text-sm whitespace-nowrap"
+                        style={{ color: '#1F1F1F' }}
+                      >
+                        {student[col.key]}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

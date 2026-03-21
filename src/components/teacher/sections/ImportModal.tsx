@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import * as XLSX from "xlsx";
 import FileUploadZone from "./FileUploadZone";
 import StudentPreviewTable from "./StudentPreviewTable";
@@ -55,8 +56,6 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'error' | 'success' | 'info'>('info');
-
-  if (!isOpen) return null;
 
   const findColumnIndex = (headers: string[], possibleNames: string[]): number => {
     for (let i = 0; i < headers.length; i++) {
@@ -329,37 +328,51 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
       )}
 
       {/* Modal Overlay */}
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
-        onClick={handleClose}
-      >
-        {/* Modal Content */}
-        <div
-          className="rounded-3xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
-          style={{ backgroundColor: '#FFFFFF' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Modal Header */}
-          <div
-            className="px-8 py-6 flex items-center justify-center shrink-0"
-            style={{ backgroundColor: '#F0EDF7' }}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={handleClose}
           >
-            <h3 className="text-2xl font-bold" style={{ color: '#1F1F1F' }}>
+            {/* Modal Panel */}
+            <motion.div
+              className="rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+              style={{ backgroundColor: '#FFFFFF' }}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+          {/* Modal Title - No colored header band */}
+          <div className="px-8 py-6 shrink-0">
+            <h3 
+              className="text-2xl" 
+              style={{ 
+                color: '#1F1F1F', 
+                fontWeight: 500,
+                margin: 0,
+              }}
+            >
               Import Students from CSV
             </h3>
           </div>
 
           {/* Modal Body */}
-          <div className="p-8 overflow-y-auto flex-1">
+          <div className="px-8 pb-6 overflow-y-auto flex-1">
             {/* Grade Level and Section Name */}
             <div className="grid grid-cols-2 gap-4 mb-6">
               {/* Grade Level */}
               <div>
                 <label
                   htmlFor="gradeLevel"
-                  className="block text-sm font-bold mb-2"
-                  style={{ color: '#1F1F1F' }}
+                  className="block text-xs uppercase mb-2"
+                  style={{ color: '#6B6B6B' }}
                 >
                   Grade Level <span style={{ color: '#EF4444' }}>*</span>
                 </label>
@@ -367,10 +380,8 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
                   id="gradeLevel"
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#6C5CE7] transition-all"
+                  className="w-full px-4 py-2.5 rounded-md border-0 border border-[#0.5px] border-[#E5E7EB] focus:outline-none focus:ring-0 focus:border-[#6C5CE7] transition-all bg-white"
                   style={{
-                    borderColor: '#E5E7EB',
-                    backgroundColor: '#FFFFFF',
                     color: '#1F1F1F',
                   }}
                 >
@@ -387,8 +398,8 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
               <div>
                 <label
                   htmlFor="sectionName"
-                  className="block text-sm font-bold mb-2"
-                  style={{ color: '#1F1F1F' }}
+                  className="block text-xs uppercase mb-2"
+                  style={{ color: '#6B6B6B' }}
                 >
                   Section Name <span style={{ color: '#EF4444' }}>*</span>
                 </label>
@@ -398,10 +409,8 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
                   value={sectionName}
                   onChange={(e) => setSectionName(e.target.value)}
                   placeholder="e.g., St. Peter"
-                  className="w-full px-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#6C5CE7] transition-all"
+                  className="w-full px-4 py-2.5 rounded-md border-0 border border-[#0.5px] border-[#E5E7EB] focus:outline-none focus:ring-0 focus:border-[#6C5CE7] transition-all bg-white"
                   style={{
-                    borderColor: '#E5E7EB',
-                    backgroundColor: '#FFFFFF',
                     color: '#1F1F1F',
                   }}
                 />
@@ -425,27 +434,39 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
           </div>
 
           {/* Modal Footer */}
-          <div
-            className="px-8 py-4 flex items-center justify-end gap-4 shrink-0"
-            style={{ backgroundColor: '#F0EDF7' }}
-          >
+          <div className="px-8 py-4 flex items-center justify-end gap-4 shrink-0">
             <button
               onClick={handleClose}
-              className="px-6 py-3 rounded-xl font-bold transition-all hover:bg-[#F7F6FB]"
-              style={{ backgroundColor: '#FFFFFF', color: '#6B6B6B' }}
+              className="px-6 py-2.5 rounded-md text-sm font-medium transition-colors hover:bg-[#F3F4F6]"
+              style={{ 
+                backgroundColor: 'transparent', 
+                color: '#6B7280',
+                border: 'none',
+              }}
             >
               Cancel
             </button>
-            <button
+            <motion.button
               onClick={handleSave}
-              className="px-6 py-3 rounded-xl font-bold transition-all hover:bg-[#5A4BD6]"
-              style={{ backgroundColor: '#6C5CE7', color: '#FFFFFF' }}
+              className="px-6 py-2.5 rounded-md text-sm font-medium transition-all"
+              style={{ 
+                backgroundColor: '#1e3a5f', 
+                color: '#FFFFFF',
+                border: 'none',
+              }}
+              whileHover={{
+                backgroundColor: '#1a324a',
+                scale: 1.02,
+              }}
+              whileTap={{ scale: 0.98 }}
             >
               Save Section & Students
-            </button>
+            </motion.button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
