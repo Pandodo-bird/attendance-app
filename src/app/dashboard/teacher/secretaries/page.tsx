@@ -49,9 +49,14 @@ export default function SecretariesPage() {
 function SecretariesContent() {
   const { user, createSecretaryAccount } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const [secretaries, setSecretaries] = useState<SecretaryAppointment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Initialize isLoading based on cache to avoid loading flash
+  const initialCacheKey = user?.uid ? `secretaries_enriched_${user.uid}` : null;
+  const hasCachedData = initialCacheKey ? getCachedData<SecretaryAppointment[]>(initialCacheKey) : null;
+  const [secretaries, setSecretaries] = useState<SecretaryAppointment[]>(hasCachedData || []);
+  const [isLoading, setIsLoading] = useState(!hasCachedData);
   const [error, setError] = useState<string | null>(null);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
@@ -107,6 +112,7 @@ function SecretariesContent() {
         setSecretaries(cachedSecretaries);
         setIsLoading(false);
         setError(null);
+        setHasLoadedOnce(true);
         return;
       }
 
@@ -172,11 +178,12 @@ function SecretariesContent() {
         });
 
         setSecretaries(enriched);
-        
+
         // Cache the enriched data for 2 minutes
         setCachedData(cacheKey, enriched);
-        
+
         setIsLoading(false);
+        setHasLoadedOnce(true);
       } catch (err) {
         console.error("Error loading secretaries:", err);
         setError("Failed to load secretary data. Please refresh the page.");
@@ -349,33 +356,33 @@ function SecretariesContent() {
                 </div>
               ) : (
                 <>
-                  {filteredSecretaries.map((secretary) => (
-                    <SecretaryCard
-                      key={secretary.appointmentId}
-                      secretaryUid={secretary.secretaryUid}
-                      secretaryLrn={secretary.secretaryLrn}
-                      secretaryName={secretary.secretaryName}
-                      secretaryEmail={secretary.secretaryEmail}
-                      sectionId={secretary.sectionId}
-                      sectionName={secretary.sectionName}
-                      gradeLevel={secretary.gradeLevel}
-                      subject={secretary.subject}
-                      schoolYear={secretary.schoolYear}
-                      status={secretary.status}
-                      appointedAt={secretary.appointedAt}
-                      lastActive={secretary.lastActive}
-                      onViewRecords={() => handleViewRecords(secretary.appointmentId)}
-                      onRemove={() => handleRemoveSecretary(secretary.appointmentId)}
-                      onRestore={() => handleRestoreSecretary(secretary.appointmentId)}
-                      onDelete={() => handleDeleteAppointment(secretary.appointmentId)}
-                    />
+                  {filteredSecretaries.map((secretary, index) => (
+                      <SecretaryCard
+                        key={secretary.appointmentId}
+                        secretaryUid={secretary.secretaryUid}
+                        secretaryLrn={secretary.secretaryLrn}
+                        secretaryName={secretary.secretaryName}
+                        secretaryEmail={secretary.secretaryEmail}
+                        sectionId={secretary.sectionId}
+                        sectionName={secretary.sectionName}
+                        gradeLevel={secretary.gradeLevel}
+                        subject={secretary.subject}
+                        schoolYear={secretary.schoolYear}
+                        status={secretary.status}
+                        appointedAt={secretary.appointedAt}
+                        lastActive={secretary.lastActive}
+                        onViewRecords={() => handleViewRecords(secretary.appointmentId)}
+                        onRemove={() => handleRemoveSecretary(secretary.appointmentId)}
+                        onRestore={() => handleRestoreSecretary(secretary.appointmentId)}
+                        onDelete={() => handleDeleteAppointment(secretary.appointmentId)}
+                      />
                   ))}
-                  {/* Add New Secretary Card */}
-                  <button
-                    onClick={handleOpenRegisterModal}
-                    className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all min-h-[200px] hover:bg-[#f7f1fd] hover:border-[#5b3ebf] hover:text-[#5b3ebf]"
-                    style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
-                  >
+                    {/* Add New Secretary Card */}
+                    <button
+                      onClick={handleOpenRegisterModal}
+                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all min-h-[200px] hover:bg-[#f7f1fd] hover:border-[#5b3ebf] hover:text-[#5b3ebf]"
+                      style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
+                    >
                     <div
                       className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[#f1ecf7] group-hover:bg-[#e7deff]"
                     >

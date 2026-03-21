@@ -11,7 +11,7 @@ interface SecretaryCardProps {
   subject: string;
   schoolYear: string;
   status: "active" | "removed";
-  appointedAt: Date | string;
+  appointedAt: Date | string | { toDate: () => Date };
   lastActive?: string;
   onViewRecords?: () => void;
   onRemove?: () => void;
@@ -19,188 +19,250 @@ interface SecretaryCardProps {
   onDelete?: () => void;
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase();
+}
+
+function getAvatarColor(lrn: string): string {
+  let hash = 0;
+  for (let i = 0; i < lrn.length; i++) {
+    hash = lrn.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Shift toward slate/navy for more institutional feel
+  const hue = 200 + (Math.abs(hash) % 50);
+  return `hsl(${hue}, 35%, 82%)`;
+}
+
+function getAvatarTextColor(lrn: string): string {
+  let hash = 0;
+  for (let i = 0; i < lrn.length; i++) {
+    hash = lrn.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Shift toward slate/navy for more institutional feel
+  const hue = 200 + (Math.abs(hash) % 50);
+  return `hsl(${hue}, 45%, 30%)`;
+}
+
+function toTitleCase(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatDate(date: Date | string | { toDate: () => Date }): string {
+  let d: Date;
+  if (typeof date === "string") {
+    d = new Date(date);
+  } else if ("toDate" in date) {
+    d = date.toDate();
+  } else {
+    d = date;
+  }
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function SecretaryCard({
-  secretaryUid,
   secretaryLrn,
   secretaryName,
-  secretaryEmail,
-  sectionId,
   sectionName,
-  gradeLevel,
   subject,
   schoolYear,
   status,
   appointedAt,
-  lastActive,
   onViewRecords,
   onRemove,
   onRestore,
   onDelete,
 }: SecretaryCardProps) {
+  const initials = getInitials(secretaryName);
+  const avatarBg = getAvatarColor(secretaryLrn);
+  const avatarText = getAvatarTextColor(secretaryLrn);
+
   return (
     <div
-      className="group p-4 lg:p-8 rounded-[2rem] flex flex-col justify-between transition-all"
+      className="rounded-2xl transition-all"
       style={{
         backgroundColor: "#FFFFFF",
-        opacity: status === "removed" ? 0.8 : 1,
-        filter: status === "removed" ? "grayscale(0.5)" : "none",
+        border: "0.5px solid #E5E7EB",
+        opacity: status === "removed" ? 0.7 : 1,
+        filter: status === "removed" ? "grayscale(0.3)" : "none",
       }}
       onMouseEnter={(e) => {
         if (status === "active") {
-          e.currentTarget.style.backgroundColor = "#F7F6FB";
+          e.currentTarget.style.borderColor = "#D1D5DB";
+          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
         }
       }}
       onMouseLeave={(e) => {
         if (status === "active") {
-          e.currentTarget.style.backgroundColor = "#FFFFFF";
+          e.currentTarget.style.borderColor = "#E5E7EB";
+          e.currentTarget.style.boxShadow = "none";
         }
       }}
     >
-      <div>
-        <div className="flex justify-between items-start mb-4 lg:mb-6">
-          {/* Avatar */}
+      <div className="p-5">
+        {/* Header: Avatar + Status */}
+        <div className="flex justify-between items-start mb-4">
           <div
-            className="w-16 h-16 lg:w-20 lg:h-20 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: "#e6e0ec" }}
+            className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-base"
+            style={{ backgroundColor: avatarBg, color: avatarText }}
           >
-            <span
-              className="material-symbols-outlined text-3xl lg:text-4xl"
-              style={{ color: "#484553" }}
-            >
-              person
-            </span>
+            {initials}
           </div>
           <span
-            className="px-2 lg:px-3 py-1 rounded-full font-bold text-[10px] uppercase tracking-widest"
-            style={
-              status === "active"
-                ? { backgroundColor: "#c5fff7", color: "#00201d" }
-                : { backgroundColor: "#ffdad6", color: "#93000a" }
-            }
+            className="px-2.5 py-1 rounded-full text-xs font-medium"
+            style={{
+              backgroundColor: status === "active" ? "#D1FAE5" : "#FEE2E2",
+              color: status === "active" ? "#065F46" : "#991B1B",
+            }}
           >
             {status === "active" ? "Active" : "Removed"}
           </span>
         </div>
 
-        {/* Secretary Info */}
-        <h3 className="text-xl lg:text-2xl font-bold" style={{ color: "#1c1a22" }}>
-          {secretaryName || `Secretary (${secretaryLrn})`}
-        </h3>
-        <p className="mb-2 lg:mb-4" style={{ color: "#484553" }}>
-          {subject} • {sectionName}
-        </p>
-        <p className="text-sm mb-4 lg:mb-6" style={{ color: "#484553" }}>
-          Grade {gradeLevel} • {schoolYear}
-        </p>
+        {/* Name and LRN */}
+        <div className="mb-4">
+          <h3 className="text-base font-semibold mb-0.5" style={{ color: "#1F1F1F" }}>
+            {toTitleCase(secretaryName)}
+          </h3>
+          <p className="font-mono text-xs font-medium" style={{ color: "#6B7280" }}>
+            {secretaryLrn}
+          </p>
+        </div>
 
-        {/* Last Active */}
-        <div className="flex items-center gap-2 mb-6 lg:mb-8">
-          <span
-            className="material-symbols-outlined text-sm"
-            style={{
-              color: status === "active" ? "#6C5CE7" : "#EF4444",
-            }}
-          >
-            {status === "active" ? "history" : "block"}
-          </span>
-          <span className="text-sm italic" style={{ color: "#484553" }}>
-            {status === "active"
-              ? `Appointed: ${lastActive}`
-              : "Access revoked"}
-          </span>
+        {/* Info Grid - 2 columns */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 mb-4">
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: "#9CA3AF" }}>
+              calendar_today
+            </span>
+            <div>
+              <span className="text-[10px] uppercase tracking-wide font-medium block" style={{ color: "#9CA3AF" }}>
+                Section
+              </span>
+              <span className="text-sm font-medium" style={{ color: "#374151" }}>
+                {sectionName}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: "#9CA3AF" }}>
+              menu_book
+            </span>
+            <div>
+              <span className="text-[10px] uppercase tracking-wide font-medium block" style={{ color: "#9CA3AF" }}>
+                Subject
+              </span>
+              <span className="text-sm font-medium" style={{ color: "#374151" }}>
+                {subject}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: "#9CA3AF" }}>
+              schedule
+            </span>
+            <div>
+              <span className="text-[10px] uppercase tracking-wide font-medium block" style={{ color: "#9CA3AF" }}>
+                School Year
+              </span>
+              <span className="text-sm font-medium" style={{ color: "#374151" }}>
+                {schoolYear}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: "#9CA3AF" }}>
+              access_time
+            </span>
+            <div>
+              <span className="text-[10px] uppercase tracking-wide font-medium block" style={{ color: "#9CA3AF" }}>
+                Appointed
+              </span>
+              <span className="text-sm font-medium" style={{ color: "#374151" }}>
+                {formatDate(appointedAt)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2">
+      <div
+        className="h-px mx-5"
+        style={{ backgroundColor: "#E5E7EB" }}
+      />
+
+      <div className="flex p-2">
         {status === "active" ? (
           <>
             <button
-              className="flex-1 py-2 lg:py-3 rounded-xl font-bold text-xs lg:text-sm flex items-center justify-center gap-2 border transition-colors"
-              style={{
-                backgroundColor: "#FFFFFF",
-                color: "#484553",
-                borderColor: "transparent",
-              }}
+              className="flex-1 py-2.5 text-sm font-medium transition-colors"
+              style={{ color: "#374151" }}
               onClick={onViewRecords}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = "#6C5CE7";
-                e.currentTarget.style.borderColor = "#e7deff";
-                e.currentTarget.style.backgroundColor = "#e7deff";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#484553";
-                e.currentTarget.style.borderColor = "transparent";
-                e.currentTarget.style.backgroundColor = "#FFFFFF";
+                e.currentTarget.style.color = "#374151";
               }}
               title="View attendance records for this secretary"
             >
-              <span className="material-symbols-outlined text-base lg:text-lg">
-                visibility
-              </span>
-              <span className="hidden sm:inline">View Records</span>
-              <span className="sm:hidden">View</span>
+              View Records
             </button>
+            <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
             <button
-              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl transition-colors"
-              style={{ backgroundColor: "#FFFFFF", color: "#484553" }}
+              className="flex-1 py-2.5 text-sm font-medium transition-colors"
+              style={{ color: "#374151" }}
               onClick={onRemove}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#e7deff";
-                e.currentTarget.style.color = "#6C5CE7";
+                e.currentTarget.style.color = "#DC2626";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#FFFFFF";
-                e.currentTarget.style.color = "#484553";
+                e.currentTarget.style.color = "#374151";
               }}
               title="Remove secretary from this subject"
             >
-              <span className="material-symbols-outlined text-base lg:text-xl">
-                person_remove
-              </span>
+              <span className="material-symbols-outlined text-sm">delete</span>
             </button>
           </>
         ) : (
           <>
             <button
-              className="flex-1 py-2 lg:py-3 rounded-xl font-bold text-xs lg:text-sm flex items-center justify-center gap-2 transition-colors"
-              style={{
-                backgroundColor: "#e7deff",
-                color: "#1e0061",
-              }}
+              className="flex-1 py-2.5 text-sm font-medium transition-colors"
+              style={{ color: "#374151" }}
               onClick={onRestore}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#6C5CE7";
-                e.currentTarget.style.color = "#FFFFFF";
+                e.currentTarget.style.color = "#6C5CE7";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#e7deff";
-                e.currentTarget.style.color = "#1e0061";
+                e.currentTarget.style.color = "#374151";
               }}
               title="Restore this appointment"
             >
-              <span className="material-symbols-outlined text-base lg:text-lg">
-                power_settings_new
-              </span>
-              <span className="hidden sm:inline">Restore</span>
+              Restore
             </button>
+            <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
             <button
-              className="w-10 h-10 lg:w-12 lg:h-12 flex items-center justify-center rounded-xl transition-colors"
-              style={{ backgroundColor: "#FFFFFF", color: "#484553" }}
+              className="flex-1 py-2.5 text-sm font-medium transition-colors"
+              style={{ color: "#374151" }}
               onClick={onDelete}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#ffdad6";
-                e.currentTarget.style.color = "#93000a";
+                e.currentTarget.style.color = "#DC2626";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "#FFFFFF";
-                e.currentTarget.style.color = "#484553";
+                e.currentTarget.style.color = "#374151";
               }}
               title="Permanently delete this appointment"
             >
-              <span className="material-symbols-outlined text-base lg:text-xl">
-                delete
-              </span>
+              <span className="material-symbols-outlined text-sm">delete</span>
             </button>
           </>
         )}

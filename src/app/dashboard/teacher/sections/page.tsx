@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useState, useEffect } from "react";
-import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection } from "@/lib/firestore";
+import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection, getCachedData } from "@/lib/firestore";
 import { useRouter } from "next/navigation";
 import { ImportModal, StudentData } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
@@ -29,8 +29,16 @@ function SectionsContent() {
   const { user, userProfile } = useAuth();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [sections, setSections] = useState<SectionWithCount[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Initialize isLoading based on cache to avoid loading flash
+  const initialCacheKey = user?.uid ? `sections_${user.uid}` : null;
+  const hasCachedSections = initialCacheKey ? getCachedData<Section[]>(initialCacheKey) : null;
+  const [sections, setSections] = useState<SectionWithCount[]>(
+    hasCachedSections 
+      ? hasCachedSections.map(s => ({ ...s, studentCount: s.studentCount || 0 }))
+      : []
+  );
+  const [isLoading, setIsLoading] = useState(!hasCachedSections);
   const [error, setError] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -43,6 +51,7 @@ function SectionsContent() {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'error' | 'success' | 'info'>('info');
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Load sections on mount or when refreshTrigger changes
   useEffect(() => {
@@ -69,6 +78,7 @@ function SectionsContent() {
         console.log("Sections with counts:", sectionsWithCounts);
         setSections(sectionsWithCounts);
         setIsLoading(false);
+        setHasLoadedOnce(true);
       } catch (err) {
         console.error("Error loading sections:", err);
         setError("Failed to load sections. Please try again.");
@@ -310,34 +320,39 @@ function SectionsContent() {
                 // Empty state - show nothing, the "Add New Section" card will be visible
                 <></>
               ) : (
-                filteredSections.map((section) => {
-                  const sectionColor = getSectionColor(section.sectionName);
-                  const sectionInitial = getSectionInitial(section.sectionName);
-                  
-                  return (
-                  <div
-                    key={section.id}
-                    className="group rounded-xl p-4 transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col shadow-sm hover:shadow-md border-l-4"
-                    style={{ 
-                      backgroundColor: "#ffffff",
-                      borderColor: sectionColor.border
-                    }}
-                  >
-                    {/* Background glow effect */}
-                    <div
-                      className="absolute top-0 right-0 w-20 h-20 -mr-8 -mt-8 rounded-full blur-2xl"
-                      style={{
-                        backgroundColor: sectionColor.bgLight
-                      }}
-                    ></div>
+                <>
+                  {filteredSections.map((section, index) => {
+                      const sectionColor = getSectionColor(section.sectionName);
+                      const sectionInitial = getSectionInitial(section.sectionName);
 
+                      return (
+                      <div
+                        key={section.id}
+                        className="group rounded-xl p-4 transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col shadow-sm hover:shadow-md"
+                        style={{
+                          backgroundColor: "#FFFFFF",
+                          border: "0.5px solid #E5E7EB"
+                        }}
+                        onMouseEnter={(e) => {
+                          if (section.status === "active") {
+                            e.currentTarget.style.borderColor = "#D1D5DB";
+                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (section.status === "active") {
+                            e.currentTarget.style.borderColor = "#E5E7EB";
+                            e.currentTarget.style.boxShadow = "none";
+                          }
+                        }}
+                      >
                     {/* Card Header */}
-                    <div className="flex justify-between items-start mb-3 relative z-10">
+                    <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
                         <div
                           className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-xl"
-                          style={{ 
-                            backgroundColor: sectionColor.bg, 
+                          style={{
+                            backgroundColor: sectionColor.bg,
                             color: sectionColor.text
                           }}
                         >
@@ -353,30 +368,30 @@ function SectionsContent() {
                             </h4>
                             {section.status === "active" ? (
                               <span
-                                className="font-label text-[10px] font-bold py-0.5 px-2 rounded-full"
-                                style={{ backgroundColor: "#c5fff7", color: "#00201d" }}
+                                className="font-label text-[10px] font-medium py-0.5 px-2 rounded-full"
+                                style={{ backgroundColor: "#D1FAE5", color: "#065F46" }}
                               >
-                                ACTIVE
+                                Active
                               </span>
                             ) : section.status === "archived" ? (
                               <span
-                                className="font-label text-[10px] font-bold py-0.5 px-2 rounded-full"
-                                style={{ backgroundColor: "#f3f4f6", color: "#6B7280" }}
+                                className="font-label text-[10px] font-medium py-0.5 px-2 rounded-full"
+                                style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}
                               >
-                                ARCHIVED
+                                Archived
                               </span>
                             ) : (
                               <span
-                                className="font-label text-[10px] font-bold py-0.5 px-2 rounded-full"
-                                style={{ backgroundColor: "#ffdad6", color: "#93000a" }}
+                                className="font-label text-[10px] font-medium py-0.5 px-2 rounded-full"
+                                style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}
                               >
-                                INACTIVE
+                                Inactive
                               </span>
                             )}
                           </div>
                           <p
-                            className="font-body text-[10px]"
-                            style={{ color: "#9CA3AF" }}
+                            className="font-body text-xs font-medium"
+                            style={{ color: "#6B7280" }}
                           >
                             Grade {section.gradeLevel} • {section.schoolYear}
                           </p>
@@ -384,44 +399,34 @@ function SectionsContent() {
                       </div>
                     </div>
 
-                    {/* Student Count - Enhanced */}
+                    {/* Student Count */}
                     <div className="mb-4">
-                      <div
-                        className="flex items-center justify-between p-3 rounded-lg"
-                        style={{ backgroundColor: "#f7f6fb" }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: sectionColor.bg, color: sectionColor.text }}
-                          >
-                            <span className="material-symbols-outlined text-lg">people</span>
-                          </div>
-                          <div>
-                            <p className="text-2xl font-bold" style={{ color: "#6C5CE7" }}>
-                              {section.studentCount}
-                            </p>
-                            <p className="text-[10px]" style={{ color: "#484553" }}>
-                              Students enrolled
-                            </p>
-                          </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="material-symbols-outlined text-lg"
+                          style={{ color: "#9CA3AF" }}
+                        >
+                          people
+                        </span>
+                        <div>
+                          <p className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                            {section.studentCount}
+                          </p>
+                          <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                            Students enrolled
+                          </p>
                         </div>
                       </div>
                     </div>
 
                     {/* Footer */}
                     <div
-                      className="mt-auto flex justify-between items-center pt-3 border-t"
-                      style={{ borderColor: "rgba(202, 196, 214, 0.3)" }}
+                      className="mt-auto pt-3 border-t"
+                      style={{ borderColor: "#E5E7EB" }}
                     >
-                      <div
-                        className="flex items-center gap-1 text-xs"
-                        style={{ color: "#484553" }}
-                      >
-                        <span className="material-symbols-outlined text-sm">calendar_today</span>
-                        <span>Created: </span>
-                        <span className="font-bold">
-                          {section.createdAt
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                          Created: {section.createdAt
                             ? new Date(
                                 typeof section.createdAt === 'object' && 'seconds' in section.createdAt
                                   ? (section.createdAt as any).seconds * 1000
@@ -433,73 +438,70 @@ function SectionsContent() {
                               })
                             : 'N/A'}
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          className="w-8 h-8 flex items-center justify-center rounded-lg transition-colors"
-                          style={{ backgroundColor: "#F7F6FB", color: "#9CA3AF" }}
-                          onClick={() => handleDeleteSection(section.id)}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = "#ffdad6";
-                            e.currentTarget.style.color = "#93000a";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = "#F7F6FB";
-                            e.currentTarget.style.color = "#9CA3AF";
-                          }}
-                          title="Delete section"
-                        >
-                          <span className="material-symbols-outlined text-sm">delete</span>
-                        </button>
-                        <button
-                          className="font-bold text-xs px-4 py-2 rounded-lg transition-all flex items-center gap-1"
-                          style={{ backgroundColor: sectionColor.border, color: "#FFFFFF" }}
-                          onClick={() => handleManageSection(section.id)}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.opacity = "0.9";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.opacity = "1";
-                          }}
-                        >
-                          MANAGE
-                          <span className="material-symbols-outlined text-sm">
-                            arrow_forward
-                          </span>
-                        </button>
+                        <div className="flex items-center">
+                          <button
+                            className="flex-1 py-2.5 text-sm font-medium transition-colors"
+                            style={{ color: "#374151" }}
+                            onClick={() => handleManageSection(section.id)}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "#6C5CE7";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "#374151";
+                            }}
+                            title="Manage this section"
+                          >
+                            Manage
+                          </button>
+                          <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
+                          <button
+                            className="flex-1 py-2.5 text-sm font-medium transition-colors"
+                            style={{ color: "#374151" }}
+                            onClick={() => handleDeleteSection(section.id)}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = "#DC2626";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = "#374151";
+                            }}
+                            title="Delete section"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
                 );
-                })
+                })}
+                    {/* Add New Class Button */}
+                    <button
+                      onClick={handleOpenModal}
+                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all min-h-[200px] hover:bg-[#f7f1fd] hover:border-[#5b3ebf] hover:text-[#5b3ebf]"
+                      style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
+                    >
+                      <div
+                        className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[#f1ecf7] group-hover:bg-[#e7deff]"
+                      >
+                        <span className="material-symbols-outlined text-2xl">add</span>
+                      </div>
+                      <div className="text-center px-2">
+                        <h4
+                          className="font-headline text-lg font-bold mb-1"
+                          style={{ color: "#1c1a22" }}
+                        >
+                          Add New Section
+                        </h4>
+                        <p
+                          className="font-body text-xs opacity-70"
+                          style={{ color: "#484553" }}
+                        >
+                          Create a new class section
+                        </p>
+                      </div>
+                    </button>
+                </>
               )}
-
-              {/* Add New Class Button */}
-              <button
-                onClick={handleOpenModal}
-                className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all min-h-[200px] hover:bg-[#f7f1fd] hover:border-[#5b3ebf] hover:text-[#5b3ebf]"
-                style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
-              >
-                <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[#f1ecf7] group-hover:bg-[#e7deff]"
-                >
-                  <span className="material-symbols-outlined text-2xl">add</span>
-                </div>
-                <div className="text-center px-2">
-                  <h4
-                    className="font-headline text-lg font-bold mb-1"
-                    style={{ color: "#1c1a22" }}
-                  >
-                    Add New Section
-                  </h4>
-                  <p
-                    className="font-body text-xs opacity-70"
-                    style={{ color: "#484553" }}
-                  >
-                    Create a new class section
-                  </p>
-                </div>
-              </button>
             </section>
           </div>
 
