@@ -113,18 +113,18 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
   const NavItem = ({ icon: Icon, label, href }: { icon: React.ElementType; label: string; href: string }) => {
     const active = isActive(href);
     const buttonRef = useRef<HTMLButtonElement>(null);
-    
+
     useEffect(() => {
       if (active) {
         activeButtonRef.current = buttonRef.current;
       }
     }, [active]);
-    
+
     return (
       <button
         ref={buttonRef}
         onClick={() => handleNavClick(href)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors relative"
+        className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors relative"
         style={{
           backgroundColor: active ? "#F1F5F9" : "transparent",
         }}
@@ -145,7 +145,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
           }`}
         />
         <span
-          className={`text-[15px] font-medium truncate ${
+          className={`text-[15px] font-medium ${
             active ? "text-[#1e3a5f]" : "text-gray-600"
           }`}
         >
@@ -195,7 +195,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex-1 px-3 py-4 overflow-y-auto flex flex-col relative" ref={navContainerRef}>
+          <nav className="flex-1 px-3 py-6 overflow-y-auto flex flex-col relative" ref={navContainerRef}>
             {allNavItems.map((item) => (
               <NavItem
                 key={item.label}
@@ -208,7 +208,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
             <motion.div
               className="absolute left-0 w-[3px] h-[42px] pointer-events-none"
               style={{ backgroundColor: "#1e3a5f", top: indicatorTop, left: "12px" }}
-              animate={{ 
+              animate={{
                 top: indicatorTop,
                 opacity: indicatorOpacity
               }}
@@ -219,9 +219,9 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
 
           {/* User Profile & Logout */}
           <div className="p-4 shrink-0 border-t" style={{ borderColor: "#E5E7EB" }}>
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               <div
-                className="w-9 h-9 rounded flex items-center justify-center font-semibold text-sm shrink-0"
+                className="w-10 h-10 rounded flex items-center justify-center font-semibold text-base shrink-0"
                 style={{
                   backgroundColor: getAvatarColor(user?.displayName || "T"),
                   color: getAvatarTextColor(user?.displayName || "T"),
@@ -240,7 +240,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors border-l-2 border-transparent hover:border-red-500"
+              className="w-full flex items-center gap-3 px-4 py-3 transition-colors border-l-2 border-transparent hover:border-red-500"
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = "#FEF2F2";
               }}
