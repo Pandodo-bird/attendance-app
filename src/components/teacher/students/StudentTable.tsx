@@ -8,6 +8,7 @@ export interface StudentRow {
   firstName: string;
   lastName: string;
   middleName: string;
+  sectionId: string;  // Add sectionId for Firestore operations
   sectionName: string;
   gradeLevel: string;
   sex: "male" | "female" | "";

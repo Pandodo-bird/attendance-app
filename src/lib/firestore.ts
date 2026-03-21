@@ -10,16 +10,11 @@ import {
   onSnapshot,
   Timestamp,
   deleteDoc,
-  limit,
-  startAfter,
   writeBatch,
-  QueryDocumentSnapshot,
-  orderBy,
   FirestoreError,
-  addDoc,
   updateDoc,
   Unsubscribe,
-  increment
+  increment,
 } from "firebase/firestore";
 
 // ==================== User Profile Types ====================
@@ -115,7 +110,7 @@ interface CacheEntry<T> {
   timestamp: number;
 }
 
-const queryCache = new Map<string, CacheEntry<any>>();
+const queryCache = new Map<string, CacheEntry<unknown>>();
 const CACHE_TTL = 2 * 60 * 1000; // 2 minutes cache TTL for queries
 
 export function getCachedData<T>(key: string): T | null {
@@ -218,6 +213,35 @@ export async function getTeacherSections(
   }
 
   return sections;
+}
+
+/**
+ * Get count of active sections for a teacher (lightweight query)
+ */
+export async function getTeacherSectionCount(teacherId: string): Promise<number> {
+  const sectionsRef = collection(db, "sections");
+  const q = query(sectionsRef, where("teacherId", "==", teacherId), where("status", "==", "active"));
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+}
+
+/**
+ * Get total student count across all active sections for a teacher (lightweight query)
+ */
+export async function getTeacherStudentCount(teacherId: string): Promise<number> {
+  const sections = await getTeacherSections(teacherId, true);
+  let totalCount = 0;
+
+  for (const section of sections) {
+    if (section.status === 'active') {
+      const studentsRef = collection(db, `sections/${section.id}/students`);
+      const q = query(studentsRef, where("studentStatus", "==", "active"));
+      const snapshot = await getDocs(q);
+      totalCount += snapshot.size;
+    }
+  }
+
+  return totalCount;
 }
 
 /**
@@ -336,6 +360,16 @@ export async function getAllTeacherStudents(
 export async function checkSecretaryAccountExists(lrn: string): Promise<boolean> {
   const usersRef = collection(db, "users");
   const q = query(usersRef, where("lrn", "==", lrn), where("role", "==", "secretary"));
+  const snapshot = await getDocs(q);
+  return !snapshot.empty;
+}
+
+/**
+ * Check if a student has an active secretary appointment
+ */
+export async function checkStudentHasActiveSecretaryAppointment(lrn: string): Promise<boolean> {
+  const appointmentsRef = collection(db, "appointments");
+  const q = query(appointmentsRef, where("secretaryLrn", "==", lrn), where("status", "==", "active"));
   const snapshot = await getDocs(q);
   return !snapshot.empty;
 }
