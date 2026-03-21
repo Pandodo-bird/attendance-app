@@ -12,6 +12,7 @@ import {
   updateStudent,
   deleteStudent,
   checkStudentHasActiveSecretaryAppointment,
+  getCachedData,
 } from "@/lib/firestore";
 import SearchBar from "@/components/teacher/students/SearchBar";
 import FilterRow, { StudentRow } from "@/components/teacher/students/FilterRow";
@@ -31,9 +32,28 @@ export default function StudentsPage() {
 
 function StudentsContent() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  
+  // Initialize from cache to avoid loading flash on navigation
+  const initialCacheKey = user?.uid ? `students_all_${user.uid}` : null;
+  const hasCachedStudents = initialCacheKey ? getCachedData<Awaited<ReturnType<typeof getAllTeacherStudents>>>(initialCacheKey) : null;
+  const [loading, setLoading] = useState(!hasCachedStudents);
   const [error, setError] = useState<string | null>(null);
-  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [students, setStudents] = useState<StudentRow[]>(
+    hasCachedStudents
+      ? hasCachedStudents.map(({ sectionId, sectionName, gradeLevel, student }) => ({
+          lrn: student.lrn,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          middleName: student.middleName,
+          sectionId,
+          sectionName,
+          gradeLevel,
+          sex: student.sex,
+          learningModality: student.learningModality,
+          studentStatus: student.studentStatus,
+        }))
+      : []
+  );
 
   // Stats
   const [totalStudents, setTotalStudents] = useState(0);
@@ -61,18 +81,16 @@ function StudentsContent() {
 
     async function loadData() {
       try {
-        setLoading(true);
-
-        // Load stats (lightweight count queries)
+        // Load stats first (with caching)
         const [studentCount, sectionCount] = await Promise.all([
-          getTeacherStudentCount(user!.uid),
-          getTeacherSectionCount(user!.uid),
+          getTeacherStudentCount(user!.uid, true),
+          getTeacherSectionCount(user!.uid, true),
         ]);
         setTotalStudents(studentCount);
         setActiveSections(sectionCount);
 
-        // Load all students
-        const allStudents = await getAllTeacherStudents(user!.uid, false);
+        // Load all students (with caching)
+        const allStudents = await getAllTeacherStudents(user!.uid, true);
 
         // Transform to StudentRow format
         const studentRows: StudentRow[] = allStudents.map(({ sectionId, sectionName, gradeLevel, student }) => ({

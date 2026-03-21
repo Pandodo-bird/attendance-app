@@ -218,18 +218,43 @@ export async function getTeacherSections(
 /**
  * Get count of active sections for a teacher (lightweight query)
  */
-export async function getTeacherSectionCount(teacherId: string): Promise<number> {
+export async function getTeacherSectionCount(
+  teacherId: string,
+  useCache = true
+): Promise<number> {
+  const cacheKey = `sections_count_${teacherId}`;
+
+  if (useCache) {
+    const cached = getCachedData<number>(cacheKey);
+    if (cached !== null) return cached;
+  }
+
   const sectionsRef = collection(db, "sections");
   const q = query(sectionsRef, where("teacherId", "==", teacherId), where("status", "==", "active"));
   const snapshot = await getDocs(q);
+
+  if (useCache) {
+    setCachedData(cacheKey, snapshot.size);
+  }
+
   return snapshot.size;
 }
 
 /**
  * Get total student count across all active sections for a teacher (lightweight query)
  */
-export async function getTeacherStudentCount(teacherId: string): Promise<number> {
-  const sections = await getTeacherSections(teacherId, true);
+export async function getTeacherStudentCount(
+  teacherId: string,
+  useCache = true
+): Promise<number> {
+  const cacheKey = `students_count_${teacherId}`;
+
+  if (useCache) {
+    const cached = getCachedData<number>(cacheKey);
+    if (cached !== null) return cached;
+  }
+
+  const sections = await getTeacherSections(teacherId, useCache);
   let totalCount = 0;
 
   for (const section of sections) {
@@ -239,6 +264,10 @@ export async function getTeacherStudentCount(teacherId: string): Promise<number>
       const snapshot = await getDocs(q);
       totalCount += snapshot.size;
     }
+  }
+
+  if (useCache) {
+    setCachedData(cacheKey, totalCount);
   }
 
   return totalCount;
@@ -332,6 +361,13 @@ export async function getAllTeacherStudents(
   teacherId: string,
   useCache = true
 ): Promise<{ sectionId: string; sectionName: string; gradeLevel: string; student: Student }[]> {
+  const cacheKey = `students_all_${teacherId}`;
+
+  if (useCache) {
+    const cached = getCachedData<{ sectionId: string; sectionName: string; gradeLevel: string; student: Student }[]>(cacheKey);
+    if (cached) return cached;
+  }
+
   const sections = await getTeacherSections(teacherId, useCache);
   const allStudents: { sectionId: string; sectionName: string; gradeLevel: string; student: Student }[] = [];
 
@@ -349,6 +385,10 @@ export async function getAllTeacherStudents(
         }
       }
     }
+  }
+
+  if (useCache) {
+    setCachedData(cacheKey, allStudents);
   }
 
   return allStudents;
@@ -466,9 +506,10 @@ export async function addStudentToSection(
   const batch = writeBatch(db);
   batch.set(studentRef, studentData);
   batch.update(sectionRef, { studentCount: increment(1) });
-  
+
   await batch.commit();
   invalidateCache(`students_${sectionId}`);
+  invalidateCache(`students_all_`);
   invalidateCache(`sections_`);
 }
 
@@ -483,6 +524,7 @@ export async function updateStudent(
   const studentRef = doc(db, `sections/${sectionId}/students`, lrn);
   await updateDoc(studentRef, updates);
   invalidateCache(`students_${sectionId}`);
+  invalidateCache(`students_all_`);
 }
 
 /**
@@ -499,9 +541,10 @@ export async function deleteStudent(
   const batch = writeBatch(db);
   batch.delete(studentRef);
   batch.update(sectionRef, { studentCount: increment(-1) });
-  
+
   await batch.commit();
   invalidateCache(`students_${sectionId}`);
+  invalidateCache(`students_all_`);
   invalidateCache(`sections_`);
 }
 
@@ -529,6 +572,7 @@ export async function importStudentsBatch(
 
   await batch.commit();
   invalidateCache(`students_${sectionId}`);
+  invalidateCache(`students_all_`);
 }
 
 // ==================== Appointment Functions ====================
