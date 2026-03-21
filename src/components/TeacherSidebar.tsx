@@ -11,9 +11,9 @@ import {
   UserCheck,
   Settings,
   LogOut,
-  GraduationCap,
 } from "lucide-react";
 import { useState } from "react";
+import { motion } from "framer-motion";
 
 interface TeacherSidebarProps {
   onClose?: () => void;
@@ -94,15 +94,34 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
     return (
       <button
         onClick={() => handleNavClick(href)}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 transition-colors border-l-2 ${
-          active
-            ? "bg-slate-100 border-[#1e3a5f]"
-            : "border-transparent hover:bg-slate-50"
-        }`}
+        className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors border-l-2 relative"
+        style={{
+          backgroundColor: active ? "#F1F5F9" : "transparent",
+          borderLeftColor: active ? "#1e3a5f" : "transparent",
+        }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.backgroundColor = "#F8FAFC";
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.backgroundColor = active ? "#F1F5F9" : "transparent";
+          }
+        }}
       >
+        {/* Active indicator with smooth layout animation */}
+        {active && (
+          <motion.div
+            layoutId="active-nav"
+            className="absolute left-0 top-0 bottom-0 w-0.5"
+            style={{ backgroundColor: "#1e3a5f" }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          />
+        )}
         <Icon
           className={`w-5 h-5 shrink-0 ${
-            active ? "text-[#1e3a5f]" : "text-gray-500 group-hover:text-gray-700"
+            active ? "text-[#1e3a5f]" : "text-gray-500"
           }`}
         />
         <span

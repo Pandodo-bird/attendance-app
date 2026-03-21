@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { ImportModal, StudentData } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
 import { RoleGuard } from "@/hooks/useRequireRole";
+import { motion } from "framer-motion";
 
 // Extended section with student count
 interface SectionWithCount extends Section {
@@ -51,7 +52,6 @@ function SectionsContent() {
   const [showAlert, setShowAlert] = useState(false);
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState<'error' | 'success' | 'info'>('info');
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Load sections on mount or when refreshTrigger changes
   useEffect(() => {
@@ -78,7 +78,6 @@ function SectionsContent() {
         console.log("Sections with counts:", sectionsWithCounts);
         setSections(sectionsWithCounts);
         setIsLoading(false);
-        setHasLoadedOnce(true);
       } catch (err) {
         console.error("Error loading sections:", err);
         setError("Failed to load sections. Please try again.");
@@ -282,7 +281,13 @@ function SectionsContent() {
           />
 
           {/* Content Canvas */}
-          <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
+          <motion.div
+            className="p-4 lg:p-8 space-y-6 lg:space-y-8"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
             {/* Bento Grid of Classes */}
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
               {error ? (
@@ -326,25 +331,20 @@ function SectionsContent() {
                       const sectionInitial = getSectionInitial(section.sectionName);
 
                       return (
-                      <div
+                      <motion.div
                         key={section.id}
-                        className="group rounded-xl p-4 transition-all hover:-translate-y-1 relative overflow-hidden flex flex-col shadow-sm hover:shadow-md"
+                        className="group rounded-xl p-4 relative overflow-hidden flex flex-col shadow-sm"
                         style={{
                           backgroundColor: "#FFFFFF",
                           border: "0.5px solid #E5E7EB"
                         }}
-                        onMouseEnter={(e) => {
-                          if (section.status === "active") {
-                            e.currentTarget.style.borderColor = "#D1D5DB";
-                            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          if (section.status === "active") {
-                            e.currentTarget.style.borderColor = "#E5E7EB";
-                            e.currentTarget.style.boxShadow = "none";
-                          }
-                        }}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
+                        whileHover={section.status === "active" ? {
+                          borderColor: "#D1D5DB",
+                          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                        } : undefined}
                       >
                     {/* Card Header */}
                     <div className="flex justify-between items-start mb-4">
@@ -429,7 +429,7 @@ function SectionsContent() {
                           Created: {section.createdAt
                             ? new Date(
                                 typeof section.createdAt === 'object' && 'seconds' in section.createdAt
-                                  ? (section.createdAt as any).seconds * 1000
+                                  ? (section.createdAt as { seconds: number }).seconds * 1000
                                   : section.createdAt
                               ).toLocaleDateString('en-US', {
                                 month: 'short',
@@ -471,20 +471,36 @@ function SectionsContent() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 );
                 })}
-                    {/* Add New Class Button */}
-                    <button
+                    {/* Add New Section Button (Ghost Card) */}
+                    <motion.button
                       onClick={handleOpenModal}
-                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all min-h-[200px] hover:bg-[#f7f1fd] hover:border-[#5b3ebf] hover:text-[#5b3ebf]"
-                      style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
+                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 min-h-[200px]"
+                      style={{ backgroundColor: "#FFFFFF", borderColor: "#C9B8D6", color: "#484553" }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{
+                        delay: filteredSections.length * 0.05 + 0.1,
+                        duration: 0.2,
+                        ease: "easeOut",
+                      }}
+                      whileHover={{
+                        borderColor: "#6C5CE7",
+                        color: "#6C5CE7",
+                        scale: 1.02,
+                        transition: { duration: 0.15 }
+                      }}
                     >
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[#f1ecf7] group-hover:bg-[#e7deff]"
+                      <motion.div
+                        className="w-12 h-12 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: "#f1ecf7" }}
+                        whileHover={{ backgroundColor: "#D4C4E8", scale: 1.05 }}
+                        transition={{ duration: 0.15 }}
                       >
-                        <span className="material-symbols-outlined text-2xl">add</span>
-                      </div>
+                        <span className="material-symbols-outlined text-2xl" style={{ color: "#484553" }}>add</span>
+                      </motion.div>
                       <div className="text-center px-2">
                         <h4
                           className="font-headline text-lg font-bold mb-1"
@@ -499,11 +515,11 @@ function SectionsContent() {
                           Create a new class section
                         </p>
                       </div>
-                    </button>
+                    </motion.button>
                 </>
               )}
             </section>
-          </div>
+          </motion.div>
 
       {/* Import Modal */}
       <ImportModal

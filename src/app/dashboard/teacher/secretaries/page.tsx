@@ -13,10 +13,10 @@ import {
   Section,
   getCachedData,
   setCachedData,
-  getUserProfile,
-  getSectionStudents
+  getUserProfile
 } from "@/lib/firestore";
 import { RoleGuard } from "@/hooks/useRequireRole";
+import { motion } from "framer-motion";
 
 // Extended appointment with enriched data
 interface SecretaryAppointment {
@@ -56,13 +56,10 @@ function SecretariesContent() {
   const [secretaries, setSecretaries] = useState<SecretaryAppointment[]>(hasCachedData || []);
   const [isLoading, setIsLoading] = useState(!hasCachedData);
   const [error, setError] = useState<string | null>(null);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [generatedCredentials, setGeneratedCredentials] = useState<{ email: string; password: string } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
 
   // Format Firestore timestamp to readable string
@@ -71,11 +68,11 @@ function SecretariesContent() {
 
     // Convert to Date object
     let date: Date;
-    
+
     if (typeof timestamp === 'string') {
       date = new Date(timestamp);
-    } else if (typeof (timestamp as any).toDate === 'function') {
-      date = (timestamp as any).toDate();
+    } else if (typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
     } else {
       date = timestamp as Date;
     }
@@ -112,7 +109,6 @@ function SecretariesContent() {
         setSecretaries(cachedSecretaries);
         setIsLoading(false);
         setError(null);
-        setHasLoadedOnce(true);
         return;
       }
 
@@ -183,7 +179,6 @@ function SecretariesContent() {
         setCachedData(cacheKey, enriched);
 
         setIsLoading(false);
-        setHasLoadedOnce(true);
       } catch (err) {
         console.error("Error loading secretaries:", err);
         setError("Failed to load secretary data. Please refresh the page.");
@@ -253,8 +248,6 @@ function SecretariesContent() {
   // Handle opening the registration modal
   const handleOpenRegisterModal = () => {
     setShowRegisterModal(true);
-    setGeneratedCredentials(null);
-    setShowPassword(false);
     setShouldRefreshAfterClose(false); // Reset refresh flag
   };
 
@@ -266,8 +259,6 @@ function SecretariesContent() {
       setShouldRefreshAfterClose(false);
     }
     setShowRegisterModal(false);
-    setGeneratedCredentials(null);
-    setShowPassword(false);
   };
 
   // Handle viewing records (placeholder - to be implemented)
@@ -320,7 +311,13 @@ function SecretariesContent() {
       />
 
       {/* Content Canvas */}
-      <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
+      <motion.div
+        className="p-4 lg:p-8 space-y-6 lg:space-y-8"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
             {/* Bento Grid of Secretaries */}
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
               {error ? (
@@ -375,19 +372,36 @@ function SecretariesContent() {
                         onRemove={() => handleRemoveSecretary(secretary.appointmentId)}
                         onRestore={() => handleRestoreSecretary(secretary.appointmentId)}
                         onDelete={() => handleDeleteAppointment(secretary.appointmentId)}
+                        index={index}
                       />
                   ))}
-                    {/* Add New Secretary Card */}
-                    <button
+                    {/* Appoint Secretary Card (Ghost Card) */}
+                    <motion.button
                       onClick={handleOpenRegisterModal}
-                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 transition-all min-h-[200px] hover:bg-[#f7f1fd] hover:border-[#5b3ebf] hover:text-[#5b3ebf]"
-                      style={{ borderColor: "rgba(202, 196, 214, 0.5)", color: "#484553" }}
+                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 min-h-[200px]"
+                      style={{ backgroundColor: "#FFFFFF", borderColor: "#C9B8D6", color: "#484553" }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{
+                        delay: filteredSecretaries.length * 0.05 + 0.1,
+                        duration: 0.2,
+                        ease: "easeOut",
+                      }}
+                      whileHover={{
+                        borderColor: "#6C5CE7",
+                        color: "#6C5CE7",
+                        scale: 1.02,
+                        transition: { duration: 0.15 }
+                      }}
                     >
-                    <div
-                      className="w-12 h-12 rounded-full flex items-center justify-center transition-colors bg-[#f1ecf7] group-hover:bg-[#e7deff]"
+                    <motion.div
+                      className="w-12 h-12 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: "#f1ecf7" }}
+                      whileHover={{ backgroundColor: "#D4C4E8", scale: 1.05 }}
+                      transition={{ duration: 0.15 }}
                     >
-                      <span className="material-symbols-outlined text-2xl">add</span>
-                    </div>
+                      <span className="material-symbols-outlined text-2xl" style={{ color: "#484553" }}>add</span>
+                    </motion.div>
                     <div className="text-center px-2">
                       <h4
                         className="font-headline text-lg font-bold mb-1"
@@ -402,11 +416,11 @@ function SecretariesContent() {
                         Assign a student to a subject
                       </p>
                     </div>
-                  </button>
+                  </motion.button>
                 </>
               )}
             </section>
-          </div>
+          </motion.div>
 
       {/* Registration Modal */}
       {showRegisterModal && (
@@ -416,8 +430,6 @@ function SecretariesContent() {
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => {
               setShowRegisterModal(false);
-              setGeneratedCredentials(null);
-              setShowPassword(false);
             }}
           ></div>
           
@@ -454,15 +466,13 @@ function SecretariesContent() {
             <div className="p-6 lg:p-8 flex-1 overflow-y-auto">
               <SecretaryCreationForm
                 teacherId={user?.uid || ''}
-                onSuccess={(credentials) => {
-                  setGeneratedCredentials(credentials);
+                onSuccess={() => {
                   setShouldRefreshAfterClose(true); // Mark for refresh on close
                 }}
                 onCancel={handleCloseRegisterModal}
                 refreshTrigger={refreshTrigger}
                 createSecretaryAccount={async (displayName, email, password) => {
                   const credentials = await createSecretaryAccount(displayName, email, password);
-                  setGeneratedCredentials(credentials);
                   return credentials;
                 }}
               />

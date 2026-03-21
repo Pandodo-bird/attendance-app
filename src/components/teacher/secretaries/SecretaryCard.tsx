@@ -1,5 +1,7 @@
 "use client";
 
+import { motion } from "framer-motion";
+
 interface SecretaryCardProps {
   secretaryUid: string;
   secretaryLrn: string;
@@ -17,6 +19,7 @@ interface SecretaryCardProps {
   onRemove?: () => void;
   onRestore?: () => void;
   onDelete?: () => void;
+  index?: number;
 }
 
 function getInitials(name: string): string {
@@ -81,32 +84,28 @@ export default function SecretaryCard({
   onRemove,
   onRestore,
   onDelete,
+  index = 0,
 }: SecretaryCardProps) {
   const initials = getInitials(secretaryName);
   const avatarBg = getAvatarColor(secretaryLrn);
   const avatarText = getAvatarTextColor(secretaryLrn);
 
   return (
-    <div
-      className="rounded-2xl transition-all"
+    <motion.div
+      className="rounded-2xl"
       style={{
         backgroundColor: "#FFFFFF",
         border: "0.5px solid #E5E7EB",
         opacity: status === "removed" ? 0.7 : 1,
         filter: status === "removed" ? "grayscale(0.3)" : "none",
       }}
-      onMouseEnter={(e) => {
-        if (status === "active") {
-          e.currentTarget.style.borderColor = "#D1D5DB";
-          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.08)";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (status === "active") {
-          e.currentTarget.style.borderColor = "#E5E7EB";
-          e.currentTarget.style.boxShadow = "none";
-        }
-      }}
+      whileHover={status === "active" ? {
+        borderColor: "#D1D5DB",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+      } : undefined}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: status === "removed" ? 0.7 : 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
     >
       <div className="p-5">
         {/* Header: Avatar + Status */}
@@ -267,6 +266,6 @@ export default function SecretaryCard({
           </>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
