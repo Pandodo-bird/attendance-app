@@ -64,13 +64,17 @@ function SecretariesContent() {
   const formatLastActive = (timestamp: Date | { toDate: () => Date } | string | null): string => {
     if (!timestamp) return "Unknown";
 
-    // Handle Firestore Timestamp (has toDate method)
-    if ('toDate' in timestamp && typeof timestamp.toDate === 'function') {
-      return formatLastActive(timestamp.toDate());
-    }
+    // Convert to Date object
+    let date: Date;
     
-    // Handle string or Date
-    const date = typeof timestamp === 'string' ? new Date(timestamp) : timestamp;
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (typeof (timestamp as any).toDate === 'function') {
+      date = (timestamp as any).toDate();
+    } else {
+      date = timestamp as Date;
+    }
+
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
