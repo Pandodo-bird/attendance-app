@@ -223,10 +223,14 @@ function SectionsContent() {
         sex: s.sex === "female" ? "female" as const : s.sex === "male" ? "male" as const : "" as const,
         birthDate: s.birthDate || "",
         religion: s.religion || "",
-        address: `${s.barangay || ""}, ${s.city || ""}, ${s.province || ""}`.replace(/^,\s*|\s*,\s*|,\s*$/g, ""),
-        parentFather: s.fatherName || "",
-        parentMother: s.motherMaidenName || "",
-        guardian: s.guardianName || "",
+        barangay: s.barangay || "",
+        city: s.city || "",
+        province: s.province || "",
+        fatherName: s.fatherName || "",
+        motherMaidenName: s.motherMaidenName || "",
+        guardianName: s.guardianName || "",
+        guardianRelationship: s.guardianRelationship || "",
+        guardianContactNumber: s.guardianContactNumber || "",
         learningModality: s.learningModality || "",
         studentStatus: ["active", "inactive", "graduated", "dropped"].includes(s.studentStatus?.toLowerCase())
           ? s.studentStatus.toLowerCase() as "active" | "inactive" | "graduated" | "dropped"

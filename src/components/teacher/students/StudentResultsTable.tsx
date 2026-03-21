@@ -19,10 +19,18 @@ export interface StudentRow {
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
   birthDate?: Date | Timestamp | string;
   religion?: string;
-  address?: string;
-  parentFather?: string;
-  parentMother?: string;
-  guardian?: string;
+  
+  // Address
+  barangay?: string;
+  city?: string;
+  province?: string;
+  
+  // Parent/Guardian Info
+  fatherName?: string;
+  motherMaidenName?: string;
+  guardianName?: string;
+  guardianRelationship?: string;
+  guardianContactNumber?: string;
 }
 
 interface StudentResultsTableProps {

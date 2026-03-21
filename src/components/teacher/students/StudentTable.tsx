@@ -8,12 +8,24 @@ export interface StudentRow {
   firstName: string;
   lastName: string;
   middleName: string;
-  sectionId: string;  // Add sectionId for Firestore operations
+  sectionId: string;
   sectionName: string;
   gradeLevel: string;
   sex: "male" | "female" | "";
   learningModality: string;
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
+  
+  // Address
+  barangay: string;
+  city: string;
+  province: string;
+  
+  // Parent/Guardian Info
+  fatherName: string;
+  motherMaidenName: string;
+  guardianName: string;
+  guardianRelationship: string;
+  guardianContactNumber: string;
 }
 
 interface StudentTableProps {

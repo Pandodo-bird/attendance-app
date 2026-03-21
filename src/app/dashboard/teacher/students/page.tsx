@@ -106,10 +106,14 @@ function StudentsContent() {
           studentStatus: student.studentStatus,
           birthDate: student.birthDate,
           religion: student.religion,
-          address: student.address,
-          parentFather: student.parentFather,
-          parentMother: student.parentMother,
-          guardian: student.guardian,
+          barangay: student.barangay,
+          city: student.city,
+          province: student.province,
+          fatherName: student.fatherName,
+          motherMaidenName: student.motherMaidenName,
+          guardianName: student.guardianName,
+          guardianRelationship: student.guardianRelationship,
+          guardianContactNumber: student.guardianContactNumber,
         }));
 
         setStudents(studentRows);
@@ -139,10 +143,14 @@ function StudentsContent() {
       studentStatus: student.studentStatus,
       birthDate: student.birthDate || new Date(),
       religion: student.religion || "",
-      address: student.address || "",
-      parentFather: student.parentFather || "",
-      parentMother: student.parentMother || "",
-      guardian: student.guardian || "",
+      barangay: student.barangay || "",
+      city: student.city || "",
+      province: student.province || "",
+      fatherName: student.fatherName || "",
+      motherMaidenName: student.motherMaidenName || "",
+      guardianName: student.guardianName || "",
+      guardianRelationship: student.guardianRelationship || "",
+      guardianContactNumber: student.guardianContactNumber || "",
     };
     setSelectedStudent(fullProfile);
     setIsDrawerOpen(true);
@@ -162,10 +170,14 @@ function StudentsContent() {
       studentStatus: student.studentStatus,
       birthDate: student.birthDate || new Date(),
       religion: student.religion || "",
-      address: student.address || "",
-      parentFather: student.parentFather || "",
-      parentMother: student.parentMother || "",
-      guardian: student.guardian || "",
+      barangay: student.barangay || "",
+      city: student.city || "",
+      province: student.province || "",
+      fatherName: student.fatherName || "",
+      motherMaidenName: student.motherMaidenName || "",
+      guardianName: student.guardianName || "",
+      guardianRelationship: student.guardianRelationship || "",
+      guardianContactNumber: student.guardianContactNumber || "",
     };
     setSelectedStudent(fullProfile);
     setIsDrawerOpen(true);

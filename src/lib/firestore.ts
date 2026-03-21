@@ -59,11 +59,23 @@ export interface Student {
   sex: "male" | "female" | "";
   birthDate: Date | Timestamp | string;
   religion: string;
-  address: string;
-  parentFather: string;
-  parentMother: string;
-  guardian: string;
+  
+  // Address
+  barangay: string;
+  city: string;
+  province: string;
+  
+  // Parent/Guardian Info
+  fatherName: string;
+  motherMaidenName: string;
+  guardianName: string;
+  guardianRelationship: string;
+  guardianContactNumber: string;
+  
+  // Academic Info
   learningModality: string;
+  
+  // Status
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
   createdAt: Date | Timestamp;
 }

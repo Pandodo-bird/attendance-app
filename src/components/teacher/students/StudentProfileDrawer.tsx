@@ -17,10 +17,18 @@ export interface StudentProfile {
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
   birthDate: Date | Timestamp | string;
   religion: string;
-  address: string;
-  parentFather: string;
-  parentMother: string;
-  guardian: string;
+  
+  // Address
+  barangay: string;
+  city: string;
+  province: string;
+  
+  // Parent/Guardian Info
+  fatherName: string;
+  motherMaidenName: string;
+  guardianName: string;
+  guardianRelationship: string;
+  guardianContactNumber: string;
 }
 
 interface StudentProfileDrawerProps {
@@ -350,14 +358,28 @@ export default function StudentProfileDrawer({
               {/* Contact Information */}
               <section className="space-y-4 pb-6" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
                 <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>
-                  Contact Information
+                  Address
                 </h3>
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
                   <InputField
-                    label="Address"
-                    field="address"
+                    label="Barangay"
+                    field="barangay"
                     isEditMode={isEditMode}
-                    value={editedStudent.address}
+                    value={editedStudent.barangay}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="City"
+                    field="city"
+                    isEditMode={isEditMode}
+                    value={editedStudent.city}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="Province"
+                    field="province"
+                    isEditMode={isEditMode}
+                    value={editedStudent.province}
                     onChange={handleChange}
                   />
                 </div>
@@ -371,23 +393,37 @@ export default function StudentProfileDrawer({
                 <div className="grid grid-cols-1 gap-4">
                   <InputField
                     label="Father's Name"
-                    field="parentFather"
+                    field="fatherName"
                     isEditMode={isEditMode}
-                    value={editedStudent.parentFather}
+                    value={editedStudent.fatherName}
                     onChange={handleChange}
                   />
                   <InputField
-                    label="Mother's Name"
-                    field="parentMother"
+                    label="Mother's Maiden Name"
+                    field="motherMaidenName"
                     isEditMode={isEditMode}
-                    value={editedStudent.parentMother}
+                    value={editedStudent.motherMaidenName}
                     onChange={handleChange}
                   />
                   <InputField
-                    label="Guardian"
-                    field="guardian"
+                    label="Guardian Name"
+                    field="guardianName"
                     isEditMode={isEditMode}
-                    value={editedStudent.guardian}
+                    value={editedStudent.guardianName}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="Guardian Relationship"
+                    field="guardianRelationship"
+                    isEditMode={isEditMode}
+                    value={editedStudent.guardianRelationship}
+                    onChange={handleChange}
+                  />
+                  <InputField
+                    label="Guardian Contact Number"
+                    field="guardianContactNumber"
+                    isEditMode={isEditMode}
+                    value={editedStudent.guardianContactNumber}
                     onChange={handleChange}
                   />
                 </div>
