@@ -12,7 +12,7 @@ import {
   Settings,
   LogOut,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 
 interface TeacherSidebarProps {
@@ -25,6 +25,20 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
   const router = useRouter();
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(isOpen);
+  const [indicatorTop, setIndicatorTop] = useState(0);
+  const [indicatorOpacity, setIndicatorOpacity] = useState(0);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const activeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (activeButtonRef.current && navContainerRef.current) {
+      const button = activeButtonRef.current;
+      const container = navContainerRef.current;
+      const top = button.offsetTop;
+      setIndicatorTop(top);
+      setIndicatorOpacity(1);
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -45,6 +59,13 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
 
   const settingsNavItems = [
     { icon: Settings, label: "Settings", href: "/dashboard/teacher/settings" },
+  ];
+
+  // Flatten all nav items into a single continuous list
+  const allNavItems = [
+    ...mainNavItems,
+    ...toolNavItems,
+    ...settingsNavItems,
   ];
 
   const isActive = (href: string) => pathname === href;
@@ -91,13 +112,21 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
 
   const NavItem = ({ icon: Icon, label, href }: { icon: React.ElementType; label: string; href: string }) => {
     const active = isActive(href);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    
+    useEffect(() => {
+      if (active) {
+        activeButtonRef.current = buttonRef.current;
+      }
+    }, [active]);
+    
     return (
       <button
+        ref={buttonRef}
         onClick={() => handleNavClick(href)}
-        className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors border-l-2 relative"
+        className="w-full flex items-center gap-3 px-3 py-2.5 transition-colors relative"
         style={{
           backgroundColor: active ? "#F1F5F9" : "transparent",
-          borderLeftColor: active ? "#1e3a5f" : "transparent",
         }}
         onMouseEnter={(e) => {
           if (!active) {
@@ -110,15 +139,6 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
           }
         }}
       >
-        {/* Active indicator with smooth layout animation */}
-        {active && (
-          <motion.div
-            layoutId="active-nav"
-            className="absolute left-0 top-0 bottom-0 w-0.5"
-            style={{ backgroundColor: "#1e3a5f" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          />
-        )}
         <Icon
           className={`w-5 h-5 shrink-0 ${
             active ? "text-[#1e3a5f]" : "text-gray-500"
@@ -134,17 +154,6 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
       </button>
     );
   };
-
-  const NavGroup = ({ title, items }: { title: string; items: typeof mainNavItems | typeof toolNavItems | typeof settingsNavItems }) => (
-    <div className="mb-6">
-      <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
-        {title}
-      </p>
-      {items.map((item) => (
-        <NavItem key={item.label} icon={item.icon} label={item.label} href={item.href} />
-      ))}
-    </div>
-  );
 
   return (
     <>
@@ -186,10 +195,26 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex-1 px-3 py-4 overflow-y-auto">
-            <NavGroup title="Manage" items={mainNavItems} />
-            <NavGroup title="Tools" items={toolNavItems} />
-            <NavGroup title="" items={settingsNavItems} />
+          <nav className="flex-1 px-3 py-4 overflow-y-auto flex flex-col relative" ref={navContainerRef}>
+            {allNavItems.map((item) => (
+              <NavItem
+                key={item.label}
+                icon={item.icon}
+                label={item.label}
+                href={item.href}
+              />
+            ))}
+            {/* Single animated indicator - rendered last to appear on top */}
+            <motion.div
+              className="absolute left-0 w-[3px] h-[42px] pointer-events-none"
+              style={{ backgroundColor: "#1e3a5f", top: indicatorTop, left: "12px" }}
+              animate={{ 
+                top: indicatorTop,
+                opacity: indicatorOpacity
+              }}
+              transition={{ type: "spring", stiffness: 400, damping: 35 }}
+              initial={false}
+            />
           </nav>
 
           {/* User Profile & Logout */}

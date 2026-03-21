@@ -10,6 +10,7 @@ import { ImportModal, StudentData } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
+import { Plus } from "lucide-react";
 
 // Extended section with student count
 interface SectionWithCount extends Section {
@@ -100,6 +101,11 @@ function SectionsContent() {
       section.schoolYear.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Handle opening the import modal
+  const handleOpenModal = () => {
+    setShowImportModal(true);
+  };
+
   const getSectionInitial = (sectionName: string): string => {
     return sectionName.charAt(0).toUpperCase();
   };
@@ -179,11 +185,6 @@ function SectionsContent() {
   // Navigate to section details
   const handleManageSection = (sectionId: string) => {
     router.push(`/dashboard/teacher/sections/${sectionId}`);
-  };
-
-  // Handle opening the import modal
-  const handleOpenModal = () => {
-    setShowImportModal(true);
   };
 
   // Handle saving section and students
@@ -269,16 +270,34 @@ function SectionsContent() {
       <TeacherHeader
         title="Current Sections"
         stats={[
-              { label: "TOTAL STUDENTS", value: totalStudents },
-              {
-                label: "ACTIVE SECTIONS",
-                value: activeSections,
-                valueColor: "#00625b",
-              },
-            ]}
-            searchPlaceholder="Search by section name, grade, or school year..."
-            onSearch={(query) => setSearchQuery(query)}
-          />
+          { label: "TOTAL STUDENTS", value: totalStudents },
+          {
+            label: "ACTIVE SECTIONS",
+            value: activeSections,
+          },
+          {
+            label: "",
+            value: (
+              <button
+                onClick={handleOpenModal}
+                className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
+                style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#1A202C";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#2D3748";
+                }}
+              >
+                <Plus size={18} strokeWidth={2} />
+                <span className="text-sm">New Section</span>
+              </button>
+            ),
+          },
+        ]}
+        searchPlaceholder="Search by section name, grade, or school year..."
+        onSearch={(query) => setSearchQuery(query)}
+      />
 
           {/* Content Canvas */}
           <motion.div
@@ -474,48 +493,6 @@ function SectionsContent() {
                   </motion.div>
                 );
                 })}
-                    {/* Add New Section Button (Ghost Card) */}
-                    <motion.button
-                      onClick={handleOpenModal}
-                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 min-h-[200px]"
-                      style={{ backgroundColor: "#FFFFFF", borderColor: "#C9B8D6", color: "#484553" }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{
-                        delay: filteredSections.length * 0.05 + 0.1,
-                        duration: 0.2,
-                        ease: "easeOut",
-                      }}
-                      whileHover={{
-                        borderColor: "#6C5CE7",
-                        color: "#6C5CE7",
-                        scale: 1.02,
-                        transition: { duration: 0.15 }
-                      }}
-                    >
-                      <motion.div
-                        className="w-12 h-12 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: "#f1ecf7" }}
-                        whileHover={{ backgroundColor: "#D4C4E8", scale: 1.05 }}
-                        transition={{ duration: 0.15 }}
-                      >
-                        <span className="material-symbols-outlined text-2xl" style={{ color: "#484553" }}>add</span>
-                      </motion.div>
-                      <div className="text-center px-2">
-                        <h4
-                          className="font-headline text-lg font-bold mb-1"
-                          style={{ color: "#1c1a22" }}
-                        >
-                          Add New Section
-                        </h4>
-                        <p
-                          className="font-body text-xs opacity-70"
-                          style={{ color: "#484553" }}
-                        >
-                          Create a new class section
-                        </p>
-                      </div>
-                    </motion.button>
                 </>
               )}
             </section>

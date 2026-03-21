@@ -44,26 +44,8 @@ export default function ActiveSecretariesCounter({ teacherId }: ActiveSecretarie
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <div
-        className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-        style={{ backgroundColor: "#e7deff" }}
-      >
-        <span
-          className="material-symbols-outlined text-lg"
-          style={{ color: "#6C5CE7" }}
-        >
-          verified
-        </span>
-      </div>
-      <div>
-        <p className="text-2xl font-bold" style={{ color: "#6C5CE7" }}>
-          {activeCount}
-        </p>
-        <p className="text-[10px]" style={{ color: "#484553" }}>
-          Active secretaries
-        </p>
-      </div>
-    </div>
+    <p className="text-2xl font-medium" style={{ color: "#1F1F1F" }}>
+      {activeCount}
+    </p>
   );
 }

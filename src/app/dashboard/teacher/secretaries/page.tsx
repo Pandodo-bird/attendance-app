@@ -17,6 +17,7 @@ import {
 } from "@/lib/firestore";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
+import { UserPlus } from "lucide-react";
 
 // Extended appointment with enriched data
 interface SecretaryAppointment {
@@ -303,7 +304,25 @@ function SecretariesContent() {
           {
             label: "ACTIVE SECRETARIES",
             value: <ActiveSecretariesCounter teacherId={user?.uid || ""} />,
-            valueColor: "#6C5CE7",
+          },
+          {
+            label: "",
+            value: (
+              <button
+                onClick={handleOpenRegisterModal}
+                className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
+                style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "#1A202C";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "#2D3748";
+                }}
+              >
+                <UserPlus size={18} strokeWidth={2} />
+                <span className="text-sm">Appoint Secretary</span>
+              </button>
+            ),
           },
         ]}
         searchPlaceholder="Search by name, subject, or section..."
@@ -375,48 +394,6 @@ function SecretariesContent() {
                         index={index}
                       />
                   ))}
-                    {/* Appoint Secretary Card (Ghost Card) */}
-                    <motion.button
-                      onClick={handleOpenRegisterModal}
-                      className="group border-2 border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-3 min-h-[200px]"
-                      style={{ backgroundColor: "#FFFFFF", borderColor: "#C9B8D6", color: "#484553" }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{
-                        delay: filteredSecretaries.length * 0.05 + 0.1,
-                        duration: 0.2,
-                        ease: "easeOut",
-                      }}
-                      whileHover={{
-                        borderColor: "#6C5CE7",
-                        color: "#6C5CE7",
-                        scale: 1.02,
-                        transition: { duration: 0.15 }
-                      }}
-                    >
-                    <motion.div
-                      className="w-12 h-12 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: "#f1ecf7" }}
-                      whileHover={{ backgroundColor: "#D4C4E8", scale: 1.05 }}
-                      transition={{ duration: 0.15 }}
-                    >
-                      <span className="material-symbols-outlined text-2xl" style={{ color: "#484553" }}>add</span>
-                    </motion.div>
-                    <div className="text-center px-2">
-                      <h4
-                        className="font-headline text-lg font-bold mb-1"
-                        style={{ color: "#1c1a22" }}
-                      >
-                        Appoint Secretary
-                      </h4>
-                      <p
-                        className="font-body text-xs opacity-70"
-                        style={{ color: "#484553" }}
-                      >
-                        Assign a student to a subject
-                      </p>
-                    </div>
-                  </motion.button>
                 </>
               )}
             </section>

@@ -93,26 +93,31 @@ export default function TeacherHeader({
             {stats.map((stat, index) => (
               <div
                 key={index}
-                className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg text-right shrink-0"
-                style={{ backgroundColor: "#ffffff" }}
+                className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg shrink-0 flex flex-col items-end justify-center gap-0.5"
+                style={{ 
+                  backgroundColor: "#FFFFFF",
+                  border: "0.5px solid #E5E7EB"
+                }}
               >
-                <p
-                  className="font-label text-[10px] uppercase tracking-tighter"
-                  style={{ color: "#484553" }}
-                >
-                  {stat.label}
-                </p>
+                {stat.label && (
+                  <p
+                    className="font-label text-[10px] uppercase tracking-tighter font-medium"
+                    style={{ color: "#6B7280" }}
+                  >
+                    {stat.label}
+                  </p>
+                )}
                 {typeof stat.value === "string" || typeof stat.value === "number" ? (
                   <p
-                    className="font-headline text-xl lg:text-2xl font-bold leading-none"
-                    style={{ color: stat.valueColor || "#1c1a22" }}
+                    className="font-headline text-xl lg:text-2xl font-medium leading-none"
+                    style={{ color: "#1F1F1F" }}
                   >
                     {stat.value}
                   </p>
                 ) : (
                   <div
-                    className="font-headline text-xl lg:text-2xl font-bold leading-none"
-                    style={{ color: stat.valueColor || "#1c1a22" }}
+                    className="font-headline text-xl lg:text-2xl font-medium leading-none"
+                    style={{ color: "#1F1F1F" }}
                   >
                     {stat.value}
                   </div>
