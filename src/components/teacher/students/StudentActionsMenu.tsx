@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MoreVertical, Eye, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
 
 interface StudentActionsMenuProps {
   onView: () => void;
@@ -36,7 +36,7 @@ export default function StudentActionsMenu({
         className="p-1.5 rounded-lg hover:bg-[#F3F4F6] transition-colors"
         style={{ color: "#6B7280" }}
       >
-        <MoreVertical size={18} />
+        <MoreHorizontal size={18} />
       </button>
 
       <AnimatePresence>

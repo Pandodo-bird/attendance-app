@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Edit2, Save, XCircle } from "lucide-react";
+import { X, Pencil } from "lucide-react";
 
 export interface StudentProfile {
   lrn: string;
@@ -52,6 +52,8 @@ function InputField({ label, field, type = "text", isEditMode, value, onChange }
     return d.toISOString().split("T")[0];
   };
 
+  const isEmpty = !value || (typeof value === "string" && value.trim() === "");
+
   return (
     <div className="space-y-1">
       <label className="text-xs font-medium uppercase tracking-wide" style={{ color: "#6B7280" }}>
@@ -62,11 +64,11 @@ function InputField({ label, field, type = "text", isEditMode, value, onChange }
           type={type}
           value={type === "date" && value ? formatDateInput(value) : String(value || "")}
           onChange={(e) => onChange(field, e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#6C5CE7] outline-none transition-all"
+          className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all"
           style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#1F1F1F" }}
         />
       ) : (
-        <p className="text-sm" style={{ color: "#1F1F1F" }}>
+        <p className="text-sm" style={{ color: isEmpty ? "#9CA3AF" : "#1F1F1F" }}>
           {type === "date" ? formatDate(value) : String(value || "N/A")}
         </p>
       )}
@@ -190,18 +192,17 @@ export default function StudentProfileDrawer({
                     <button
                       onClick={handleCancel}
                       disabled={isSaving}
-                      className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                      className="px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 hover:text-[#1F1F1F]"
                       style={{ color: "#6B7280" }}
                     >
-                      <XCircle size={20} />
+                      Cancel
                     </button>
                     <button
                       onClick={handleSave}
                       disabled={isSaving}
-                      className="px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors disabled:opacity-50"
-                      style={{ backgroundColor: "#6C5CE7", color: "#FFFFFF" }}
+                      className="px-4 py-2 rounded-md font-medium text-sm transition-colors disabled:opacity-50"
+                      style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
                     >
-                      <Save size={16} />
                       {isSaving ? "Saving..." : "Save"}
                     </button>
                   </>
@@ -209,15 +210,15 @@ export default function StudentProfileDrawer({
                   <button
                     onClick={handleEdit}
                     className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    style={{ color: "#6C5CE7" }}
+                    style={{ color: "#9CA3AF" }}
                   >
-                    <Edit2 size={20} />
+                    <Pencil size={20} />
                   </button>
                 )}
                 <button
                   onClick={onClose}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  style={{ color: "#6B7280" }}
+                  style={{ color: "#9CA3AF" }}
                 >
                   <X size={20} />
                 </button>
@@ -239,14 +240,14 @@ export default function StudentProfileDrawer({
                 </span>
                 <span
                   className="px-3 py-1.5 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: "#F0EDF7", color: "#6C5CE7" }}
+                  style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}
                 >
                   {editedStudent.learningModality || "N/A"}
                 </span>
               </div>
 
               {/* Personal Information */}
-              <section className="space-y-4">
+              <section className="space-y-4 pb-6" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
                 <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>
                   Personal Information
                 </h3>
@@ -284,7 +285,7 @@ export default function StudentProfileDrawer({
               </section>
 
               {/* Contact Information */}
-              <section className="space-y-4">
+              <section className="space-y-4 pb-6" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
                 <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>
                   Contact Information
                 </h3>

@@ -57,13 +57,13 @@ export default function FilterRow({
     <div className="flex flex-wrap items-center gap-3">
       {/* Section Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
-          Section:
+        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
+          SECTION:
         </span>
         <select
           value={filterSection}
           onChange={(e) => onFilterSection(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#6C5CE7] outline-none transition-all cursor-pointer"
+          className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all cursor-pointer"
           style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#374151" }}
         >
           <option value="">All</option>
@@ -77,13 +77,13 @@ export default function FilterRow({
 
       {/* Sex Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
-          Sex:
+        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
+          SEX:
         </span>
         <select
           value={filterSex}
           onChange={(e) => onFilterSex(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#6C5CE7] outline-none transition-all cursor-pointer"
+          className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all cursor-pointer"
           style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#374151" }}
         >
           <option value="">All</option>
@@ -94,13 +94,13 @@ export default function FilterRow({
 
       {/* Modality Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
-          Modality:
+        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
+          MODALITY:
         </span>
         <select
           value={filterModality}
           onChange={(e) => onFilterModality(e.target.value)}
-          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#6C5CE7] outline-none transition-all cursor-pointer"
+          className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all cursor-pointer"
           style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#374151" }}
         >
           <option value="">All</option>
@@ -116,8 +116,8 @@ export default function FilterRow({
       {hasActiveFilters && (
         <button
           onClick={handleClearAll}
-          className="text-xs font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
-          style={{ backgroundColor: "#F0EDF7", color: "#6C5CE7" }}
+          className="text-xs font-medium px-3 py-2 rounded-md transition-colors flex items-center gap-1.5"
+          style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}
         >
           <span className="material-symbols-outlined text-sm">close</span>
           Clear filters

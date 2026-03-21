@@ -264,16 +264,14 @@ function StudentsContent() {
       </header>
 
       {/* Page Header with Stats */}
-      <section className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 px-4 lg:px-8 pt-6 lg:pt-8 pb-4">
-        <div className="w-full sm:w-auto">
-          <h3
-            className="font-headline text-3xl sm:text-4xl font-extrabold -tracking-wide"
-            style={{ color: "#1c1a22" }}
-          >
-            Students
-          </h3>
-        </div>
-        <div className="flex gap-2 lg:gap-4 w-full sm:w-auto overflow-x-auto">
+      <section className="flex items-center justify-between px-4 lg:px-8 pt-6 lg:pt-8 pb-4">
+        <h3
+          className="font-headline text-3xl sm:text-4xl font-extrabold -tracking-wide"
+          style={{ color: "#1c1a22" }}
+        >
+          Students
+        </h3>
+        <div className="flex gap-2 lg:gap-4">
           {/* Total Students Stat */}
           <div
             className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg shrink-0 flex flex-col items-end justify-center gap-0.5"

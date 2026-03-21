@@ -46,7 +46,7 @@ export default function SearchBar({
   return (
     <div className="relative w-full">
       <div
-        className="flex items-center gap-3 rounded-xl border px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-[#6C5CE7] focus-within:border-transparent"
+        className="flex items-center gap-3 rounded-md border px-4 py-3 transition-all focus-within:ring-2 focus-within:ring-[#6C5CE7] focus-within:border-transparent"
         style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
       >
         <Search size={20} className="shrink-0" style={{ color: "#9CA3AF" }} />

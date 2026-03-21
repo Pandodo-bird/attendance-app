@@ -154,46 +154,46 @@ export default function StudentResultsTable({
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr style={{ backgroundColor: "#F0EDF7" }}>
+              <tr style={{ backgroundColor: "#F9FAFB" }}>
                 <th
-                  className="px-4 py-3 text-left text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   LRN
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   Name
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   Section
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   Sex
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   Modality
                 </th>
                 <th
-                  className="px-4 py-3 text-left text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   Status
                 </th>
                 <th
-                  className="px-4 py-3 text-center text-xs font-bold uppercase"
-                  style={{ color: "#6B6B6B", borderColor: "#E5E7EB" }}
+                  className="px-4 py-2.5 text-center text-[10px] font-bold uppercase tracking-wide"
+                  style={{ color: "#9CA3AF", borderColor: "#E5E7EB" }}
                 >
                   Actions
                 </th>
@@ -203,7 +203,7 @@ export default function StudentResultsTable({
               {filteredStudents.map((student, index) => (
                 <motion.tr
                   key={student.lrn}
-                  className="border-b last:border-b-0 hover:bg-[#F9FAFB] transition-colors cursor-pointer"
+                  className="border-b last:border-b-0 hover:bg-slate-50 transition-colors cursor-pointer"
                   style={{ borderColor: "#E5E7EB" }}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
