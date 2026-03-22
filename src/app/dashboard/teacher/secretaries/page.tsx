@@ -87,35 +87,6 @@ function SecretariesContent() {
 
   const userProfilesMap = userProfilesResponses || new Map<string, UserData>();
 
-  // Build sections map
-  const sectionsMap = new Map<string, Section>();
-  sections.forEach((section) => {
-    sectionsMap.set(section.id, section);
-  });
-
-  // Enrich appointments with secretary names and section data
-  const secretaries: SecretaryAppointment[] = appointments.map((apt) => {
-    const section = sectionsMap.get(apt.sectionId);
-    const userInfo = userProfilesMap.get(apt.secretaryUid);
-
-    return {
-      id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
-      appointmentId: apt.id,
-      secretaryUid: apt.secretaryUid,
-      secretaryLrn: apt.secretaryLrn,
-      secretaryName: userInfo?.displayName || apt.secretaryLrn,
-      secretaryEmail: userInfo?.email || `${apt.secretaryLrn}@app.local`,
-      sectionId: apt.sectionId,
-      sectionName: section?.sectionName || "Unknown Section",
-      gradeLevel: section?.gradeLevel || "",
-      subject: apt.subject,
-      schoolYear: apt.schoolYear,
-      status: apt.status,
-      appointedAt: apt.appointedAt,
-      lastActive: formatLastActive(apt.appointedAt),
-    } as SecretaryAppointment;
-  });
-
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
@@ -148,6 +119,35 @@ function SecretariesContent() {
 
     return date.toLocaleDateString();
   };
+
+  // Build sections map
+  const sectionsMap = new Map<string, Section>();
+  sections.forEach((section) => {
+    sectionsMap.set(section.id, section);
+  });
+
+  // Enrich appointments with secretary names and section data
+  const secretaries: SecretaryAppointment[] = appointments.map((apt) => {
+    const section = sectionsMap.get(apt.sectionId);
+    const userInfo = userProfilesMap.get(apt.secretaryUid);
+
+    return {
+      id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
+      appointmentId: apt.id,
+      secretaryUid: apt.secretaryUid,
+      secretaryLrn: apt.secretaryLrn,
+      secretaryName: userInfo?.displayName || apt.secretaryLrn,
+      secretaryEmail: userInfo?.email || `${apt.secretaryLrn}@app.local`,
+      sectionId: apt.sectionId,
+      sectionName: section?.sectionName || "Unknown Section",
+      gradeLevel: section?.gradeLevel || "",
+      subject: apt.subject,
+      schoolYear: apt.schoolYear,
+      status: apt.status,
+      appointedAt: apt.appointedAt,
+      lastActive: formatLastActive(apt.appointedAt),
+    } as SecretaryAppointment;
+  });
 
   // Filter secretaries based on search query
   const filteredSecretaries = secretaries.filter(

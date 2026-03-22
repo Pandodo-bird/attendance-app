@@ -161,18 +161,26 @@ function StudentsContent() {
   const handleSaveStudent = useCallback(async (updates: Partial<StudentProfile>) => {
     if (!selectedStudent || !user) return;
 
+    console.log("💾 Saving student updates:", { selectedStudent, updates });
+
     try {
       // Find the section for this student
       const studentData = students.find(s => s.lrn === selectedStudent.lrn);
+      console.log("📋 Student data found:", studentData);
+      
       if (!studentData) throw new Error("Student not found");
 
       // Use sectionId (document ID) for Firestore operations
+      console.log("📝 Calling updateStudent with:", { sectionId: studentData.sectionId, lrn: selectedStudent.lrn, updates });
       await updateStudent(studentData.sectionId, selectedStudent.lrn, updates);
 
       // Invalidate queries to refetch fresh data
+      console.log("♻️ Invalidating TanStack Query cache");
       queryClient.invalidateQueries({ queryKey: ["students", user.uid] });
+      
+      console.log("✅ Student save completed successfully");
     } catch (err) {
-      console.error("Error updating student:", err);
+      console.error("❌ Error saving student:", err);
       setLocalError("Failed to save changes. Please try again.");
       throw err; // Re-throw so drawer knows it failed
     }

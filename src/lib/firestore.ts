@@ -184,6 +184,7 @@ export async function createUserProfile(
 }
 
 export async function getUserProfile(uid: string): Promise<UserData | null> {
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [users/{uid}]");
   const userRef = doc(db, "users", uid);
   const userSnap = await getDoc(userRef);
 
@@ -201,20 +202,21 @@ export async function getUserProfile(uid: string): Promise<UserData | null> {
 export async function getUserProfilesBatch(uids: string[]): Promise<Map<string, UserData>> {
   const userProfiles = new Map<string, UserData>();
   const usersRef = collection(db, "users");
-  
+
   // Firestore 'in' query supports max 10 items
   const BATCH_SIZE = 10;
-  
+
   for (let i = 0; i < uids.length; i += BATCH_SIZE) {
     const batch = uids.slice(i, i + BATCH_SIZE);
     const q = query(usersRef, where("__name__", "in", batch));
+    console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [users] (batch query)");
     const snapshot = await getDocs(q);
-    
+
     snapshot.docs.forEach(doc => {
       userProfiles.set(doc.id, doc.data() as UserData);
     });
   }
-  
+
   return userProfiles;
 }
 
@@ -237,6 +239,7 @@ export async function getTeacherSections(
 
   const sectionsRef = collection(db, "sections");
   const q = query(sectionsRef, where("teacherId", "==", teacherId));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [sections] (teacherId filter)");
   const snapshot = await getDocs(q);
 
   const sections = snapshot.docs.map(doc => ({
@@ -267,6 +270,7 @@ export async function getTeacherSectionCount(
 
   const sectionsRef = collection(db, "sections");
   const q = query(sectionsRef, where("teacherId", "==", teacherId), where("status", "==", "active"));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [sections] (teacherId + status filter)");
   const snapshot = await getDocs(q);
 
   if (useCache) {
@@ -297,6 +301,7 @@ export async function getTeacherStudentCount(
     if (section.status === 'active') {
       const studentsRef = collection(db, `sections/${section.id}/students`);
       const q = query(studentsRef, where("studentStatus", "==", "active"));
+      console.log(`🔥 FIRESTORE | [firestore.ts] | [getDocs] | [sections/{sectionId}/students] (status filter)`);
       const snapshot = await getDocs(q);
       totalCount += snapshot.size;
     }
@@ -323,6 +328,7 @@ export function subscribeToSections(
   const unsubscribe = onSnapshot(
     q,
     (snapshot) => {
+      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [sections] (teacherId filter)");
       const sections = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -381,6 +387,7 @@ export async function getSectionById(
     if (cached) return cached;
   }
 
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [sections/{sectionId}]");
   const sectionRef = doc(db, "sections", sectionId);
   const sectionSnap = await getDoc(sectionRef);
 
@@ -482,6 +489,7 @@ export async function getAllTeacherStudents(
 export async function checkSecretaryAccountExists(lrn: string): Promise<boolean> {
   const usersRef = collection(db, "users");
   const q = query(usersRef, where("lrn", "==", lrn), where("role", "==", "secretary"));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [users] (lrn + role filter)");
   const snapshot = await getDocs(q);
   return !snapshot.empty;
 }
@@ -492,6 +500,7 @@ export async function checkSecretaryAccountExists(lrn: string): Promise<boolean>
 export async function checkStudentHasActiveSecretaryAppointment(lrn: string): Promise<boolean> {
   const appointmentsRef = collection(db, "appointments");
   const q = query(appointmentsRef, where("secretaryLrn", "==", lrn), where("status", "==", "active"));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [appointments] (secretaryLrn + status filter)");
   const snapshot = await getDocs(q);
   return !snapshot.empty;
 }
@@ -502,6 +511,7 @@ export async function checkStudentHasActiveSecretaryAppointment(lrn: string): Pr
 export async function getUserByEmail(email: string): Promise<UserData | null> {
   const usersRef = collection(db, "users");
   const q = query(usersRef, where("email", "==", email));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [users] (email filter)");
   const snapshot = await getDocs(q);
 
   if (!snapshot.empty) {
@@ -526,6 +536,7 @@ export async function getSectionStudents(
   }
 
   const studentsRef = collection(db, `sections/${sectionId}/students`);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [sections/{sectionId}/students]");
   const snapshot = await getDocs(studentsRef);
 
   const students = snapshot.docs.map(doc => ({
@@ -553,6 +564,7 @@ export function subscribeToSectionStudents(
   const unsubscribe = onSnapshot(
     studentsRef,
     (snapshot) => {
+      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [sections/{sectionId}/students]");
       const students = snapshot.docs.map(doc => ({
         lrn: doc.id,
         ...doc.data()
@@ -603,8 +615,10 @@ export async function updateStudent(
   lrn: string,
   updates: Partial<Student>
 ): Promise<void> {
+  console.log("🔥 FIRESTORE | [firestore.ts] | [updateDoc] | [sections/{sectionId}/students/{lrn}]", { sectionId, lrn, updates });
   const studentRef = doc(db, `sections/${sectionId}/students`, lrn);
   await updateDoc(studentRef, updates);
+  console.log("✅ Student updated successfully:", lrn);
   invalidateCache(`students_${sectionId}`);
   invalidateCache(`students_all_`);
 }
@@ -675,6 +689,7 @@ export async function getTeacherAppointments(
 
   const appointmentsRef = collection(db, "appointments");
   const q = query(appointmentsRef, where("teacherId", "==", teacherId));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [appointments] (teacherId filter)");
   const snapshot = await getDocs(q);
 
   const appointments = snapshot.docs.map(doc => ({
@@ -709,6 +724,7 @@ export async function getSecretaryAppointments(
     where("secretaryUid", "==", secretaryUid),
     where("status", "==", "active")
   );
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [appointments] (secretaryUid + status filter)");
   const snapshot = await getDocs(q);
 
   const appointments = snapshot.docs.map(doc => ({
@@ -737,6 +753,7 @@ export function subscribeToTeacherAppointments(
   const unsubscribe = onSnapshot(
     q,
     (snapshot) => {
+      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [appointments] (teacherId filter)");
       const appointments = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -771,6 +788,7 @@ export function subscribeToSecretaryAppointments(
   const unsubscribe = onSnapshot(
     q,
     (snapshot) => {
+      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [appointments] (secretaryUid + status filter)");
       const appointments = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -873,6 +891,7 @@ export async function getTeacherAttendance(
     where("teacherId", "==", teacherId),
     where("date", "==", date)
   );
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (teacherId + date filter)");
   const snapshot = await getDocs(q);
 
   const attendance = snapshot.docs.map(doc => ({
@@ -903,6 +922,7 @@ export async function getSecretaryAttendance(
 
   const attendanceRef = collection(db, "attendance");
   const q = query(attendanceRef, where("secretaryUid", "==", secretaryUid));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid filter)");
   const snapshot = await getDocs(q);
 
   const attendance = snapshot.docs.map(doc => ({
@@ -984,6 +1004,7 @@ export async function getAttendanceByAppointment(
     where("appointmentId", "==", appointmentId),
     where("date", "==", date)
   );
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (appointmentId + date filter)");
   const snapshot = await getDocs(q);
 
   if (snapshot.empty) return null;
@@ -1002,6 +1023,7 @@ export async function getAttendanceRecords(
   attendanceId: string
 ): Promise<Record<string, AttendanceRecord>> {
   const recordsRef = collection(db, `attendance/${attendanceId}/records`);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance/{attendanceId}/records]");
   const snapshot = await getDocs(recordsRef);
 
   const records: Record<string, AttendanceRecord> = {};
