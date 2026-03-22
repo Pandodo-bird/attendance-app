@@ -371,8 +371,8 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
               <div>
                 <label
                   htmlFor="gradeLevel"
-                  className="block text-xs uppercase mb-2"
-                  style={{ color: '#6B6B6B' }}
+                  className="block text-sm font-bold uppercase mb-2 tracking-wide"
+                  style={{ color: '#1F1F1F' }}
                 >
                   Grade Level <span style={{ color: '#EF4444' }}>*</span>
                 </label>
@@ -380,9 +380,29 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
                   id="gradeLevel"
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-md border-0 border border-[#0.5px] border-[#E5E7EB] focus:outline-none focus:ring-0 focus:border-[#6C5CE7] transition-all bg-white"
+                  className="w-full px-4 py-3 rounded-lg font-medium transition-all cursor-pointer"
                   style={{
+                    backgroundColor: '#FFFFFF',
                     color: '#1F1F1F',
+                    border: '1.5px solid #E5E7EB',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (document.activeElement !== e.currentTarget) {
+                      e.currentTarget.style.borderColor = '#C9B8D6';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (document.activeElement !== e.currentTarget) {
+                      e.currentTarget.style.borderColor = '#E5E7EB';
+                    }
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#6C5CE7';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(108, 92, 231, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
                   <option value="7">Grade 7</option>
@@ -398,8 +418,8 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
               <div>
                 <label
                   htmlFor="sectionName"
-                  className="block text-xs uppercase mb-2"
-                  style={{ color: '#6B6B6B' }}
+                  className="block text-sm font-bold uppercase mb-2 tracking-wide"
+                  style={{ color: '#1F1F1F' }}
                 >
                   Section Name <span style={{ color: '#EF4444' }}>*</span>
                 </label>
@@ -409,27 +429,68 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
                   value={sectionName}
                   onChange={(e) => setSectionName(e.target.value)}
                   placeholder="e.g., St. Peter"
-                  className="w-full px-4 py-2.5 rounded-md border-0 border border-[#0.5px] border-[#E5E7EB] focus:outline-none focus:ring-0 focus:border-[#6C5CE7] transition-all bg-white"
+                  className="w-full px-4 py-3 rounded-lg font-medium transition-all"
                   style={{
+                    backgroundColor: '#FFFFFF',
                     color: '#1F1F1F',
+                    border: '1.5px solid #E5E7EB',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (document.activeElement !== e.currentTarget) {
+                      e.currentTarget.style.borderColor = '#C9B8D6';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (document.activeElement !== e.currentTarget) {
+                      e.currentTarget.style.borderColor = '#E5E7EB';
+                    }
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#6C5CE7';
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(108, 92, 231, 0.1)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = '#E5E7EB';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
               </div>
             </div>
 
-            {/* File Upload Section */}
-            <FileUploadZone
-              selectedFile={selectedFile}
-              onFileSelect={processFile}
-            />
+            {/* File Upload Section - Only show before successful upload */}
+            {!importSuccess && (
+              <FileUploadZone
+                selectedFile={selectedFile}
+                onFileSelect={processFile}
+              />
+            )}
 
             {/* Student List Preview */}
             {students.length > 0 && (
-              <StudentPreviewTable
-                students={students}
-                showEmptyColumns={showEmptyColumns}
-                onToggleEmptyColumns={() => setShowEmptyColumns(!showEmptyColumns)}
-              />
+              <div className="space-y-4">
+                {/* Upload Different File Button - Only show after successful upload */}
+                {importSuccess && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setStudents([]);
+                        setImportSuccess(false);
+                      }}
+                      className="px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+                      style={{ backgroundColor: '#F0EDF7', color: '#6C5CE7' }}
+                    >
+                      <span className="material-symbols-outlined text-sm">upload</span>
+                      Upload Different File
+                    </button>
+                  </div>
+                )}
+                <StudentPreviewTable
+                  students={students}
+                  showEmptyColumns={showEmptyColumns}
+                  onToggleEmptyColumns={() => setShowEmptyColumns(!showEmptyColumns)}
+                />
+              </div>
             )}
           </div>
 
