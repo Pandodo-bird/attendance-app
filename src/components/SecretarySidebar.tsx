@@ -43,7 +43,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
 
   const mainNavItems = [
     { icon: LayoutDashboard, label: "Home", href: "/dashboard/secretary/dashboard" },
-    { icon: ClipboardCheck, label: "Record", href: "/dashboard/secretary/attendance" },
+    { icon: ClipboardCheck, label: "Attendance", href: "/dashboard/secretary/attendance" },
     { icon: User, label: "Profile", href: "/dashboard/secretary/profile" },
   ];
 

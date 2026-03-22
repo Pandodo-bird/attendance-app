@@ -315,96 +315,90 @@ export default function StudentResultsTable({
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm" style={{ color: "#9CA3AF" }}>
-            Page {currentPage} of {totalPages}
+        <motion.div
+          className="mt-4 flex items-center justify-between"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <p className="text-sm" style={{ color: "#6B7280" }}>
+            Showing <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{startIndex + 1}</span> to{" "}
+            <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{Math.min(endIndex, filteredStudents.length)}</span> of{" "}
+            <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{filteredStudents.length}</span> students
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage(1)}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
-            >
-              First
-            </button>
-            <button
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: currentPage === 1 ? "#F3F4F6" : "#FFFFFF",
+                color: currentPage === 1 ? "#9CA3AF" : "#374151",
+                border: "1px solid #E5E7EB",
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== 1) {
+                  e.currentTarget.style.backgroundColor = "#F9FAFB";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== 1) {
+                  e.currentTarget.style.backgroundColor = "#FFFFFF";
+                }
+              }}
             >
               Previous
             </button>
-
-            {/* Page numbers */}
             <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                // Show first, last, current, and adjacent pages
-                const showPage =
-                  page === 1 ||
-                  page === totalPages ||
-                  (page >= currentPage - 1 && page <= currentPage + 1);
-
-                if (!showPage) {
-                  // Show ellipsis for skipped pages
-                  const prevShown =
-                    page === currentPage - 1 ||
-                    (currentPage === 1 && page === 2) ||
-                    (currentPage === totalPages && page === totalPages - 1);
-                  if (!prevShown) {
-                    return (
-                      <span
-                        key={`ellipsis-${page}`}
-                        className="px-2 py-1.5 text-sm"
-                        style={{ color: "#9CA3AF" }}
-                      >
-                        ...
-                      </span>
-                    );
-                  }
-                  return null;
-                }
-
-                return (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                      currentPage === page
-                        ? "bg-[#6C5CE7] text-white"
-                        : "hover:bg-[#F3F4F6]"
-                    }`}
-                    style={
-                      currentPage !== page
-                        ? { backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }
-                        : {}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: currentPage === page ? "#1e3a5f" : "#FFFFFF",
+                    color: currentPage === page ? "#FFFFFF" : "#374151",
+                    border: "1px solid #E5E7EB",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (currentPage !== page) {
+                      e.currentTarget.style.backgroundColor = "#F9FAFB";
                     }
-                  >
-                    {page}
-                  </button>
-                );
-              })}
+                  }}
+                  onMouseLeave={(e) => {
+                    if (currentPage !== page) {
+                      e.currentTarget.style.backgroundColor = "#FFFFFF";
+                    }
+                  }}
+                >
+                  {page}
+                </button>
+              ))}
             </div>
-
             <button
-              onClick={() => setCurrentPage(currentPage + 1)}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: currentPage === totalPages ? "#F3F4F6" : "#FFFFFF",
+                color: currentPage === totalPages ? "#9CA3AF" : "#374151",
+                border: "1px solid #E5E7EB",
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.backgroundColor = "#F9FAFB";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== totalPages) {
+                  e.currentTarget.style.backgroundColor = "#FFFFFF";
+                }
+              }}
             >
               Next
             </button>
-            <button
-              onClick={() => setCurrentPage(totalPages)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
-            >
-              Last
-            </button>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );
