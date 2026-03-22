@@ -194,6 +194,30 @@ export async function getUserProfile(uid: string): Promise<UserData | null> {
   return null;
 }
 
+/**
+ * Get multiple user profiles in a single query (batched by 10 UIDs)
+ * Optimized: Uses Firestore 'in' query to fetch up to 10 users per query
+ */
+export async function getUserProfilesBatch(uids: string[]): Promise<Map<string, UserData>> {
+  const userProfiles = new Map<string, UserData>();
+  const usersRef = collection(db, "users");
+  
+  // Firestore 'in' query supports max 10 items
+  const BATCH_SIZE = 10;
+  
+  for (let i = 0; i < uids.length; i += BATCH_SIZE) {
+    const batch = uids.slice(i, i + BATCH_SIZE);
+    const q = query(usersRef, where("__name__", "in", batch));
+    const snapshot = await getDocs(q);
+    
+    snapshot.docs.forEach(doc => {
+      userProfiles.set(doc.id, doc.data() as UserData);
+    });
+  }
+  
+  return userProfiles;
+}
+
 // ==================== Section Functions ====================
 
 /**
@@ -341,6 +365,52 @@ export async function createSection(
   invalidateCache(`sections_${teacherId}`);
 
   return sectionRef.id;
+}
+
+/**
+ * Get a single section by ID
+ */
+export async function getSectionById(
+  sectionId: string,
+  useCache = true
+): Promise<Section | null> {
+  const cacheKey = `section_${sectionId}`;
+
+  if (useCache) {
+    const cached = getCachedData<Section>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const sectionRef = doc(db, "sections", sectionId);
+  const sectionSnap = await getDoc(sectionRef);
+
+  if (sectionSnap.exists()) {
+    const section = {
+      id: sectionSnap.id,
+      ...sectionSnap.data()
+    } as Section;
+
+    if (useCache) {
+      setCachedData(cacheKey, section);
+    }
+
+    return section;
+  }
+
+  return null;
+}
+
+/**
+ * Update section information
+ */
+export async function updateSection(
+  sectionId: string,
+  updates: Partial<Section>
+): Promise<void> {
+  const sectionRef = doc(db, "sections", sectionId);
+  await updateDoc(sectionRef, updates);
+  invalidateCache(`section_${sectionId}`);
+  invalidateCache(`sections_`);
 }
 
 /**

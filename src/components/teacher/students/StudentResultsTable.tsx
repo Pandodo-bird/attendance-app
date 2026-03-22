@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useRef, useLayoutEffect } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
@@ -19,12 +19,12 @@ export interface StudentRow {
   studentStatus: "active" | "inactive" | "graduated" | "dropped";
   birthDate?: Date | Timestamp | string;
   religion?: string;
-  
+
   // Address
   barangay?: string;
   city?: string;
   province?: string;
-  
+
   // Parent/Guardian Info
   fatherName?: string;
   motherMaidenName?: string;
@@ -42,6 +42,7 @@ interface StudentResultsTableProps {
   onViewStudent: (student: StudentRow) => void;
   onEditStudent: (student: StudentRow) => void;
   onDeleteStudent: (student: StudentRow) => void;
+  rowsPerPage?: number;
 }
 
 export default function StudentResultsTable({
@@ -53,7 +54,27 @@ export default function StudentResultsTable({
   onViewStudent,
   onEditStudent,
   onDeleteStudent,
+  rowsPerPage = 10,
 }: StudentResultsTableProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const prevFiltersRef = useRef({ searchQuery, filterSection, filterSex, filterModality });
+
+  // Reset page when filters or search change (using useLayoutEffect to avoid cascading renders)
+  useLayoutEffect(() => {
+    const prevFilters = prevFiltersRef.current;
+    if (
+      prevFilters.searchQuery !== searchQuery ||
+      prevFilters.filterSection !== filterSection ||
+      prevFilters.filterSex !== filterSex ||
+      prevFilters.filterModality !== filterModality
+    ) {
+      prevFiltersRef.current = { searchQuery, filterSection, filterSex, filterModality };
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      }
+    }
+  }, [searchQuery, filterSection, filterSex, filterModality, currentPage]);
+
   // Filter and search students
   const filteredStudents = useMemo(() => {
     return students.filter((student) => {
@@ -77,6 +98,12 @@ export default function StudentResultsTable({
       return matchesSearch && matchesSection && matchesSex && matchesModality;
     });
   }, [students, searchQuery, filterSection, filterSex, filterModality]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredStudents.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
   const getFullName = (student: StudentRow) => {
     const middle = student.middleName ? ` ${student.middleName}` : "";
@@ -156,10 +183,13 @@ export default function StudentResultsTable({
   // Results table
   return (
     <div className="space-y-4">
-      {/* Result count */}
-      <p className="text-sm" style={{ color: "#9CA3AF" }}>
-        Showing {filteredStudents.length} result{filteredStudents.length !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
-      </p>
+      {/* Result count and rows per page */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm" style={{ color: "#9CA3AF" }}>
+          Showing {filteredStudents.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} result{filteredStudents.length !== 1 ? "s" : ""}
+          {searchQuery && ` for "${searchQuery}"`}
+        </p>
+      </div>
 
       {/* Table */}
       <div
@@ -215,7 +245,7 @@ export default function StudentResultsTable({
               </tr>
             </thead>
             <tbody>
-              {filteredStudents.map((student, index) => (
+              {paginatedStudents.map((student, index) => (
                 <motion.tr
                   key={student.lrn}
                   className="border-b last:border-b-0 hover:bg-slate-50 transition-colors cursor-pointer"
@@ -282,6 +312,100 @@ export default function StudentResultsTable({
           </table>
         </div>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm" style={{ color: "#9CA3AF" }}>
+            Page {currentPage} of {totalPages}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
+            >
+              First
+            </button>
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
+            >
+              Previous
+            </button>
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                // Show first, last, current, and adjacent pages
+                const showPage =
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1);
+
+                if (!showPage) {
+                  // Show ellipsis for skipped pages
+                  const prevShown =
+                    page === currentPage - 1 ||
+                    (currentPage === 1 && page === 2) ||
+                    (currentPage === totalPages && page === totalPages - 1);
+                  if (!prevShown) {
+                    return (
+                      <span
+                        key={`ellipsis-${page}`}
+                        className="px-2 py-1.5 text-sm"
+                        style={{ color: "#9CA3AF" }}
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                }
+
+                return (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                      currentPage === page
+                        ? "bg-[#6C5CE7] text-white"
+                        : "hover:bg-[#F3F4F6]"
+                    }`}
+                    style={
+                      currentPage !== page
+                        ? { backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }
+                        : {}
+                    }
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#F9FAFB", color: "#374151", border: "1px solid #E5E7EB" }}
+            >
+              Last
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

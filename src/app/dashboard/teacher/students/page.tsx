@@ -7,18 +7,17 @@ import { RoleGuard } from "@/hooks/useRequireRole";
 import { PopupAlert } from "@/components/ui";
 import {
   getAllTeacherStudents,
-  getTeacherSectionCount,
-  getTeacherStudentCount,
   updateStudent,
   deleteStudent,
   checkStudentHasActiveSecretaryAppointment,
-  getCachedData,
 } from "@/lib/firestore";
 import SearchBar from "@/components/teacher/students/SearchBar";
 import FilterRow, { StudentRow } from "@/components/teacher/students/FilterRow";
 import StudentResultsTable from "@/components/teacher/students/StudentResultsTable";
 import StudentProfileDrawer, { StudentProfile } from "@/components/teacher/students/StudentProfileDrawer";
 import StudentDeleteDialog from "@/components/teacher/students/StudentDeleteDialog";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function StudentsPage() {
   return (
@@ -32,38 +31,63 @@ export default function StudentsPage() {
 
 function StudentsContent() {
   const { user } = useAuth();
-  
-  // Initialize from cache to avoid loading flash on navigation
-  const initialCacheKey = user?.uid ? `students_all_${user.uid}` : null;
-  const hasCachedStudents = initialCacheKey ? getCachedData<Awaited<ReturnType<typeof getAllTeacherStudents>>>(initialCacheKey) : null;
-  const [loading, setLoading] = useState(!hasCachedStudents);
-  const [error, setError] = useState<string | null>(null);
-  const [students, setStudents] = useState<StudentRow[]>(
-    hasCachedStudents
-      ? hasCachedStudents.map(({ sectionId, sectionName, gradeLevel, student }) => ({
-          lrn: student.lrn,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          middleName: student.middleName,
-          sectionId,
-          sectionName,
-          gradeLevel,
-          sex: student.sex,
-          learningModality: student.learningModality,
-          studentStatus: student.studentStatus,
-        }))
-      : []
-  );
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
-  // Stats
-  const [totalStudents, setTotalStudents] = useState(0);
-  const [activeSections, setActiveSections] = useState(0);
+  // TanStack Query for students (moderate changes - 10 min cache)
+  const { data: allStudents = [], isLoading: loading, error } = useQuery({
+    queryKey: ["students", user?.uid],
+    queryFn: () => getAllTeacherStudents(user?.uid || "", true),
+    enabled: !!user?.uid,
+    staleTime: 10 * 60 * 1000, // 10 minutes - students may get added/removed
+    gcTime: 20 * 60 * 1000, // 20 minutes
+  });
+
+  // Transform to StudentRow format
+  const students: StudentRow[] = allStudents.map(({ sectionId, sectionName, gradeLevel, student }) => ({
+    lrn: student.lrn,
+    firstName: student.firstName,
+    lastName: student.lastName,
+    middleName: student.middleName,
+    sectionId,
+    sectionName,
+    gradeLevel,
+    sex: student.sex,
+    learningModality: student.learningModality,
+    studentStatus: student.studentStatus,
+    birthDate: student.birthDate,
+    religion: student.religion,
+    barangay: student.barangay,
+    city: student.city,
+    province: student.province,
+    fatherName: student.fatherName,
+    motherMaidenName: student.motherMaidenName,
+    guardianName: student.guardianName,
+    guardianRelationship: student.guardianRelationship,
+    guardianContactNumber: student.guardianContactNumber,
+  }));
+
+  // Calculate stats from loaded data (no extra queries needed)
+  const totalStudents = allStudents.length;
+  const uniqueSectionIds = new Set(allStudents.map(s => s.sectionId));
+  const activeSections = uniqueSectionIds.size;
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [filterSection, setFilterSection] = useState("");
   const [filterSex, setFilterSex] = useState("");
   const [filterModality, setFilterModality] = useState("");
+
+  // Handle search query from URL on mount
+  useEffect(() => {
+    const searchParam = searchParams?.get("search");
+    if (searchParam) {
+      setSearchQuery(searchParam);
+      // Clean up URL after setting search
+      router.replace("/dashboard/teacher/students");
+    }
+  }, []); // Empty deps - only run once on mount
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -74,60 +98,10 @@ function StudentsContent() {
   const [studentToDelete, setStudentToDelete] = useState<StudentRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  // Load students and stats on mount
-  useEffect(() => {
-    if (!user) return;
-
-    async function loadData() {
-      try {
-        // Load stats first (with caching)
-        const [studentCount, sectionCount] = await Promise.all([
-          getTeacherStudentCount(user!.uid, true),
-          getTeacherSectionCount(user!.uid, true),
-        ]);
-        setTotalStudents(studentCount);
-        setActiveSections(sectionCount);
-
-        // Load all students (with caching)
-        const allStudents = await getAllTeacherStudents(user!.uid, true);
-
-        // Transform to StudentRow format
-        const studentRows: StudentRow[] = allStudents.map(({ sectionId, sectionName, gradeLevel, student }) => ({
-          lrn: student.lrn,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          middleName: student.middleName,
-          sectionId,  // Include the actual section document ID
-          sectionName,
-          gradeLevel,
-          sex: student.sex,
-          learningModality: student.learningModality,
-          studentStatus: student.studentStatus,
-          birthDate: student.birthDate,
-          religion: student.religion,
-          barangay: student.barangay,
-          city: student.city,
-          province: student.province,
-          fatherName: student.fatherName,
-          motherMaidenName: student.motherMaidenName,
-          guardianName: student.guardianName,
-          guardianRelationship: student.guardianRelationship,
-          guardianContactNumber: student.guardianContactNumber,
-        }));
-
-        setStudents(studentRows);
-        setError(null);
-      } catch (err) {
-        console.error("Error loading students:", err);
-        setError("Failed to load students. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, [user]);
+  // Use error from query or local error
+  const displayError = error?.message || localError;
 
   // Handle viewing a student
   const handleViewStudent = useCallback((student: StudentRow) => {
@@ -195,18 +169,14 @@ function StudentsContent() {
       // Use sectionId (document ID) for Firestore operations
       await updateStudent(studentData.sectionId, selectedStudent.lrn, updates);
 
-      // Firestore update succeeded - now update local state (no refetch needed)
-      setStudents(prev => prev.map(s =>
-        s.lrn === selectedStudent.lrn ? { ...s, ...updates } : s
-      ));
-
-      setSelectedStudent(prev => prev ? { ...prev, ...updates } : null);
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["students", user.uid] });
     } catch (err) {
       console.error("Error updating student:", err);
-      setError("Failed to save changes. Please try again.");
+      setLocalError("Failed to save changes. Please try again.");
       throw err; // Re-throw so drawer knows it failed
     }
-  }, [selectedStudent, user, students]);
+  }, [selectedStudent, user, students, queryClient]);
 
   // Handle delete request
   const handleDeleteRequest = useCallback(async (student: StudentRow) => {
@@ -232,18 +202,18 @@ function StudentsContent() {
 
       await deleteStudent(studentData.sectionName, studentToDelete.lrn);
 
-      // Remove from local state
-      setStudents(prev => prev.filter(s => s.lrn !== studentToDelete.lrn));
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["students", user.uid] });
 
       setIsDeleteDialogOpen(false);
       setStudentToDelete(null);
     } catch (err) {
       console.error("Error deleting student:", err);
-      setError("Failed to delete student. Please try again.");
+      setLocalError("Failed to delete student. Please try again.");
     } finally {
       setIsDeleting(false);
     }
-  }, [studentToDelete, user, deleteBlocked, students]);
+  }, [studentToDelete, user, deleteBlocked, students, queryClient]);
 
   const getFullName = (student: StudentRow) => {
     const middle = student.middleName ? ` ${student.middleName}` : "";
@@ -253,11 +223,11 @@ function StudentsContent() {
   return (
     <>
       {/* Error Alert */}
-      {error && (
+      {displayError && (
         <PopupAlert
-          message={error}
+          message={displayError}
           type="error"
-          onClose={() => setError(null)}
+          onClose={() => setLocalError(null)}
         />
       )}
 

@@ -8,11 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import {
   subscribeToSecretaryAppointments,
-  getSectionStudents,
-  getTeacherSections,
-  Appointment,
-  Section,
-  Student,
+  getSectionById,
 } from "@/lib/firestore";
 import { Unsubscribe, FirestoreError } from "firebase/firestore";
 import { RoleGuard } from "@/hooks/useRequireRole";
@@ -68,64 +64,52 @@ function SecretaryDashboardContent() {
   useEffect(() => {
     let unsubscribe: Unsubscribe | undefined;
 
-    if (user?.uid) {
-      setIsLoading(true);
-      setError(null);
+    if (!user?.uid) return;
 
-      // Subscribe to real-time updates for secretary's active appointments
-      unsubscribe = subscribeToSecretaryAppointments(
-        user.uid,
-        async (fetchedAppointments) => {
-          try {
-            // Enrich appointments with section and teacher data
-            const enriched = await Promise.all(
-              fetchedAppointments.map(async (apt) => {
-                // Fetch section details
-                const sections = await getTeacherSections(apt.teacherId);
-                const section = sections.find((s) => s.id === apt.sectionId);
+    // Subscribe to real-time updates for secretary's active appointments
+    unsubscribe = subscribeToSecretaryAppointments(
+      user.uid,
+      async (fetchedAppointments) => {
+        try {
+          // Enrich appointments with section data using efficient single-document reads
+          const enriched = await Promise.all(
+            fetchedAppointments.map(async (apt) => {
+              // Fetch single section document (not ALL sections)
+              const section = await getSectionById(apt.sectionId, true);
 
-                // Fetch student count for this section
-                let studentCount = 0;
-                if (apt.sectionId) {
-                  try {
-                    const students = await getSectionStudents(apt.sectionId);
-                    studentCount = students.length;
-                  } catch (err) {
-                    console.error("Error fetching students:", err);
-                  }
-                }
+              // Use stored studentCount from section document (no need to fetch all students)
+              const studentCount = section?.studentCount || 0;
 
-                return {
-                  ...apt,
-                  appointmentId: apt.id,
-                  sectionName: section?.sectionName || "Unknown Section",
-                  gradeLevel: section?.gradeLevel || "",
-                  studentCount,
-                } as EnrichedAppointment;
-              })
-            );
+              return {
+                ...apt,
+                appointmentId: apt.id,
+                sectionName: section?.sectionName || "Unknown Section",
+                gradeLevel: section?.gradeLevel || "",
+                studentCount,
+              } as EnrichedAppointment;
+            })
+          );
 
-            setAppointments(enriched);
-            setIsLoading(false);
-          } catch (err) {
-            console.error("Error enriching appointments:", err);
-            setError("Failed to load appointments. Please try again.");
-            setIsLoading(false);
-          }
-        },
-        (err: FirestoreError) => {
-          console.error("Error fetching appointments:", err);
-          if (err.code === "permission-denied") {
-            setError(
-              "Unable to load appointments. Firestore security rules may need to be configured."
-            );
-          } else {
-            setError("Failed to load appointments. Please try again.");
-          }
+          setAppointments(enriched);
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Error enriching appointments:", err);
+          setError("Failed to load appointments. Please try again.");
           setIsLoading(false);
         }
-      );
-    }
+      },
+      (err: FirestoreError) => {
+        console.error("Error fetching appointments:", err);
+        if (err.code === "permission-denied") {
+          setError(
+            "Unable to load appointments. Firestore security rules may need to be configured."
+          );
+        } else {
+          setError("Failed to load appointments. Please try again.");
+        }
+        setIsLoading(false);
+      }
+    );
 
     // Cleanup: Unsubscribe when component unmounts or user changes
     return () => {

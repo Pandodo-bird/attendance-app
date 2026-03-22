@@ -8,8 +8,6 @@ import {
   createAppointment,
   Student,
 } from "@/lib/firestore";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 interface AvailableStudent {
   sectionId: string;
@@ -22,7 +20,6 @@ interface SecretaryCreationFormProps {
   teacherId: string;
   onSuccess: (credentials: { email: string; password: string }) => void;
   onCancel: () => void;
-  createSecretaryAccount: (displayName: string, email: string, password: string) => Promise<{ email: string; password: string }>;
   refreshTrigger?: number; // Increment this to force reload sections
 }
 
@@ -162,7 +159,6 @@ export default function SecretaryCreationForm({
   teacherId,
   onSuccess,
   onCancel,
-  createSecretaryAccount,
   refreshTrigger = 0,
 }: SecretaryCreationFormProps) {
   // Form state
@@ -349,26 +345,29 @@ export default function SecretaryCreationForm({
         return;
       }
 
-      // Create the account
+      // Create the account via API
       const password = getCurrentPassword();
-      const credentials = await createSecretaryAccount(
-        secretaryName.trim(),
-        generatedEmail,
-        password
-      );
+      const response = await fetch('/api/create-secretary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          displayName: secretaryName.trim(),
+          email: generatedEmail,
+          password,
+          lrn: selectedStudentLrn,
+        }),
+      });
 
-      // Get the secretary's UID from the created account
-      // We need to query Firestore to get the UID by LRN
-      const usersRef = collection(db, "users");
-      const q = query(usersRef, where("lrn", "==", selectedStudentLrn));
-      const snapshot = await getDocs(q);
+      const apiData = await response.json();
 
-      if (snapshot.empty) {
-        throw new Error("Failed to find created secretary account");
+      if (!response.ok) {
+        throw new Error(apiData.error || 'Failed to create secretary account');
       }
 
-      const secretaryDoc = snapshot.docs[0];
-      const secretaryUid = secretaryDoc.id;
+      // Use the userId returned from API (no need to re-query Firestore!)
+      const secretaryUid = apiData.userId;
 
       // Get the school year from the section
       const section = availableSections.find(s => s.id === selectedSectionId);
@@ -384,9 +383,9 @@ export default function SecretaryCreationForm({
         schoolYear
       );
 
-      setGeneratedCredentials(credentials);
+      setGeneratedCredentials(apiData.credentials);
       setSuccess(true);
-      onSuccess(credentials);
+      onSuccess(apiData.credentials);
     } catch (err: unknown) {
       console.error("Error creating secretary:", err);
       const error = err as { code?: string; message?: string };

@@ -4,20 +4,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { SecretaryCard, ActiveSecretariesCounter, SecretaryCreationForm } from "@/components/teacher/secretaries";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   getTeacherAppointments,
   getTeacherSections,
   updateAppointmentStatus,
   deleteAppointment,
   Section,
-  getCachedData,
-  setCachedData,
-  getUserProfile
+  getUserProfilesBatch,
+  UserData,
 } from "@/lib/firestore";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
 import { UserPlus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Extended appointment with enriched data
 interface SecretaryAppointment {
@@ -48,19 +48,76 @@ export default function SecretariesPage() {
 }
 
 function SecretariesContent() {
-  const { user, createSecretaryAccount } = useAuth();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Initialize isLoading based on cache to avoid loading flash
-  const initialCacheKey = user?.uid ? `secretaries_enriched_${user.uid}` : null;
-  const hasCachedData = initialCacheKey ? getCachedData<SecretaryAppointment[]>(initialCacheKey) : null;
-  const [secretaries, setSecretaries] = useState<SecretaryAppointment[]>(hasCachedData || []);
-  const [isLoading, setIsLoading] = useState(!hasCachedData);
-  const [error, setError] = useState<string | null>(null);
+
+  // TanStack Query for appointments (rarely changes - 30 min cache)
+  const { data: appointments = [], isLoading, error } = useQuery({
+    queryKey: ["appointments", user?.uid],
+    queryFn: () => getTeacherAppointments(user?.uid || "", true),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000, // 30 minutes - appointments set once per semester
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  // TanStack Query for sections (rarely changes - 30 min cache)
+  const { data: sections = [] } = useQuery({
+    queryKey: ["sections", user?.uid],
+    queryFn: () => getTeacherSections(user?.uid || "", true),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000, // 30 minutes - sections rarely change
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  // Get unique secretary UIDs for profile fetching
+  const uniqueSecretaryUids = [...new Set(appointments.map(apt => apt.secretaryUid))];
+
+  // TanStack Query for secretary profiles (almost never changes - 60 min cache)
+  const { data: userProfilesResponses } = useQuery({
+    queryKey: ["secretaryProfiles", uniqueSecretaryUids],
+    queryFn: async () => {
+      if (uniqueSecretaryUids.length === 0) return new Map<string, UserData>();
+      return await getUserProfilesBatch(uniqueSecretaryUids);
+    },
+    enabled: uniqueSecretaryUids.length > 0,
+    staleTime: 60 * 60 * 1000, // 60 minutes - user profiles almost never change
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
+  });
+
+  const userProfilesMap = userProfilesResponses || new Map<string, UserData>();
+
+  // Build sections map
+  const sectionsMap = new Map<string, Section>();
+  sections.forEach((section) => {
+    sectionsMap.set(section.id, section);
+  });
+
+  // Enrich appointments with secretary names and section data
+  const secretaries: SecretaryAppointment[] = appointments.map((apt) => {
+    const section = sectionsMap.get(apt.sectionId);
+    const userInfo = userProfilesMap.get(apt.secretaryUid);
+
+    return {
+      id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
+      appointmentId: apt.id,
+      secretaryUid: apt.secretaryUid,
+      secretaryLrn: apt.secretaryLrn,
+      secretaryName: userInfo?.displayName || apt.secretaryLrn,
+      secretaryEmail: userInfo?.email || `${apt.secretaryLrn}@app.local`,
+      sectionId: apt.sectionId,
+      sectionName: section?.sectionName || "Unknown Section",
+      gradeLevel: section?.gradeLevel || "",
+      subject: apt.subject,
+      schoolYear: apt.schoolYear,
+      status: apt.status,
+      appointedAt: apt.appointedAt,
+      lastActive: formatLastActive(apt.appointedAt),
+    } as SecretaryAppointment;
+  });
 
   // Registration modal state
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
 
   // Format Firestore timestamp to readable string
@@ -92,104 +149,6 @@ function SecretariesContent() {
     return date.toLocaleDateString();
   };
 
-  // Load secretaries on mount or when refreshTrigger changes
-  useEffect(() => {
-    const loadSecretaries = async () => {
-      if (!user?.uid) return;
-
-      // If refreshTrigger > 0, it means we want to force a refresh (e.g., after creating a secretary)
-      // In that case, skip cache and fetch fresh data
-      const forceRefresh = refreshTrigger > 0;
-      
-      // Check if we have cached enriched data (includes secretary names)
-      const cacheKey = `secretaries_enriched_${user.uid}`;
-      const cachedSecretaries = getCachedData<SecretaryAppointment[]>(cacheKey);
-      
-      if (cachedSecretaries && cachedSecretaries.length > 0 && !forceRefresh) {
-        // Use cached data - no Firestore reads needed
-        setSecretaries(cachedSecretaries);
-        setIsLoading(false);
-        setError(null);
-        return;
-      }
-
-      // No enriched cache or force refresh - need to fetch and enrich
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // Fetch appointments and sections (both use 2-minute cache internally)
-        const [appointments, sections] = await Promise.all([
-          getTeacherAppointments(user.uid, !forceRefresh),
-          getTeacherSections(user.uid, !forceRefresh)
-        ]);
-
-        const sectionsMap = new Map<string, Section>();
-        sections.forEach((section) => {
-          sectionsMap.set(section.id, section);
-        });
-
-        // Batch fetch secretary names from users collection
-        // Use a cache to avoid redundant fetches for the same secretary
-        const userCache = new Map<string, { displayName: string; email: string }>();
-        const uniqueSecretaryUids = [...new Set(appointments.map(apt => apt.secretaryUid))];
-        
-        // Fetch all unique secretaries in parallel
-        const userPromises = uniqueSecretaryUids.map(async (uid) => {
-          try {
-            const profile = await getUserProfile(uid);
-            if (profile) {
-              userCache.set(uid, {
-                displayName: profile.displayName,
-                email: profile.email
-              });
-            }
-          } catch (error) {
-            console.error(`Error fetching user ${uid}:`, error);
-          }
-        });
-        
-        await Promise.all(userPromises);
-
-        // Enrich appointments with secretary names and section data
-        const enriched = appointments.map((apt) => {
-          const section = sectionsMap.get(apt.sectionId);
-          const userInfo = userCache.get(apt.secretaryUid);
-          
-          return {
-            id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
-            appointmentId: apt.id,
-            secretaryUid: apt.secretaryUid,
-            secretaryLrn: apt.secretaryLrn,
-            secretaryName: userInfo?.displayName || apt.secretaryLrn,
-            secretaryEmail: userInfo?.email || `${apt.secretaryLrn}@app.local`,
-            sectionId: apt.sectionId,
-            sectionName: section?.sectionName || "Unknown Section",
-            gradeLevel: section?.gradeLevel || "",
-            subject: apt.subject,
-            schoolYear: apt.schoolYear,
-            status: apt.status,
-            appointedAt: apt.appointedAt,
-            lastActive: formatLastActive(apt.appointedAt),
-          } as SecretaryAppointment;
-        });
-
-        setSecretaries(enriched);
-
-        // Cache the enriched data for 2 minutes
-        setCachedData(cacheKey, enriched);
-
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error loading secretaries:", err);
-        setError("Failed to load secretary data. Please refresh the page.");
-        setIsLoading(false);
-      }
-    };
-
-    loadSecretaries();
-  }, [user?.uid, refreshTrigger]);
-
   // Filter secretaries based on search query
   const filteredSecretaries = secretaries.filter(
     (sec) =>
@@ -205,21 +164,8 @@ function SecretariesContent() {
 
     try {
       await updateAppointmentStatus(appointmentId, "removed", user?.uid);
-      // Update local state immediately for responsive UI
-      setSecretaries((prev) =>
-        prev.map((sec) =>
-          sec.appointmentId === appointmentId ? { ...sec, status: "removed" } : sec
-        )
-      );
-      // Invalidate cache to force refresh on next navigation
-      const cacheKey = `secretaries_enriched_${user?.uid}`;
-      const cached = getCachedData<SecretaryAppointment[]>(cacheKey);
-      if (cached) {
-        const updated = cached.map((sec) =>
-          sec.appointmentId === appointmentId ? { ...sec, status: "removed" } : sec
-        );
-        setCachedData(cacheKey, updated);
-      }
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
     } catch (error) {
       console.error("Error removing secretary:", error);
       alert("Failed to remove secretary. Please try again.");
@@ -232,14 +178,8 @@ function SecretariesContent() {
 
     try {
       await deleteAppointment(appointmentId, user?.uid);
-      // Update local state and invalidate cache
-      setSecretaries((prev) => prev.filter((sec) => sec.appointmentId !== appointmentId));
-      const cacheKey = `secretaries_enriched_${user?.uid}`;
-      const cached = getCachedData<SecretaryAppointment[]>(cacheKey);
-      if (cached) {
-        const updated = cached.filter((sec) => sec.appointmentId !== appointmentId);
-        setCachedData(cacheKey, updated);
-      }
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
     } catch (error) {
       console.error("Error deleting appointment:", error);
       alert("Failed to delete appointment. Please try again.");
@@ -256,7 +196,9 @@ function SecretariesContent() {
   const handleCloseRegisterModal = () => {
     // Only refresh if a secretary was successfully created
     if (shouldRefreshAfterClose) {
-      setRefreshTrigger(prev => prev + 1);
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ["secretaryProfiles"] });
       setShouldRefreshAfterClose(false);
     }
     setShowRegisterModal(false);
@@ -274,21 +216,8 @@ function SecretariesContent() {
 
     try {
       await updateAppointmentStatus(appointmentId, "active", user?.uid);
-      // Update local state immediately
-      setSecretaries((prev) =>
-        prev.map((sec) =>
-          sec.appointmentId === appointmentId ? { ...sec, status: "active" } : sec
-        )
-      );
-      // Update cache
-      const cacheKey = `secretaries_enriched_${user?.uid}`;
-      const cached = getCachedData<SecretaryAppointment[]>(cacheKey);
-      if (cached) {
-        const updated = cached.map((sec) =>
-          sec.appointmentId === appointmentId ? { ...sec, status: "active" } : sec
-        );
-        setCachedData(cacheKey, updated);
-      }
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
     } catch (error) {
       console.error("Error restoring secretary:", error);
       alert("Failed to restore secretary. Please try again.");
@@ -353,7 +282,7 @@ function SecretariesContent() {
                       Unable to Load
                     </h3>
                     <p className="text-sm mb-4" style={{ color: "#484553" }}>
-                      {error}
+                      {error instanceof Error ? error.message : "Failed to load secretary data. Please refresh the page."}
                     </p>
                   </div>
                 </div>
@@ -447,11 +376,6 @@ function SecretariesContent() {
                   setShouldRefreshAfterClose(true); // Mark for refresh on close
                 }}
                 onCancel={handleCloseRegisterModal}
-                refreshTrigger={refreshTrigger}
-                createSecretaryAccount={async (displayName, email, password) => {
-                  const credentials = await createSecretaryAccount(displayName, email, password);
-                  return credentials;
-                }}
               />
             </div>
           </div>

@@ -3,14 +3,16 @@
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
-import { useState, useEffect } from "react";
-import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection, getCachedData } from "@/lib/firestore";
+import { useState } from "react";
+import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection, getSectionById, getSectionStudents, updateSection } from "@/lib/firestore";
 import { useRouter } from "next/navigation";
-import { ImportModal, StudentData } from "@/components/teacher/sections";
+import { ImportModal, StudentData, SectionDetailModal } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
+import StudentProfileDrawer, { StudentProfile } from "@/components/teacher/students/StudentProfileDrawer";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Extended section with student count
 interface SectionWithCount extends Section {
@@ -28,22 +30,26 @@ export default function SectionsPage() {
 }
 
 function SectionsContent() {
-  const { user, userProfile } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Initialize isLoading based on cache to avoid loading flash
-  const initialCacheKey = user?.uid ? `sections_${user.uid}` : null;
-  const hasCachedSections = initialCacheKey ? getCachedData<Section[]>(initialCacheKey) : null;
-  const [sections, setSections] = useState<SectionWithCount[]>(
-    hasCachedSections 
-      ? hasCachedSections.map(s => ({ ...s, studentCount: s.studentCount || 0 }))
-      : []
-  );
-  const [isLoading, setIsLoading] = useState(!hasCachedSections);
-  const [error, setError] = useState<string | null>(null);
+
+  // TanStack Query for sections (rarely changes - 30 min cache)
+  const { data: sectionsData = [], isLoading, error } = useQuery({
+    queryKey: ["sections", user?.uid],
+    queryFn: () => getTeacherSections(user?.uid || ""),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000, // 30 minutes - sections rarely change
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
+
+  // Transform sections data
+  const sections: SectionWithCount[] = sectionsData.map((section) => ({
+    ...section,
+    studentCount: section.studentCount || 0,
+  } as SectionWithCount));
+
   const [showImportModal, setShowImportModal] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [pendingSectionData, setPendingSectionData] = useState<{
     sectionName: string;
     gradeLevel: string;
@@ -51,43 +57,31 @@ function SectionsContent() {
   } | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertType, setAlertType] = useState<'error' | 'success' | 'info'>('info');
+  const [alertMessage, setAlertMessage] = useState("");
+  const [alertType, setAlertType] = useState<"error" | "success" | "info">("info");
 
-  // Load sections on mount or when refreshTrigger changes
-  useEffect(() => {
-    const loadSections = async () => {
-      if (!user?.uid) return;
+  // Section detail modal state - using TanStack Query
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
 
-      setIsLoading(true);
-      setError(null);
+  const { data: selectedSection } = useQuery({
+    queryKey: ["section", selectedSectionId],
+    queryFn: () => getSectionById(selectedSectionId!),
+    enabled: !!selectedSectionId,
+    staleTime: 15 * 60 * 1000, // 15 minutes - section info stable
+    gcTime: 30 * 60 * 1000, // 30 minutes
+  });
 
-      try {
-        console.log("Loading sections for teacher:", user.uid);
-        
-        // Fetch sections (uses cache if < 2 min old)
-        const fetchedSections = await getTeacherSections(user.uid);
-        
-        console.log("Fetched sections:", fetchedSections.length);
+  const { data: sectionStudents = [] } = useQuery({
+    queryKey: ["sectionStudents", selectedSectionId],
+    queryFn: () => getSectionStudents(selectedSectionId!),
+    enabled: !!selectedSectionId,
+    staleTime: 10 * 60 * 1000, // 10 minutes - student list changes occasionally
+    gcTime: 20 * 60 * 1000, // 20 minutes
+  });
 
-        // Use stored studentCount, default to 0 if not set
-        const sectionsWithCounts = fetchedSections.map((section) => ({
-          ...section,
-          studentCount: section.studentCount || 0,
-        } as SectionWithCount));
-
-        console.log("Sections with counts:", sectionsWithCounts);
-        setSections(sectionsWithCounts);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error loading sections:", err);
-        setError("Failed to load sections. Please try again.");
-        setIsLoading(false);
-      }
-    };
-    
-    loadSections();
-  }, [user?.uid, refreshTrigger]);
+  // Student profile drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
 
   // Calculate derived statistics
   const totalStudents = sections.reduce((sum, section) => sum + section.studentCount, 0);
@@ -174,17 +168,67 @@ function SectionsContent() {
 
     try {
       await deleteSection(sectionId, user?.uid || "");
-      // Refresh sections list
-      setRefreshTrigger(prev => prev + 1);
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["sections", user?.uid] });
     } catch (error) {
       console.error("Error deleting section:", error);
       alert("Failed to delete section. Please try again.");
     }
   };
 
-  // Navigate to section details
+  // Navigate to section details (open modal)
   const handleManageSection = (sectionId: string) => {
-    router.push(`/dashboard/teacher/sections/${sectionId}`);
+    setSelectedSectionId(sectionId);
+  };
+
+  // Handle editing section
+  const handleEditSection = async (updates: Partial<Section>) => {
+    if (!selectedSectionId) return;
+
+    try {
+      await updateSection(selectedSectionId, updates);
+
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["section", selectedSectionId] });
+      queryClient.invalidateQueries({ queryKey: ["sections", user?.uid] });
+    } catch (error) {
+      console.error("Error updating section:", error);
+      throw error;
+    }
+  };
+
+  // Handle viewing student (open profile drawer)
+  const handleViewStudent = (student: Student) => {
+    const section = selectedSection;
+    const fullProfile: StudentProfile = {
+      lrn: student.lrn,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      middleName: student.middleName,
+      sectionName: section?.sectionName || "",
+      gradeLevel: section?.gradeLevel || "",
+      sex: student.sex,
+      learningModality: student.learningModality,
+      studentStatus: student.studentStatus,
+      birthDate: student.birthDate || new Date(),
+      religion: student.religion || "",
+      barangay: student.barangay || "",
+      city: student.city || "",
+      province: student.province || "",
+      fatherName: student.fatherName || "",
+      motherMaidenName: student.motherMaidenName || "",
+      guardianName: student.guardianName || "",
+      guardianRelationship: student.guardianRelationship || "",
+      guardianContactNumber: student.guardianContactNumber || "",
+    };
+    setSelectedStudent(fullProfile);
+    setIsDrawerOpen(true);
+    handleCloseSectionModal(); // Close the section modal
+  };
+
+  // Close section detail modal
+  const handleCloseSectionModal = () => {
+    setSelectedSectionId(null);
   };
 
   // Handle saving section and students
@@ -238,7 +282,7 @@ function SectionsContent() {
       }));
 
       console.log("Importing students:", studentData.length);
-      
+
       // Import students using batch
       await importStudentsBatch(sectionId, studentData);
       console.log("Students imported successfully");
@@ -248,20 +292,18 @@ function SectionsContent() {
       setPendingSectionData(null);
       setShowImportModal(false);
 
-      // Refresh sections list
-      setRefreshTrigger(prev => prev + 1);
+      // Invalidate queries to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["sections", user.uid] });
 
       // Show success message
       setAlertMessage(`Section "${sectionName}" created with ${students.length} student(s)!`);
-      setAlertType('success');
+      setAlertType("success");
       setShowAlert(true);
-
-      // Sections will auto-refresh via real-time subscription
     } catch (error) {
       console.error("Error creating section:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       setAlertMessage(`Failed to create section: ${errorMessage}`);
-      setAlertType('error');
+      setAlertType("error");
       setShowAlert(true);
       setShowConfirmDialog(false);
       setPendingSectionData(null);
@@ -327,7 +369,7 @@ function SectionsContent() {
                       Unable to Load
                     </h3>
                     <p className="text-sm mb-4" style={{ color: "#484553" }}>
-                      {error}
+                      {error instanceof Error ? error.message : "Failed to load sections. Please try again."}
                     </p>
                   </div>
                 </div>
@@ -586,6 +628,26 @@ function SectionsContent() {
           </div>
         </div>
       )}
+
+      {/* Section Detail Modal */}
+      <SectionDetailModal
+        isOpen={!!selectedSectionId}
+        onClose={handleCloseSectionModal}
+        section={selectedSection || null}
+        students={sectionStudents}
+        onEditSection={handleEditSection}
+        onViewStudent={handleViewStudent}
+      />
+
+      {/* Student Profile Drawer */}
+      <StudentProfileDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          setSelectedStudent(null);
+        }}
+        student={selectedStudent}
+      />
     </>
   );
 }

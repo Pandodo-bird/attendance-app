@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback, useRef } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useRef } from "react";
 import {
   User,
   onAuthStateChanged,
@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { createUserProfile, getUserProfile, UserData } from "../lib/firestore";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextType {
   user: User | null;
@@ -25,67 +26,43 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// In-memory cache for user profiles to reduce Firestore reads
-const profileCache = new Map<string, { data: UserData; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   // Track the current user ID to detect user changes
   const currentUserIdRef = useRef<string | null>(null);
 
-  // Memoized function to fetch user profile with caching - avoids unnecessary re-fetches
-  const fetchUserProfile = useCallback(async (uid: string, forceRefresh = false) => {
-    // Check cache first
-    if (!forceRefresh) {
-      const cached = profileCache.get(uid);
-      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-        setUserProfile(cached.data);
-        setLoading(false);
-        return;
-      }
-    }
-    
-    try {
-      const profile = await getUserProfile(uid);
-      // Update cache
-      if (profile) {
-        profileCache.set(uid, { data: profile, timestamp: Date.now() });
-      }
-      setUserProfile(profile);
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-      setUserProfile(null);
-    }
-  }, []);
+  // Use TanStack Query for user profile with caching (30 min - rarely changes)
+  const { data: userProfile } = useQuery({
+    queryKey: ["userProfile", user?.uid],
+    queryFn: () => getUserProfile(user?.uid || ""),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000, // 30 minutes - user profile rarely changes
+    gcTime: 60 * 60 * 1000, // 1 hour
+  });
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       const previousUserId = currentUserIdRef.current;
       setUser(user);
-      
+
       if (user) {
-        // Only fetch profile if this is a different user or force refresh needed
+        // Only set loading if this is a different user
         if (previousUserId !== user.uid) {
           currentUserIdRef.current = user.uid;
-          // Clear old user's profile and fetch new one
-          setUserProfile(null);
-          fetchUserProfile(user.uid).finally(() => setLoading(false));
-        } else {
-          // Same user, keep existing profile if available
-          setLoading(false);
+          setLoading(true);
         }
       } else {
         currentUserIdRef.current = null;
-        setUserProfile(null);
-        setLoading(false);
       }
+      
+      // Loading will be handled by the query
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [fetchUserProfile]);
+  }, []);
 
   // Create a secretary account using server-side API (keeps current user logged in)
   const createSecretaryAccount = async (
@@ -127,19 +104,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Generate a secure random password
-  const generateSecurePassword = (): string => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-    let password = "";
-    // First char should be a letter
-    password += chars.charAt(Math.floor(Math.random() * 52));
-    // Rest of the password (11 more characters = 12 total)
-    for (let i = 0; i < 11; i++) {
-      password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return password;
-  };
-
   const signUp = async (
     email: string,
     password: string,
@@ -158,23 +122,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    // Clear profile cache before logging out
-    profileCache.clear();
+    // Clear query cache for user profile
+    queryClient.removeQueries({ queryKey: ["userProfile"] });
     currentUserIdRef.current = null;
-    setUserProfile(null);
     await signOut(auth);
   };
 
   const refreshUserProfile = async () => {
     if (user) {
-      // Force refresh by bypassing cache
-      await fetchUserProfile(user.uid, true);
+      // Force refresh by invalidating the query
+      await queryClient.invalidateQueries({ queryKey: ["userProfile", user.uid] });
     }
   };
 
   const value: AuthContextType = {
     user,
-    userProfile,
+    userProfile: userProfile || null,
     loading,
     signUp,
     createSecretaryAccount,
