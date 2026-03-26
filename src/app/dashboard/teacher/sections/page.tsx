@@ -14,12 +14,13 @@ import {
   getSectionById,
   getSectionStudents,
   updateSection,
+  addStudentToSection,
   getTeacherAppointments,
   getUserProfilesBatch,
   UserData,
 } from "@/lib/firestore";
 import { useRouter } from "next/navigation";
-import { ImportModal, StudentData, SectionDetailModal } from "@/components/teacher/sections";
+import { AddStudentModal, ImportModal, StudentData, SectionDetailModal } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
@@ -103,6 +104,8 @@ function SectionsContent() {
 
   // Section detail modal state - using TanStack Query
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [addStudentSectionId, setAddStudentSectionId] = useState<string | null>(null);
 
   const { data: selectedSection } = useQuery({
     queryKey: ["section", selectedSectionId],
@@ -118,6 +121,22 @@ function SectionsContent() {
     enabled: !!selectedSectionId,
     staleTime: 10 * 60 * 1000, // 10 minutes - student list changes occasionally
     gcTime: 20 * 60 * 1000, // 20 minutes
+  });
+
+  const { data: addStudentSection } = useQuery({
+    queryKey: ["section", addStudentSectionId],
+    queryFn: () => getSectionById(addStudentSectionId!),
+    enabled: !!addStudentSectionId,
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const { data: addStudentSectionStudents = [] } = useQuery({
+    queryKey: ["sectionStudents", addStudentSectionId],
+    queryFn: () => getSectionStudents(addStudentSectionId!),
+    enabled: !!addStudentSectionId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
   });
 
   // Sort students alphabetically by last name, then first name
@@ -258,6 +277,14 @@ function SectionsContent() {
     }
   };
 
+  const handleAddStudent = async (sectionId: string, student: Omit<Student, "createdAt">) => {
+    await addStudentToSection(sectionId, student);
+
+    queryClient.invalidateQueries({ queryKey: ["sectionStudents", sectionId] });
+    queryClient.invalidateQueries({ queryKey: ["section", sectionId] });
+    queryClient.invalidateQueries({ queryKey: ["sections", user?.uid] });
+  };
+
   // Handle viewing student (open profile drawer)
   const handleViewStudent = (student: Student) => {
     const section = selectedSection;
@@ -290,6 +317,28 @@ function SectionsContent() {
   // Close section detail modal
   const handleCloseSectionModal = () => {
     setSelectedSectionId(null);
+  };
+
+  const handleOpenAddStudentModal = () => {
+    if (!selectedSectionId) return;
+    setAddStudentSectionId(selectedSectionId);
+    setShowAddStudentModal(true);
+    setSelectedSectionId(null);
+  };
+
+  const handleCloseAddStudentModal = () => {
+    setShowAddStudentModal(false);
+    setAddStudentSectionId(null);
+  };
+
+  const handleSubmitAddStudent = async (student: Omit<Student, "createdAt">) => {
+    if (!addStudentSectionId) {
+      throw new Error("No section selected for student insertion.");
+    }
+    await handleAddStudent(addStudentSectionId, student);
+    setAlertMessage("Student added successfully.");
+    setAlertType("success");
+    setShowAlert(true);
   };
 
   // Handle saving section and students
@@ -742,6 +791,15 @@ function SectionsContent() {
         students={sortedSectionStudents}
         onEditSection={handleEditSection}
         onViewStudent={handleViewStudent}
+        onOpenAddStudent={handleOpenAddStudentModal}
+      />
+
+      <AddStudentModal
+        isOpen={showAddStudentModal}
+        onClose={handleCloseAddStudentModal}
+        sectionName={addStudentSection?.sectionName || ""}
+        existingStudents={addStudentSectionStudents}
+        onSubmit={handleSubmitAddStudent}
       />
 
       {/* Student Profile Drawer */}

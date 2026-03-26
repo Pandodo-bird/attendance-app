@@ -12,6 +12,7 @@ interface SectionDetailModalProps {
   students: Student[];
   onEditSection: (updates: Partial<Section>) => Promise<void>;
   onViewStudent: (student: Student) => void;
+  onOpenAddStudent: () => void;
 }
 
 export default function SectionDetailModal({
@@ -21,6 +22,7 @@ export default function SectionDetailModal({
   students,
   onEditSection,
   onViewStudent,
+  onOpenAddStudent,
 }: SectionDetailModalProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedSection, setEditedSection] = useState<Section | null>(null);
@@ -103,7 +105,6 @@ export default function SectionDetailModal({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 bg-black/40 z-40"
             initial={{ opacity: 0 }}
@@ -112,7 +113,6 @@ export default function SectionDetailModal({
             onClick={onClose}
           />
 
-          {/* Modal */}
           <motion.div
             className="fixed inset-0 flex items-center justify-center z-50 px-4"
             initial={{ opacity: 0, scale: 0.95 }}
@@ -126,7 +126,6 @@ export default function SectionDetailModal({
               style={{ backgroundColor: "#FFFFFF" }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
               <div
                 className="px-6 py-4 border-b flex items-start justify-between"
                 style={{ borderColor: "#E5E7EB" }}
@@ -142,10 +141,7 @@ export default function SectionDetailModal({
                       placeholder="Section name"
                     />
                   ) : (
-                    <h2
-                      className="text-xl font-bold"
-                      style={{ color: "#1F1F1F" }}
-                    >
+                    <h2 className="text-xl font-bold" style={{ color: "#1F1F1F" }}>
                       Section {editedSection.sectionName}
                     </h2>
                   )}
@@ -172,10 +168,7 @@ export default function SectionDetailModal({
                       </div>
                     ) : (
                       <>
-                        <p
-                          className="text-sm font-medium"
-                          style={{ color: "#6B7280" }}
-                        >
+                        <p className="text-sm font-medium" style={{ color: "#6B7280" }}>
                           Grade {editedSection.gradeLevel} • {editedSection.schoolYear}
                         </p>
                         <span
@@ -231,17 +224,13 @@ export default function SectionDetailModal({
                 </div>
               </div>
 
-              {/* Body - Student Roster */}
               <div className="flex-1 overflow-y-auto px-6 py-4">
                 {students.length === 0 ? (
                   <div
                     className="rounded-xl border p-12 flex flex-col items-center justify-center gap-4"
                     style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB" }}
                   >
-                    <span
-                      className="material-symbols-outlined text-4xl"
-                      style={{ color: "#9CA3AF" }}
-                    >
+                    <span className="material-symbols-outlined text-4xl" style={{ color: "#9CA3AF" }}>
                       people_outline
                     </span>
                     <div className="text-center">
@@ -289,28 +278,17 @@ export default function SectionDetailModal({
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.02, duration: 0.15 }}
                             >
-                              <td
-                                className="px-4 py-3 text-sm font-mono"
-                                style={{ color: "#6B7280" }}
-                              >
+                              <td className="px-4 py-3 text-sm font-mono" style={{ color: "#6B7280" }}>
                                 {student.lrn}
                               </td>
-                              <td
-                                className="px-4 py-3 text-sm font-medium"
-                                style={{ color: "#1F1F1F" }}
-                              >
+                              <td className="px-4 py-3 text-sm font-medium" style={{ color: "#1F1F1F" }}>
                                 {getFullName(student)}
                               </td>
                               <td className="px-4 py-3 text-right">
                                 <button
-                                  onClick={() => {
-                                    onViewStudent(student);
-                                  }}
+                                  onClick={() => onViewStudent(student)}
                                   className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-                                  style={{
-                                    backgroundColor: "#F0EDF7",
-                                    color: "#6C5CE7",
-                                  }}
+                                  style={{ backgroundColor: "#F0EDF7", color: "#6C5CE7" }}
                                   onMouseEnter={(e) => {
                                     e.currentTarget.style.backgroundColor = "#E6E0EC";
                                   }}
@@ -330,26 +308,35 @@ export default function SectionDetailModal({
                 )}
               </div>
 
-              {/* Footer */}
               <div
-                className="px-6 py-4 border-t flex items-center justify-between"
+                className="px-6 py-4 border-t flex items-center justify-between gap-3"
                 style={{ borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" }}
               >
                 <p className="text-sm font-medium" style={{ color: "#6B7280" }}>
-                  Total: <span style={{ color: "#1F1F1F" }}>{students.length}</span> student{students.length !== 1 ? "s" : ""}
+                  Total: <span style={{ color: "#1F1F1F" }}>{students.length}</span> student
+                  {students.length !== 1 ? "s" : ""}
                 </p>
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-                  style={{
-                    backgroundColor: "#FFFFFF",
-                    borderColor: "#E5E7EB",
-                    border: "1px solid",
-                    color: "#374151",
-                  }}
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={onOpenAddStudent}
+                    className="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                    style={{ backgroundColor: "#6C5CE7", color: "#FFFFFF" }}
+                  >
+                    Add Student
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      borderColor: "#E5E7EB",
+                      border: "1px solid",
+                      color: "#374151",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
