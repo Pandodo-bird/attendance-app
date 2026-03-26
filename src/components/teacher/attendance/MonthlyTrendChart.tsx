@@ -38,6 +38,7 @@ interface MonthlyData {
   presentPercent: number;
   latePercent: number;
   absentPercent: number;
+  excusedPercent: number;
   attendanceRate: number;
 }
 
@@ -86,6 +87,14 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         label: "Absent %",
         data: monthlyData.map((dataPoint) => dataPoint.absentPercent),
         backgroundColor: "#ef4444",
+        stack: "attendancePct",
+        borderRadius: 4,
+      },
+      {
+        type: "bar",
+        label: "Excused %",
+        data: monthlyData.map((dataPoint) => dataPoint.excusedPercent),
+        backgroundColor: "#60a5fa",
         stack: "attendancePct",
         borderRadius: 4,
       },
@@ -190,6 +199,10 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
           <span className="text-sm" style={{ color: "#6B7280" }}>Absent</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#60a5fa" }} />
+          <span className="text-sm" style={{ color: "#6B7280" }}>Excused</span>
+        </div>
+        <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded" style={{ backgroundColor: "#1e3a5f" }} />
           <span className="text-sm" style={{ color: "#6B7280" }}>Attendance Rate</span>
         </div>
@@ -199,28 +212,30 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
 }
 
 function prepareMonthlyData(summaries: StudentSummary[]): MonthlyData[] {
-  const monthMap = new Map<string, { present: number; late: number; absent: number }>();
+  const monthMap = new Map<string, { present: number; late: number; absent: number; excused: number }>();
 
   summaries.forEach((summary) => {
     Object.entries(summary.trend).forEach(([month, trend]) => {
-      const existing = monthMap.get(month) ?? { present: 0, late: 0, absent: 0 };
+      const existing = monthMap.get(month) ?? { present: 0, late: 0, absent: 0, excused: 0 };
       monthMap.set(month, {
         present: existing.present + (trend.present ?? 0),
         late: existing.late + (trend.late ?? 0),
         absent: existing.absent + (trend.absent ?? 0),
+        excused: existing.excused + (trend.excused ?? 0),
       });
     });
   });
 
   return Array.from(monthMap.entries())
     .map(([month, values]) => {
-      const total = values.present + values.late + values.absent;
+      const total = values.present + values.late + values.absent + values.excused;
       return {
         month,
         presentPercent: total > 0 ? (values.present / total) * 100 : 0,
         latePercent: total > 0 ? (values.late / total) * 100 : 0,
         absentPercent: total > 0 ? (values.absent / total) * 100 : 0,
-        attendanceRate: total > 0 ? ((values.present + values.late) / total) * 100 : 0,
+        excusedPercent: total > 0 ? (values.excused / total) * 100 : 0,
+        attendanceRate: total > 0 ? ((values.present + values.late + values.excused) / total) * 100 : 0,
       };
     })
     .sort((a, b) => a.month.localeCompare(b.month));

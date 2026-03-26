@@ -164,7 +164,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
         <h3 className="font-semibold text-base mb-4" style={{ color: "#1F1F1F" }}>
           Today&apos;s Summary
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#16A34A" }}>
               {analytics.totalPresent}
@@ -190,6 +190,14 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
             </div>
           </div>
           <div className="text-center">
+            <div className="text-3xl font-bold" style={{ color: "#2563EB" }}>
+              {analytics.totalExcused}
+            </div>
+            <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
+              Excused
+            </div>
+          </div>
+          <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#1e3a5f" }}>
               {todayLabel}
             </div>
@@ -211,6 +219,7 @@ function calculateAnalytics(summaries: StudentSummary[]) {
       totalPresent: 0,
       totalLate: 0,
       totalAbsent: 0,
+      totalExcused: 0,
       totalDays: 0,
     };
   }
@@ -218,6 +227,7 @@ function calculateAnalytics(summaries: StudentSummary[]) {
   let totalPresent = 0;
   let totalLate = 0;
   let totalAbsent = 0;
+  let totalExcused = 0;
   let totalDays = 0;
   let perfectAttendanceCount = 0;
   let atRiskCount = 0;
@@ -227,15 +237,17 @@ function calculateAnalytics(summaries: StudentSummary[]) {
     const present = summary.present ?? 0;
     const late = summary.late ?? 0;
     const absent = summary.absent ?? 0;
+    const excused = summary.excused ?? 0;
     const summaryTotalDays = summary.totalDays ?? 0;
 
     totalPresent += present;
     totalLate += late;
     totalAbsent += absent;
+    totalExcused += excused;
     totalDays = Math.max(totalDays, summaryTotalDays);
 
     const attendanceRate = summaryTotalDays > 0
-      ? ((present + late) / summaryTotalDays) * 100
+      ? ((present + late + excused) / summaryTotalDays) * 100
       : 0;
 
     if (attendanceRate === 100 && summaryTotalDays > 0) {
@@ -248,7 +260,7 @@ function calculateAnalytics(summaries: StudentSummary[]) {
   });
 
   const averageAttendanceRate = totalDays > 0 && summaries.length > 0
-    ? ((totalPresent + totalLate) / (totalDays * summaries.length)) * 100
+    ? ((totalPresent + totalLate + totalExcused) / (totalDays * summaries.length)) * 100
     : 0;
 
   return {
@@ -259,6 +271,7 @@ function calculateAnalytics(summaries: StudentSummary[]) {
     totalPresent,
     totalLate,
     totalAbsent,
+    totalExcused,
     totalDays,
   };
 }

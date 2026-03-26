@@ -98,15 +98,22 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
                        isSecretary();
-      allow update, delete: if false;
+      allow update: if isAuthenticated() &&
+                       resource.data.teacherId == getUid();
+      allow delete: if false;
     }
 
     // ==================== StudentSummaries Collection ====================
     match /studentSummaries/{summaryId} {
       // Teachers can read summaries for their sections, secretaries can read their section's summaries
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() &&
-                               isSecretary();
+      allow create: if isAuthenticated() &&
+                       isSecretary();
+      allow update: if isAuthenticated() &&
+                       (
+                         isSecretary() ||
+                         get(/databases/$(database)/documents/sections/$(resource.data.sectionId)).data.teacherId == getUid()
+                       );
       allow delete: if false;
     }
   }

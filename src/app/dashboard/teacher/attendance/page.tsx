@@ -350,11 +350,12 @@ function AttendanceContent() {
                         borderColor: "#E5E7EB",
                         color: "#6B7280"
                       }}>
-                        <div className="col-span-4">Student</div>
+                        <div className="col-span-3">Student</div>
                         <div className="col-span-2 text-center">Attendance</div>
                         <div className="col-span-2 text-center">Present</div>
                         <div className="col-span-2 text-center">Late</div>
                         <div className="col-span-2 text-center">Absent</div>
+                        <div className="col-span-1 text-center">Excused</div>
                       </div>
                       
                       {/* Table Body */}
@@ -373,7 +374,7 @@ function AttendanceContent() {
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: index * 0.03 }}
                               >
-                                <div className="col-span-4">
+                                <div className="col-span-3">
                                   <div className="font-medium text-sm" style={{ color: "#1F1F1F" }}>
                                     {studentName}
                                   </div>
@@ -381,7 +382,7 @@ function AttendanceContent() {
                                     {student.lrn}
                                   </div>
                                 </div>
-                                <div className="col-span-8 text-center text-sm" style={{ color: "#9CA3AF" }}>
+                                <div className="col-span-9 text-center text-sm" style={{ color: "#9CA3AF" }}>
                                   No attendance records
                                 </div>
                               </motion.div>

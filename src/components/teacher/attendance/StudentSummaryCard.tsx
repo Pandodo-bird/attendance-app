@@ -22,10 +22,11 @@ export default function StudentSummaryCard({
   const present = summary.present ?? 0;
   const late = summary.late ?? 0;
   const absent = summary.absent ?? 0;
+  const excused = summary.excused ?? 0;
   const totalDays = summary.totalDays ?? 0;
 
   const attendanceRate = totalDays > 0
-    ? Math.round(((present + late) / totalDays) * 100)
+    ? Math.round(((present + late + excused) / totalDays) * 100)
     : 0;
 
   const isAtRisk = attendanceRate < 75 && totalDays > 0;
@@ -42,7 +43,7 @@ export default function StudentSummaryCard({
         transition={{ delay: index * 0.03 }}
       >
         {/* Name */}
-        <div className="col-span-4">
+        <div className="col-span-3">
           <div className="font-medium text-sm truncate" style={{ color: "#1F1F1F" }}>
             {studentName}
           </div>
@@ -84,6 +85,13 @@ export default function StudentSummaryCard({
             {absent}
           </div>
         </div>
+
+        {/* Excused */}
+        <div className="col-span-1 text-center">
+          <div className="text-sm font-semibold" style={{ color: "#2563EB" }}>
+            {excused}
+          </div>
+        </div>
       </motion.div>
     );
   }
@@ -112,7 +120,7 @@ export default function StudentSummaryCard({
       </div>
 
       {/* Stats Grid - Simplified */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         <div className="text-center">
           <div className="text-lg font-bold" style={{ color: "#16A34A" }}>
             {present}
@@ -135,6 +143,14 @@ export default function StudentSummaryCard({
           </div>
           <div className="text-[10px] uppercase tracking-tight" style={{ color: "#6B7280" }}>
             Absent
+          </div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold" style={{ color: "#2563EB" }}>
+            {excused}
+          </div>
+          <div className="text-[10px] uppercase tracking-tight" style={{ color: "#6B7280" }}>
+            Excused
           </div>
         </div>
         <div className="text-center">

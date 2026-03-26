@@ -26,7 +26,6 @@ interface StudentAttendance {
   lastName: string;
   firstName: string;
   status: AttendanceStatus | null;
-  remarks: string;
 }
 
 const STUDENTS_PER_PAGE = 10;
@@ -52,6 +51,7 @@ export default function SecretaryAttendancePage() {
 
   // Reset page when editing session state changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
   }, [hasSessionToday, sessionSubmitted]);
 
@@ -83,7 +83,7 @@ export default function SecretaryAttendancePage() {
     : null;
 
   // TanStack Query: Fetch attendance session (cached - no refetch on navigation or window focus)
-  const { data: existingSession, isLoading: sessionLoading } = useQuery({
+  const { data: existingSession } = useQuery({
     queryKey: ["attendanceSession", attendanceId],
     queryFn: () => getAttendanceSession(attendanceId!),
     enabled: !!attendanceId,
@@ -114,6 +114,7 @@ export default function SecretaryAttendancePage() {
         return a.firstName.localeCompare(b.firstName);
       });
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAttendanceRecords(
         sortedStudents.map((student) => ({
           lrn: student.lrn,
@@ -121,7 +122,6 @@ export default function SecretaryAttendancePage() {
           lastName: student.lastName,
           firstName: student.firstName,
           status: null,
-          remarks: "",
         }))
       );
     }
@@ -130,6 +130,7 @@ export default function SecretaryAttendancePage() {
   // Update session state when TanStack Query data changes
   useEffect(() => {
     if (existingSession) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasSessionToday(true);
 
       // Check if session is already submitted (locked)
@@ -146,7 +147,6 @@ export default function SecretaryAttendancePage() {
                 return {
                   ...record,
                   status: existingRecord.status as AttendanceStatus,
-                  remarks: existingRecord.remarks,
                 };
               }
               return record;
@@ -167,11 +167,11 @@ export default function SecretaryAttendancePage() {
   }, [existingSession]);
 
   // Handle individual student status change
-  const handleStatusChange = (lrn: string, status: AttendanceStatus, remarks?: string) => {
+  const handleStatusChange = (lrn: string, status: AttendanceStatus) => {
     setAttendanceRecords((prev) =>
       prev.map((record) =>
         record.lrn === lrn
-          ? { ...record, status, remarks: remarks ?? record.remarks }
+          ? { ...record, status }
           : record
       )
     );
@@ -183,7 +183,6 @@ export default function SecretaryAttendancePage() {
       prev.map((record) => ({
         ...record,
         status: "present",
-        remarks: "",
       }))
     );
   };
@@ -194,7 +193,6 @@ export default function SecretaryAttendancePage() {
       prev.map((record) => ({
         ...record,
         status: null,
-        remarks: "",
       }))
     );
   };
@@ -257,7 +255,6 @@ export default function SecretaryAttendancePage() {
         studentName: record.studentName,
         lastName: record.lastName,
         status: record.status as "present" | "late" | "absent",
-        remarks: record.remarks,
       }));
 
       // Submit full attendance (batch write to 3 collections)
@@ -527,7 +524,6 @@ export default function SecretaryAttendancePage() {
                       lrn={record.lrn}
                       studentName={record.studentName}
                       status={record.status}
-                      remarks={record.remarks}
                       index={index}
                       isEditable={isEditing || !sessionSubmitted}
                       onStatusChange={handleStatusChange}

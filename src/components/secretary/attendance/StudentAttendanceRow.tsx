@@ -9,17 +9,15 @@ interface StudentAttendanceRowProps {
   lrn: string;
   studentName: string;
   status: AttendanceStatus | null;
-  remarks: string;
   index: number;
   isEditable: boolean;
-  onStatusChange: (lrn: string, status: AttendanceStatus, remarks?: string) => void;
+  onStatusChange: (lrn: string, status: AttendanceStatus) => void;
 }
 
 export default function StudentAttendanceRow({
   lrn,
   studentName,
   status,
-  remarks,
   index,
   isEditable,
   onStatusChange,

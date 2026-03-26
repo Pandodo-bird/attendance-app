@@ -15,6 +15,7 @@ import {
   updateDoc,
   Unsubscribe,
   increment,
+  deleteField,
   orderBy,
   limit,
   startAfter,
@@ -100,11 +101,17 @@ export interface Appointment {
 
 // ==================== Attendance Types ====================
 
+export type AttendanceStatus = "present" | "late" | "absent" | "excused";
+
 export interface AttendanceRecord {
   studentName: string;
-  status: "present" | "late" | "absent";
-  remarks: string;
+  status: AttendanceStatus;
   timeRecorded: Date | Timestamp;
+  recordedByUid?: string;
+  recordedByName?: string;
+  updatedAt?: Date | Timestamp;
+  updatedByTeacherId?: string;
+  updatedByTeacherName?: string;
 }
 
 export interface Attendance {
@@ -122,6 +129,24 @@ export interface Attendance {
   createdAt: Date | Timestamp;
 }
 
+export interface AttendanceFlatRecord {
+  id: string;
+  attendanceId: string;
+  teacherId: string;
+  lrn: string;
+  sectionId: string;
+  subject: string;
+  date: string;
+  schoolYear: string;
+  status: AttendanceStatus;
+  timeRecorded: Date | Timestamp;
+  recordedByUid?: string;
+  recordedByName?: string;
+  updatedAt?: Date | Timestamp;
+  updatedByTeacherId?: string;
+  updatedByTeacherName?: string;
+}
+
 // ==================== Student Summary Types ====================
 
 export interface StudentSummary {
@@ -133,7 +158,8 @@ export interface StudentSummary {
   present: number;
   late: number;
   absent: number;
-  trend: Record<string, { present: number; late: number; absent: number }>;
+  excused?: number;
+  trend: Record<string, { present: number; late: number; absent: number; excused?: number }>;
 }
 
 // ==================== Cache Implementation ====================
@@ -1130,10 +1156,11 @@ export async function checkExistingSession(
     console.log("ℹ️ No existing session found for this date - this is normal for first-time attendance");
     return null;
   } catch (error) {
+    const errorWithDetails = error as { code?: string; message?: string };
     console.error("❌ getDoc FAILED for attendanceId:", attendanceId);
     console.error("❌ Error details:", error);
-    console.error("❌ Error code:", (error as any)?.code);
-    console.error("❌ Error message:", (error as any)?.message);
+    console.error("❌ Error code:", errorWithDetails.code);
+    console.error("❌ Error message:", errorWithDetails.message);
     throw error;
   }
 }
@@ -1173,6 +1200,19 @@ export async function startAttendanceSession(
   return attendanceId;
 }
 
+function buildStudentSummaryId(
+  sectionSlug: string,
+  lastName: string,
+  lrn: string,
+  schoolYear: string
+): string {
+  return `${sectionSlug}_${lastName.toUpperCase().replace(/\s+/g, '-')}_${lrn}_${schoolYear}`;
+}
+
+function extractLastNameFromStudentName(studentName: string): string {
+  return studentName.split(",")[0]?.trim() || studentName.trim();
+}
+
 /**
  * Submit full attendance for a session
  * Performs atomic batch write to 3 collections:
@@ -1190,8 +1230,7 @@ export async function submitFullAttendance(
     lrn: string;
     studentName: string;
     lastName: string;
-    status: "present" | "late" | "absent";
-    remarks: string;
+    status: AttendanceStatus;
   }>
 ): Promise<void> {
   const batch = writeBatch(db);
@@ -1205,8 +1244,8 @@ export async function submitFullAttendance(
     recordsMap[student.lrn] = {
       studentName: student.studentName,
       status: student.status,
-      remarks: student.remarks,
       timeRecorded: new Date(),
+      recordedByUid: appointment.secretaryUid,
     };
   });
 
@@ -1229,14 +1268,14 @@ export async function submitFullAttendance(
       date,
       schoolYear,
       status: student.status,
-      remarks: student.remarks,
       timeRecorded: new Date(),
+      recordedByUid: appointment.secretaryUid,
     });
   });
 
   // 3. Upsert student summaries (running totals)
   students.forEach((student) => {
-    const summaryId = `${sectionSlug}_${student.lastName.toUpperCase().replace(/\s+/g, '-')}_${student.lrn}_${schoolYear}`;
+    const summaryId = buildStudentSummaryId(sectionSlug, student.lastName, student.lrn, schoolYear);
     const summaryRef = doc(db, "studentSummaries", summaryId);
     
     // Use set with merge to upsert
@@ -1260,6 +1299,100 @@ export async function submitFullAttendance(
   // Invalidate caches
   invalidateCache(`attendance_secretary_${appointment.secretaryUid}`);
   invalidateCache(`attendance_teacher_${appointment.teacherId}_${date}`);
+}
+
+/**
+ * Teacher override for a submitted attendance record.
+ * Updates the session map, flat audit log, and the precomputed student summary together.
+ */
+export async function overrideAttendanceRecord(
+  attendanceId: string,
+  sectionSlug: string,
+  lrn: string,
+  nextStatus: AttendanceStatus,
+  teacherId: string,
+  teacherName: string
+): Promise<void> {
+  const attendanceRef = doc(db, "attendance", attendanceId);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [attendance/{attendanceId}] (teacher override)", { attendanceId, lrn, nextStatus });
+  const attendanceSnap = await getDoc(attendanceRef);
+
+  if (!attendanceSnap.exists()) {
+    throw new Error("Attendance session not found.");
+  }
+
+  const attendance = {
+    id: attendanceSnap.id,
+    ...attendanceSnap.data(),
+  } as Attendance;
+
+  const existingRecord = attendance.records?.[lrn];
+  if (!existingRecord) {
+    throw new Error("Student record not found in attendance session.");
+  }
+
+  if (existingRecord.status === nextStatus) {
+    return;
+  }
+
+  const batch = writeBatch(db);
+  const updatedAt = new Date();
+  const monthKey = attendance.date.slice(0, 7);
+  const currentStatus = existingRecord.status;
+  const lastName = extractLastNameFromStudentName(existingRecord.studentName);
+  const summaryId = buildStudentSummaryId(sectionSlug, lastName, lrn, attendance.schoolYear);
+  const summaryRef = doc(db, "studentSummaries", summaryId);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [studentSummaries/{summaryId}] (teacher override)", { summaryId });
+  const summarySnap = await getDoc(summaryRef);
+
+  if (!summarySnap.exists()) {
+    throw new Error("Student summary not found for this attendance record.");
+  }
+
+  const summary = summarySnap.data() as Omit<StudentSummary, "id">;
+  const monthTrend = summary.trend?.[monthKey] ?? { present: 0, late: 0, absent: 0, excused: 0 };
+
+  batch.update(attendanceRef, {
+    [`records.${lrn}`]: {
+      ...existingRecord,
+      status: nextStatus,
+      updatedAt,
+      updatedByTeacherId: teacherId,
+      updatedByTeacherName: teacherName,
+    },
+  });
+
+  const flatRecordRef = doc(db, "attendanceRecords", `${attendance.date}_${sectionSlug}_${lrn}`);
+  batch.update(flatRecordRef, {
+    status: nextStatus,
+    updatedAt,
+    updatedByTeacherId: teacherId,
+    updatedByTeacherName: teacherName,
+    remarks: deleteField(),
+  });
+
+  batch.set(summaryRef, {
+    present: Math.max(0, (summary.present ?? 0) + (nextStatus === "present" ? 1 : 0) - (currentStatus === "present" ? 1 : 0)),
+    late: Math.max(0, (summary.late ?? 0) + (nextStatus === "late" ? 1 : 0) - (currentStatus === "late" ? 1 : 0)),
+    absent: Math.max(0, (summary.absent ?? 0) + (nextStatus === "absent" ? 1 : 0) - (currentStatus === "absent" ? 1 : 0)),
+    excused: Math.max(0, (summary.excused ?? 0) + (nextStatus === "excused" ? 1 : 0) - (currentStatus === "excused" ? 1 : 0)),
+    trend: {
+      ...summary.trend,
+      [monthKey]: {
+        present: Math.max(0, (monthTrend.present ?? 0) + (nextStatus === "present" ? 1 : 0) - (currentStatus === "present" ? 1 : 0)),
+        late: Math.max(0, (monthTrend.late ?? 0) + (nextStatus === "late" ? 1 : 0) - (currentStatus === "late" ? 1 : 0)),
+        absent: Math.max(0, (monthTrend.absent ?? 0) + (nextStatus === "absent" ? 1 : 0) - (currentStatus === "absent" ? 1 : 0)),
+        excused: Math.max(0, (monthTrend.excused ?? 0) + (nextStatus === "excused" ? 1 : 0) - (currentStatus === "excused" ? 1 : 0)),
+      },
+    },
+  }, { merge: true });
+
+  await batch.commit();
+
+  invalidateCache(`attendance_teacher_${attendance.teacherId}_${attendance.date}`);
+  invalidateCache(`attendance_secretary_${attendance.secretaryUid}`);
+  invalidateCache(`summaries_section_${attendance.sectionId}_${attendance.schoolYear}`);
+  invalidateCache(`summary_${summaryId}`);
 }
 
 /**
@@ -1363,14 +1496,12 @@ export async function getSecretaryAttendanceHistory(
  * @param secretaryUid - The secretary's UID
  * @param limit - Number of sessions to fetch (default: 10)
  * @param lastVisibleDoc - Last document from previous page (for pagination)
- * @param useCache - Whether to use manual cache (default: true)
  * @returns Object with sessions, lastVisible document, and hasMore flag
  */
 export async function getSecretaryAttendanceHistoryPaginated(
   secretaryUid: string,
   limitCount: number = 10,
-  lastVisibleDoc?: DocumentSnapshot | null,
-  useCache = true
+  lastVisibleDoc?: DocumentSnapshot | null
 ): Promise<{ sessions: Attendance[]; lastVisible: DocumentSnapshot | null; hasMore: boolean }> {
   const attendanceRef = collection(db, "attendance");
   
@@ -1412,15 +1543,16 @@ export async function getSecretaryAttendanceHistoryPaginated(
  */
 export function calculateAttendanceStats(
   records?: Record<string, AttendanceRecord>
-): { present: number; late: number; absent: number; total: number } {
+): { present: number; late: number; absent: number; excused: number; total: number } {
   if (!records) {
-    return { present: 0, late: 0, absent: 0, total: 0 };
+    return { present: 0, late: 0, absent: 0, excused: 0, total: 0 };
   }
 
   const stats = {
     present: 0,
     late: 0,
     absent: 0,
+    excused: 0,
     total: Object.keys(records).length,
   };
 
@@ -1428,6 +1560,7 @@ export function calculateAttendanceStats(
     if (record.status === "present") stats.present++;
     else if (record.status === "late") stats.late++;
     else if (record.status === "absent") stats.absent++;
+    else if (record.status === "excused") stats.excused++;
   });
 
   return stats;
@@ -1689,9 +1822,10 @@ export function aggregateMonthlyTrends(
   present: number;
   late: number;
   absent: number;
+  excused: number;
   attendanceRate: number;
 }> {
-  const monthMap = new Map<string, { present: number; late: number; absent: number }>();
+  const monthMap = new Map<string, { present: number; late: number; absent: number; excused: number }>();
 
   // Aggregate all months from all students
   summaries.forEach((summary) => {
@@ -1700,12 +1834,14 @@ export function aggregateMonthlyTrends(
       const present = data.present ?? 0;
       const late = data.late ?? 0;
       const absent = data.absent ?? 0;
+      const excused = data.excused ?? 0;
       
-      const existing = monthMap.get(month) || { present: 0, late: 0, absent: 0 };
+      const existing = monthMap.get(month) || { present: 0, late: 0, absent: 0, excused: 0 };
       monthMap.set(month, {
         present: existing.present + present,
         late: existing.late + late,
         absent: existing.absent + absent,
+        excused: existing.excused + excused,
       });
     });
   });
@@ -1717,8 +1853,9 @@ export function aggregateMonthlyTrends(
       present: data.present,
       late: data.late,
       absent: data.absent,
-      attendanceRate: data.present + data.late + data.absent > 0
-        ? Math.round(((data.present + data.late) / (data.present + data.late + data.absent)) * 100 * 100) / 100
+      excused: data.excused,
+      attendanceRate: data.present + data.late + data.absent + data.excused > 0
+        ? Math.round(((data.present + data.late + data.excused) / (data.present + data.late + data.absent + data.excused)) * 100 * 100) / 100
         : 0,
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
