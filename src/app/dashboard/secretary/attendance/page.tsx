@@ -5,13 +5,13 @@ import { motion } from "framer-motion";
 import { ClipboardCheck, Calendar, Edit2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { 
-  getSecretaryAppointments, 
-  getSectionStudents, 
-  checkExistingSession,
+import {
+  getSecretaryAppointments,
+  getSectionStudents,
   startAttendanceSession,
   submitFullAttendance,
   getSectionSlug,
+  getAttendanceSession,
 } from "@/lib/firestore";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
 import { BulkAttendanceActions } from "@/components/secretary/attendance";
@@ -32,10 +32,8 @@ interface StudentAttendance {
 const STUDENTS_PER_PAGE = 10;
 
 export default function SecretaryAttendancePage() {
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  console.log("👤 User context:", { user: user?.uid, userProfile });
 
   // State for session management
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -45,7 +43,6 @@ export default function SecretaryAttendancePage() {
   const [sessionSubmitted, setSessionSubmitted] = useState<boolean>(false);
   const [allowCorrections] = useState<boolean>(false); // TODO: Will be fetched from appointment settings
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [attendanceId, setAttendanceId] = useState<string | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -61,56 +58,37 @@ export default function SecretaryAttendancePage() {
   // TanStack Query: Fetch secretary's active appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ["appointments", user?.uid],
-    queryFn: () => {
-      console.log("📋 Fetching appointments for user:", user?.uid);
-      return getSecretaryAppointments(user?.uid || "");
-    },
+    queryFn: () => getSecretaryAppointments(user?.uid || ""),
     enabled: !!user?.uid,
     staleTime: 30 * 60 * 1000, // 30 minutes - appointments rarely change
     gcTime: 60 * 60 * 1000, // 1 hour
   });
-
-  // Log appointments when they change
-  useEffect(() => {
-    console.log("📋 Appointments updated:", appointments);
-    if (appointments.length > 0) {
-      console.log("📋 First appointment:", appointments[0]);
-    }
-  }, [appointments]);
 
   // Get the first active appointment's section ID (secretary may have multiple appointments)
   const selectedAppointment = appointments.length > 0 ? appointments[0] : null;
   const sectionId = selectedAppointment?.sectionId;
 
   // TanStack Query: Fetch section details for slug
-  const { data: sectionSlug, error: sectionSlugError, isLoading: sectionSlugLoading } = useQuery({
+  const { data: sectionSlug } = useQuery({
     queryKey: ["sectionSlug", sectionId],
-    queryFn: async () => {
-      console.log("📋 Fetching section slug for sectionId:", sectionId);
-      try {
-        const slug = await getSectionSlug(sectionId!);
-        console.log("📋 Section slug result:", slug);
-        return slug;
-      } catch (error) {
-        console.error("❌ Error fetching section slug:", error);
-        throw error;
-      }
-    },
+    queryFn: () => getSectionSlug(sectionId!),
     enabled: !!sectionId,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
 
-  if (sectionSlugError) {
-    console.error("❌ Section slug query error:", sectionSlugError);
-  }
+  // Construct attendance ID for TanStack Query (depends on sectionSlug)
+  const attendanceId = selectedAppointment && sectionSlug
+    ? `${selectedDate}_${sectionSlug}_${selectedAppointment.subject.replace(/\s+/g, '-')}_${selectedAppointment.secretaryLrn}`
+    : null;
 
-  console.log("🔍 Render state:", { 
-    selectedAppointment, 
-    sectionId, 
-    sectionSlug, 
-    sectionSlugLoading, 
-    sectionSlugError: sectionSlugError?.message || sectionSlugError 
+  // TanStack Query: Fetch attendance session (cached - no refetch on navigation)
+  const { data: existingSession, isLoading: sessionLoading } = useQuery({
+    queryKey: ["attendanceSession", attendanceId],
+    queryFn: () => getAttendanceSession(attendanceId!),
+    enabled: !!attendanceId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - check for updates periodically
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // TanStack Query: Fetch students from the section
@@ -147,91 +125,44 @@ export default function SecretaryAttendancePage() {
     }
   }, [sectionStudents]);
 
-  // Check for existing session when date or appointment changes
+  // Update session state when TanStack Query data changes
   useEffect(() => {
-    async function checkForExistingSession() {
-      console.log("🔍 checkForExistingSession | Starting check...");
-      console.log("🔍 checkForExistingSession | State:", {
-        selectedAppointment: selectedAppointment ? {
-          id: selectedAppointment.id,
-          secretaryUid: selectedAppointment.secretaryUid,
-          secretaryLrn: selectedAppointment.secretaryLrn,
-          teacherId: selectedAppointment.teacherId,
-          sectionId: selectedAppointment.sectionId,
-          subject: selectedAppointment.subject,
-        } : null,
-        sectionSlug,
-        selectedDate,
-        userUid: user?.uid,
-        userProfileRole: userProfile?.role,
-      });
-      
-      if (!selectedAppointment || !sectionSlug || !selectedDate) {
-        console.log("⚠️ checkForExistingSession | Skipping - missing required data");
-        return;
-      }
+    if (existingSession) {
+      setHasSessionToday(true);
 
-      try {
-        console.log("🔍 checkForExistingSession | Calling checkExistingSession...");
-        const existingSession = await checkExistingSession(
-          selectedAppointment,
-          sectionSlug,
-          selectedDate
-        );
-        console.log("✅ checkForExistingSession | Result:", existingSession ? { exists: true, id: existingSession.id } : { exists: false });
-        
-        if (existingSession) {
-          setHasSessionToday(true);
-          setAttendanceId(existingSession.id);
-          
-          // Check if session is already submitted (locked)
-          if (existingSession.status === "locked" || (existingSession.records && Object.keys(existingSession.records).length > 0)) {
-            setSessionSubmitted(true);
-            setIsEditing(false);
+      // Check if session is already submitted (locked)
+      if (existingSession.status === "locked" || (existingSession.records && Object.keys(existingSession.records).length > 0)) {
+        setSessionSubmitted(true);
+        setIsEditing(false);
 
-            // Load existing records for display
-            if (existingSession.records) {
-              setAttendanceRecords((prev) =>
-                prev.map((record) => {
-                  const existingRecord = existingSession.records![record.lrn];
-                  if (existingRecord) {
-                    return {
-                      ...record,
-                      status: existingRecord.status as AttendanceStatus,
-                      remarks: existingRecord.remarks,
-                    };
-                  }
-                  return record;
-                })
-              );
-            }
-          } else {
-            // Session started but not submitted - allow editing
-            setIsEditing(true);
-            setSessionSubmitted(false);
-          }
-        } else {
-          // No session for this date
-          console.log("ℹ️ No existing session found for this date - this is expected for new attendance");
-          setHasSessionToday(false);
-          setAttendanceId(null);
-          setSessionSubmitted(false);
-          setIsEditing(false);
+        // Load existing records for display
+        if (existingSession.records) {
+          setAttendanceRecords((prev) =>
+            prev.map((record) => {
+              const existingRecord = existingSession.records![record.lrn];
+              if (existingRecord) {
+                return {
+                  ...record,
+                  status: existingRecord.status as AttendanceStatus,
+                  remarks: existingRecord.remarks,
+                };
+              }
+              return record;
+            })
+          );
         }
-      } catch (err) {
-        console.error("❌ Error checking for existing session:");
-        console.error("❌ Error object:", err);
-        console.error("❌ Error name:", (err as Error)?.name);
-        console.error("❌ Error message:", (err as Error)?.message);
-        console.error("❌ Error stack:", (err as Error)?.stack);
-        console.error("❌ Firebase error code:", (err as any)?.code);
-        console.error("❌ Firebase error details:", (err as any)?.details);
-        setError("Failed to check attendance session status");
+      } else {
+        // Session started but not submitted - allow editing
+        setIsEditing(true);
+        setSessionSubmitted(false);
       }
+    } else {
+      // No session for this date
+      setHasSessionToday(false);
+      setSessionSubmitted(false);
+      setIsEditing(false);
     }
-
-    checkForExistingSession();
-  }, [selectedAppointment, sectionSlug, selectedDate]);
+  }, [existingSession]);
 
   // Handle individual student status change
   const handleStatusChange = (lrn: string, status: AttendanceStatus, remarks?: string) => {
@@ -268,34 +199,18 @@ export default function SecretaryAttendancePage() {
 
   // Handle start session
   const handleStartSession = async () => {
-    console.log("🔍 Starting session check:", {
-      selectedAppointment,
-      sectionSlug,
-      sectionId,
-      appointments,
-    });
-
     if (!selectedAppointment) {
-      console.error("❌ No appointment found");
       setError("No active appointment found. Please wait for your teacher to appoint you.");
       return;
     }
 
     if (!sectionSlug) {
-      console.error("❌ Section slug not loaded for sectionId:", sectionId);
       setError("Section information not loaded. Please try again.");
       return;
     }
 
     try {
       setError(null);
-
-      console.log("✅ Starting attendance session:", {
-        appointmentId: selectedAppointment.id,
-        sectionSlug,
-        date: selectedDate,
-        schoolYear: selectedAppointment.schoolYear,
-      });
 
       // Create the attendance session document
       const newAttendanceId = await startAttendanceSession(
@@ -305,9 +220,9 @@ export default function SecretaryAttendancePage() {
         selectedAppointment.schoolYear
       );
 
-      console.log("✅ Session started with ID:", newAttendanceId);
-
-      setAttendanceId(newAttendanceId);
+      // Invalidate the TanStack Query cache with the new attendance ID
+      queryClient.setQueryData(["attendanceSession", newAttendanceId], { id: newAttendanceId });
+      
       setHasSessionToday(true);
       setIsEditing(true);
       setSessionSubmitted(false);
@@ -358,6 +273,7 @@ export default function SecretaryAttendancePage() {
 
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ["attendanceSession", attendanceId] });
     } catch (err) {
       console.error("Error submitting attendance:", err);
       setError("Failed to submit attendance. Please try again.");
@@ -381,7 +297,7 @@ export default function SecretaryAttendancePage() {
   const paginatedStudents = attendanceRecords.slice(startIndex, endIndex);
 
   // Loading state
-  if (appointmentsLoading || studentsLoading) {
+  if (appointmentsLoading || studentsLoading || sessionLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F8FAFC" }}>
         <div className="text-center">

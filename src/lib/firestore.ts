@@ -1059,6 +1059,24 @@ export async function getAttendanceRecords(
   return records;
 }
 
+/**
+ * Get attendance session by ID
+ */
+export async function getAttendanceSession(
+  attendanceId: string
+): Promise<Attendance | null> {
+  const attendanceRef = doc(db, "attendance", attendanceId);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [attendance/{attendanceId}]");
+  const attendanceSnap = await getDoc(attendanceRef);
+
+  if (!attendanceSnap.exists()) return null;
+
+  return {
+    id: attendanceSnap.id,
+    ...attendanceSnap.data()
+  } as Attendance;
+}
+
 // ==================== Attendance Session Functions (Secretary) ====================
 
 /**
