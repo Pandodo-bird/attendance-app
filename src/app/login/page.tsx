@@ -65,7 +65,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back S</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-2">Sign in to your attendance account</p>
         </div>
 
