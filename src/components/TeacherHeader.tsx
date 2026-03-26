@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import { Section } from "@/lib/firestore";
 
 interface TeacherHeaderProps {
   title: string;
@@ -13,6 +14,11 @@ interface TeacherHeaderProps {
   }>;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
+  sectionFilter?: {
+    sections: Section[];
+    selectedSectionId: string;
+    onSectionChange: (sectionId: string) => void;
+  };
 }
 
 export default function TeacherHeader({
@@ -21,7 +27,8 @@ export default function TeacherHeader({
   subtitleColor = "#5b3ebf",
   stats = [],
   searchPlaceholder = "Search...",
-  onSearch
+  onSearch,
+  sectionFilter
 }: TeacherHeaderProps) {
   return (
     <>
@@ -87,6 +94,23 @@ export default function TeacherHeader({
           >
             {title}
           </h3>
+          {/* Section Filter Dropdown */}
+          {sectionFilter && sectionFilter.sections.length > 0 && (
+            <div className="mt-3">
+              <select
+                className="border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-[#5b3ebf] transition-all outline-none"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB", color: "#1c1a22" }}
+                value={sectionFilter.selectedSectionId}
+                onChange={(e) => sectionFilter.onSectionChange(e.target.value)}
+              >
+                {sectionFilter.sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.gradeLevel} - {section.sectionName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         {stats.length > 0 && (
           <div className="flex gap-2 lg:gap-4 w-full sm:w-auto overflow-x-auto">

@@ -3,7 +3,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection, getSectionById, getSectionStudents, updateSection } from "@/lib/firestore";
 import { useRouter } from "next/navigation";
 import { ImportModal, StudentData, SectionDetailModal } from "@/components/teacher/sections";
@@ -78,6 +78,15 @@ function SectionsContent() {
     staleTime: 10 * 60 * 1000, // 10 minutes - student list changes occasionally
     gcTime: 20 * 60 * 1000, // 20 minutes
   });
+
+  // Sort students alphabetically by last name, then first name
+  const sortedSectionStudents = useMemo(() => {
+    return [...sectionStudents].sort((a, b) => {
+      const lastCompare = a.lastName.localeCompare(b.lastName);
+      if (lastCompare !== 0) return lastCompare;
+      return a.firstName.localeCompare(b.firstName);
+    });
+  }, [sectionStudents]);
 
   // Student profile drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -634,7 +643,7 @@ function SectionsContent() {
         isOpen={!!selectedSectionId}
         onClose={handleCloseSectionModal}
         section={selectedSection || null}
-        students={sectionStudents}
+        students={sortedSectionStudents}
         onEditSection={handleEditSection}
         onViewStudent={handleViewStudent}
       />

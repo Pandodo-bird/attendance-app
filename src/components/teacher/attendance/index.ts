@@ -1,7 +1,4 @@
-// Placeholder for future attendance components
-// export { default as AttendanceTable } from "./AttendanceTable";
-// export { default as AttendanceCard } from "./AttendanceCard";
-// export { default as AttendanceFilters } from "./AttendanceFilters";
-
-// This file is a module placeholder - add exports above when components are created
-export {};
+// Attendance analytics components
+export { default as StudentSummaryCard } from "./StudentSummaryCard";
+export { default as ClassAnalytics } from "./ClassAnalytics";
+export { default as MonthlyTrendChart } from "./MonthlyTrendChart";

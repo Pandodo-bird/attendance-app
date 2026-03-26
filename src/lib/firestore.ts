@@ -1432,3 +1432,296 @@ export function calculateAttendanceStats(
 
   return stats;
 }
+
+// ==================== Student Summary Functions ====================
+
+/**
+ * Get all student summaries for a section and school year
+ * Uses deterministic document ID pattern for direct lookups
+ * Document ID: {sectionSlug}_{lastName}_{lrn}_{schoolYear}
+ */
+export async function getSectionStudentSummaries(
+  sectionSlug: string,
+  schoolYear: string,
+  studentLrns: string[],
+  useCache = true
+): Promise<StudentSummary[]> {
+  const cacheKey = `summaries_${sectionSlug}_${schoolYear}`;
+
+  if (useCache) {
+    const cached = getCachedData<StudentSummary[]>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const summariesRef = collection(db, "studentSummaries");
+  const summaries: StudentSummary[] = [];
+
+  // Fetch each student's summary using deterministic ID
+  for (const lrn of studentLrns) {
+    // We need the lastName to construct the ID - this should be passed in
+    // For now, we'll query by sectionId and schoolYear, then filter by lrn
+    const q = query(
+      summariesRef,
+      where("sectionId", "==", sectionSlug),
+      where("schoolYear", "==", schoolYear),
+      where("lrn", "==", lrn)
+    );
+    console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [studentSummaries] (section + schoolYear + lrn filter)");
+    const snapshot = await getDocs(q);
+
+    if (!snapshot.empty) {
+      const doc = snapshot.docs[0];
+      summaries.push({
+        id: doc.id,
+        ...doc.data()
+      } as StudentSummary);
+    }
+  }
+
+  if (useCache) {
+    setCachedData(cacheKey, summaries);
+  }
+
+  return summaries;
+}
+
+/**
+ * Get all student summaries for a section by querying sectionId and schoolYear
+ * More efficient when you have all students from a section
+ */
+export async function getSectionSummariesBySection(
+  sectionId: string,
+  schoolYear: string,
+  useCache = true
+): Promise<StudentSummary[]> {
+  const cacheKey = `summaries_section_${sectionId}_${schoolYear}`;
+
+  if (useCache) {
+    const cached = getCachedData<StudentSummary[]>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const summariesRef = collection(db, "studentSummaries");
+  const q = query(
+    summariesRef,
+    where("sectionId", "==", sectionId),
+    where("schoolYear", "==", schoolYear)
+  );
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [studentSummaries] (sectionId + schoolYear filter)", { sectionId, schoolYear });
+  const snapshot = await getDocs(q);
+
+  const summaries = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as StudentSummary));
+
+  if (useCache) {
+    setCachedData(cacheKey, summaries);
+  }
+
+  return summaries;
+}
+
+/**
+ * Get a single student's summary by deterministic document ID
+ * Most efficient method when you know the student's details
+ */
+export async function getStudentSummaryById(
+  sectionSlug: string,
+  lastName: string,
+  lrn: string,
+  schoolYear: string,
+  useCache = true
+): Promise<StudentSummary | null> {
+  const summaryId = `${sectionSlug}_${lastName.toUpperCase().replace(/\s+/g, '-')}_${lrn}_${schoolYear}`;
+  const cacheKey = `summary_${summaryId}`;
+
+  if (useCache) {
+    const cached = getCachedData<StudentSummary>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const summaryRef = doc(db, "studentSummaries", summaryId);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [studentSummaries/{summaryId}]", { summaryId });
+  const summarySnap = await getDoc(summaryRef);
+
+  if (summarySnap.exists()) {
+    const summary = {
+      id: summarySnap.id,
+      ...summarySnap.data()
+    } as StudentSummary;
+
+    if (useCache) {
+      setCachedData(cacheKey, summary);
+    }
+
+    return summary;
+  }
+
+  return null;
+}
+
+/**
+ * Get a single student's summary by LRN and section (when you don't know the lastName)
+ */
+export async function getStudentSummary(
+  sectionId: string,
+  lrn: string,
+  schoolYear: string,
+  useCache = true
+): Promise<StudentSummary | null> {
+  const cacheKey = `summary_${sectionId}_${lrn}_${schoolYear}`;
+
+  if (useCache) {
+    const cached = getCachedData<StudentSummary>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const summariesRef = collection(db, "studentSummaries");
+  const q = query(
+    summariesRef,
+    where("sectionId", "==", sectionId),
+    where("schoolYear", "==", schoolYear),
+    where("lrn", "==", lrn)
+  );
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [studentSummaries] (single student query)");
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) return null;
+
+  const summary = {
+    id: snapshot.docs[0].id,
+    ...snapshot.docs[0].data()
+  } as StudentSummary;
+
+  if (useCache) {
+    setCachedData(cacheKey, summary);
+  }
+
+  return summary;
+}
+
+/**
+ * Calculate class-level analytics from student summaries
+ * Returns aggregated statistics for the entire class
+ */
+export function calculateClassAnalytics(
+  summaries: StudentSummary[]
+): {
+  totalStudents: number;
+  averageAttendanceRate: number;
+  perfectAttendance: number;
+  atRiskStudents: number;
+  totalPresent: number;
+  totalLate: number;
+  totalAbsent: number;
+  totalDays: number;
+} {
+  if (summaries.length === 0) {
+    return {
+      totalStudents: 0,
+      averageAttendanceRate: 0,
+      perfectAttendance: 0,
+      atRiskStudents: 0,
+      totalPresent: 0,
+      totalLate: 0,
+      totalAbsent: 0,
+      totalDays: 0,
+    };
+  }
+
+  let totalPresent = 0;
+  let totalLate = 0;
+  let totalAbsent = 0;
+  let totalDays = 0;
+  let perfectAttendanceCount = 0;
+  let atRiskCount = 0;
+
+  summaries.forEach((summary) => {
+    // Defensive checks for undefined fields
+    const present = summary.present ?? 0;
+    const late = summary.late ?? 0;
+    const absent = summary.absent ?? 0;
+    const summaryTotalDays = summary.totalDays ?? 0;
+
+    totalPresent += present;
+    totalLate += late;
+    totalAbsent += absent;
+    totalDays = Math.max(totalDays, summaryTotalDays);
+
+    const attendanceRate = summaryTotalDays > 0
+      ? ((present + late) / summaryTotalDays) * 100
+      : 0;
+
+    if (attendanceRate === 100 && summaryTotalDays > 0) {
+      perfectAttendanceCount++;
+    }
+
+    if (attendanceRate < 75 && summaryTotalDays > 0) {
+      atRiskCount++;
+    }
+  });
+
+  const averageAttendanceRate = totalDays > 0 && summaries.length > 0
+    ? ((totalPresent + totalLate) / (totalDays * summaries.length)) * 100
+    : 0;
+
+  return {
+    totalStudents: summaries.length,
+    averageAttendanceRate: Math.round(averageAttendanceRate * 100) / 100 || 0,
+    perfectAttendance: perfectAttendanceCount,
+    atRiskStudents: atRiskCount,
+    totalPresent,
+    totalLate,
+    totalAbsent,
+    totalDays,
+  };
+}
+
+/**
+ * Aggregate monthly trends from all student summaries
+ * Returns month-by-month attendance statistics
+ */
+export function aggregateMonthlyTrends(
+  summaries: StudentSummary[]
+): Array<{
+  month: string;
+  present: number;
+  late: number;
+  absent: number;
+  attendanceRate: number;
+}> {
+  const monthMap = new Map<string, { present: number; late: number; absent: number }>();
+
+  // Aggregate all months from all students
+  summaries.forEach((summary) => {
+    Object.entries(summary.trend).forEach(([month, data]) => {
+      // Defensive checks for undefined fields
+      const present = data.present ?? 0;
+      const late = data.late ?? 0;
+      const absent = data.absent ?? 0;
+      
+      const existing = monthMap.get(month) || { present: 0, late: 0, absent: 0 };
+      monthMap.set(month, {
+        present: existing.present + present,
+        late: existing.late + late,
+        absent: existing.absent + absent,
+      });
+    });
+  });
+
+  // Convert to array and sort by month
+  const trends = Array.from(monthMap.entries())
+    .map(([month, data]) => ({
+      month,
+      present: data.present,
+      late: data.late,
+      absent: data.absent,
+      attendanceRate: data.present + data.late + data.absent > 0
+        ? Math.round(((data.present + data.late) / (data.present + data.late + data.absent)) * 100 * 100) / 100
+        : 0,
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+
+  return trends;
+}

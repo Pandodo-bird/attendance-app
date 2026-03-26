@@ -67,25 +67,32 @@ export default function StudentTable({
 
   // Filter and search students
   const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
-      // Search by name or LRN
-      const searchLower = searchQuery.toLowerCase();
-      const fullName = `${student.firstName} ${student.middleName} ${student.lastName}`.toLowerCase();
-      const matchesSearch = searchQuery === "" || 
-        fullName.includes(searchLower) || 
-        student.lrn.toLowerCase().includes(searchLower);
+    return students
+      .filter((student) => {
+        // Search by name or LRN
+        const searchLower = searchQuery.toLowerCase();
+        const fullName = `${student.firstName} ${student.middleName} ${student.lastName}`.toLowerCase();
+        const matchesSearch = searchQuery === "" ||
+          fullName.includes(searchLower) ||
+          student.lrn.toLowerCase().includes(searchLower);
 
-      // Filter by section
-      const matchesSection = filterSection === "" || student.sectionName === filterSection;
+        // Filter by section
+        const matchesSection = filterSection === "" || student.sectionName === filterSection;
 
-      // Filter by sex
-      const matchesSex = filterSex === "" || student.sex === filterSex;
+        // Filter by sex
+        const matchesSex = filterSex === "" || student.sex === filterSex;
 
-      // Filter by modality
-      const matchesModality = filterModality === "" || student.learningModality === filterModality;
+        // Filter by modality
+        const matchesModality = filterModality === "" || student.learningModality === filterModality;
 
-      return matchesSearch && matchesSection && matchesSex && matchesModality;
-    });
+        return matchesSearch && matchesSection && matchesSex && matchesModality;
+      })
+      .sort((a, b) => {
+        // Default sort alphabetically by last name, then first name
+        const lastCompare = a.lastName.localeCompare(b.lastName);
+        if (lastCompare !== 0) return lastCompare;
+        return a.firstName.localeCompare(b.firstName);
+      });
   }, [students, searchQuery, filterSection, filterSex, filterModality]);
 
   // Sort students
