@@ -386,42 +386,101 @@ export default function SecretaryAttendancePage() {
               {/* Status Banner */}
               {sessionSubmitted && !isEditing && (
                 <div
-                  className="rounded-xl p-4 mb-6 flex items-center justify-between"
+                  className="rounded-xl p-6 mb-6"
                   style={{ backgroundColor: "#D1FAE5", border: "1px solid #A7F3D0" }}
                 >
-                  <div className="flex items-center gap-3">
-                    <ClipboardCheck className="w-5 h-5" style={{ color: "#065F46" }} />
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: "#065F46" }}>
-                        Attendance Submitted
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ backgroundColor: "#10B981" }}
+                      >
+                        <ClipboardCheck className="w-5 h-5" style={{ color: "#FFFFFF" }} />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold" style={{ color: "#065F46" }}>
+                          Session Completed
+                        </p>
+                        <p className="text-sm" style={{ color: "#047857" }}>
+                          Attendance successfully submitted for {selectedAppointment.subject}
+                        </p>
+                      </div>
+                    </div>
+                    {allowCorrections && (
+                      <button
+                        onClick={handleEnableEditing}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        style={{ backgroundColor: "#10B981", color: "#FFFFFF" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = "#059669";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = "#10B981";
+                        }}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Attendance Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-2xl font-bold" style={{ color: "#10B981" }}>
+                        {attendanceRecords.filter(r => r.status === "present").length}
                       </p>
-                      <p className="text-xs" style={{ color: "#047857" }}>
-                        Submitted on {new Date().toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
+                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                        Present
+                      </p>
+                    </div>
+                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-2xl font-bold" style={{ color: "#F59E0B" }}>
+                        {attendanceRecords.filter(r => r.status === "late").length}
+                      </p>
+                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                        Late
+                      </p>
+                    </div>
+                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-2xl font-bold" style={{ color: "#EF4444" }}>
+                        {attendanceRecords.filter(r => r.status === "absent").length}
+                      </p>
+                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                        Absent
+                      </p>
+                    </div>
+                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-2xl font-bold" style={{ color: "#1e3a5f" }}>
+                        {attendanceRecords.length}
+                      </p>
+                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                        Total Students
                       </p>
                     </div>
                   </div>
-                  {allowCorrections && (
-                    <button
-                      onClick={handleEnableEditing}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                      style={{ backgroundColor: "#10B981", color: "#FFFFFF" }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = "#059669";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = "#10B981";
-                      }}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      Edit
-                    </button>
-                  )}
+
+                  {/* Submission Time */}
+                  <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>
+                      Submitted on {existingSession?.createdAt
+                        ? new Date(existingSession.createdAt instanceof Date ? existingSession.createdAt : existingSession.createdAt.toDate()).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })
+                        : new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                    </span>
+                  </div>
                 </div>
               )}
 

@@ -4,13 +4,14 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Clock, ChevronRight, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance } from "@/lib/firestore";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
 import { PopupAlert } from "@/components/ui";
 import { DocumentSnapshot } from "firebase/firestore";
 
 interface AttendanceSessionCardProps {
   session: Attendance;
+  section?: Section | null;
   onClick: () => void;
 }
 
@@ -261,7 +262,7 @@ export default function HistoryPage() {
           {!isLoading && sessions.length > 0 && (
             <div className="space-y-3">
               {sessions.map((session) => (
-                <AttendanceSessionCard
+                <AttendanceSessionCardWithSection
                   key={session.id}
                   session={session}
                   onClick={() => setSelectedSession(session)}
@@ -326,7 +327,25 @@ export default function HistoryPage() {
   );
 }
 
-function AttendanceSessionCard({ session, onClick }: AttendanceSessionCardProps) {
+function AttendanceSessionCardWithSection({
+  session,
+  onClick,
+}: {
+  session: Attendance;
+  onClick: () => void;
+}) {
+  const { data: section } = useQuery({
+    queryKey: ['section', session.sectionId],
+    queryFn: () => getSectionById(session.sectionId),
+    staleTime: 30 * 60 * 1000, // 30 minutes - sections rarely change
+    gcTime: 60 * 60 * 1000, // 1 hour
+    enabled: !!session.sectionId,
+  });
+
+  return <AttendanceSessionCard session={session} section={section} onClick={onClick} />;
+}
+
+function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionCardProps) {
   const stats = calculateAttendanceStats(session.records);
   const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
 
@@ -336,6 +355,10 @@ function AttendanceSessionCard({ session, onClick }: AttendanceSessionCardProps)
     day: "numeric",
     year: "numeric",
   });
+
+  const sectionDisplayName = section
+    ? `${section.gradeLevel} - ${section.sectionName}`
+    : "Unknown Section";
 
   return (
     <motion.div
@@ -351,7 +374,7 @@ function AttendanceSessionCard({ session, onClick }: AttendanceSessionCardProps)
       }}
     >
       <div className="flex items-center justify-between">
-        {/* Left Side - Date & Subject */}
+        {/* Left Side - Date, Section & Subject */}
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <div
@@ -365,8 +388,11 @@ function AttendanceSessionCard({ session, onClick }: AttendanceSessionCardProps)
             </span>
           </div>
           <h3 className="text-lg font-semibold mb-1" style={{ color: "#1F1F1F" }}>
-            {session.subject}
+            {sectionDisplayName}
           </h3>
+          <p className="text-sm font-medium" style={{ color: "#6C5CE7" }}>
+            {session.subject}
+          </p>
           <p className="text-sm" style={{ color: "#6B7280" }}>
             {stats.total} students marked
           </p>
