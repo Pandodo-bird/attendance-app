@@ -6,6 +6,7 @@ import TeacherHeader from "@/components/TeacherHeader";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   getTeacherSections,
   getSectionStudents,
@@ -28,6 +29,8 @@ export default function AttendancePage() {
 
 function AttendanceContent() {
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -43,10 +46,49 @@ function AttendanceContent() {
     gcTime: 60 * 60 * 1000,
   });
 
-  // Auto-select first section if none selected
-  if (sections.length > 0 && !selectedSectionId) {
+  // Initialize section filter from URL or localStorage when sections are loaded
+  useEffect(() => {
+    // Skip if already selected or sections not loaded
+    if (selectedSectionId || sections.length === 0) return;
+
+    const sectionParam = searchParams?.get("section");
+    if (sectionParam) {
+      // Check if the section from URL is valid
+      const isValidSection = sections.some(s => s.id === sectionParam);
+      if (isValidSection) {
+        setSelectedSectionId(sectionParam);
+        // Save to localStorage for future navigation
+        localStorage.setItem(`attendance_section_${user?.uid}`, sectionParam);
+        return;
+      }
+    } else {
+      // No URL param, try localStorage
+      const savedSection = localStorage.getItem(`attendance_section_${user?.uid}`);
+      if (savedSection) {
+        const isValidSection = sections.some(s => s.id === savedSection);
+        if (isValidSection) {
+          setSelectedSectionId(savedSection);
+          return;
+        }
+      }
+    }
+    // Fallback to first section
     setSelectedSectionId(sections[0].id);
-  }
+  }, [sections, searchParams, selectedSectionId, user?.uid]);
+
+  // Sync section filter to URL
+  const handleSectionChange = (sectionId: string) => {
+    setSelectedSectionId(sectionId);
+    // Save to localStorage for future navigation
+    localStorage.setItem(`attendance_section_${user?.uid}`, sectionId);
+    const params = new URLSearchParams(searchParams?.toString() || "");
+    if (sectionId) {
+      params.set("section", sectionId);
+    } else {
+      params.delete("section");
+    }
+    router.push(`/dashboard/teacher/attendance?${params.toString()}`, { scroll: false });
+  };
 
   // Fetch students for selected section
   const { data: students = [] } = useQuery({
@@ -134,7 +176,7 @@ function AttendanceContent() {
             sectionFilter={{
               sections,
               selectedSectionId,
-              onSectionChange: setSelectedSectionId,
+              onSectionChange: handleSectionChange,
             }}
           />
 
@@ -169,118 +211,104 @@ function AttendanceContent() {
             ) : (
               <>
                 {/* Class Overview Stats */}
-                <ClassAnalytics summaries={summaries} />
+                <ClassAnalytics summaries={summaries} todayDate={new Date()} />
 
                 {/* Monthly Trend Chart */}
                 <MonthlyTrendChart summaries={summaries} />
 
                 {/* Individual Student List */}
                 <div>
-                  {/* Top Bar: Title, View Toggle, Pagination */}
+                  {/* Top Bar: Title, View Toggle */}
                   <div className="flex items-center justify-between mb-4">
                     <h3
                       className="font-semibold text-lg"
                       style={{ color: "#1F1F1F" }}
                     >
-                      Students ({paginatedStudents.length} of {filteredStudents.length})
+                      Students
                     </h3>
-                    
-                    <div className="flex items-center gap-4">
-                      {/* View Toggle */}
-                      <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: "#F3F4F6" }}>
-                        <button
-                          onClick={() => { setViewMode("table"); setCurrentPage(1); }}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
-                          style={{
-                            backgroundColor: viewMode === "table" ? "#FFFFFF" : "transparent",
-                            color: viewMode === "table" ? "#1F1F1F" : "#6B7280",
-                            boxShadow: viewMode === "table" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
-                          }}
-                        >
-                          Table
-                        </button>
-                        <button
-                          onClick={() => { setViewMode("cards"); setCurrentPage(1); }}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
-                          style={{
-                            backgroundColor: viewMode === "cards" ? "#FFFFFF" : "transparent",
-                            color: viewMode === "cards" ? "#1F1F1F" : "#6B7280",
-                            boxShadow: viewMode === "cards" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
-                          }}
-                        >
-                          Cards
-                        </button>
-                      </div>
 
-                      {/* Pagination Info */}
-                      {totalPages > 1 && (
-                        <div className="text-sm" style={{ color: "#6B7280" }}>
-                          Page {currentPage} / {totalPages}
-                        </div>
-                      )}
+                    <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: "#F3F4F6" }}>
+                      <button
+                        onClick={() => { setViewMode("table"); setCurrentPage(1); }}
+                        className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                        style={{
+                          backgroundColor: viewMode === "table" ? "#FFFFFF" : "transparent",
+                          color: viewMode === "table" ? "#1F1F1F" : "#6B7280",
+                          boxShadow: viewMode === "table" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                        }}
+                      >
+                        Table
+                      </button>
+                      <button
+                        onClick={() => { setViewMode("cards"); setCurrentPage(1); }}
+                        className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                        style={{
+                          backgroundColor: viewMode === "cards" ? "#FFFFFF" : "transparent",
+                          color: viewMode === "cards" ? "#1F1F1F" : "#6B7280",
+                          boxShadow: viewMode === "cards" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                        }}
+                      >
+                        Cards
+                      </button>
                     </div>
                   </div>
 
-                  {/* Pagination Controls - Top */}
+                  {/* Pagination Controls - Top (matching students page style) */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mb-4">
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ 
-                          backgroundColor: currentPage === 1 ? "#F3F4F6" : "#FFFFFF",
-                          borderColor: "#E5E7EB",
-                          color: currentPage === 1 ? "#9CA3AF" : "#1F1F1F"
-                        }}
-                      >
-                        ← Previous
-                      </button>
-                      
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          // Show smart page numbers (current page in middle)
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-                          
-                          return (
+                    <motion.div
+                      className="mb-4 flex items-center justify-between"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <p className="text-sm" style={{ color: "#6B7280" }}>
+                        Showing <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{startIndex + 1}</span> to{" "}
+                        <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{Math.min(endIndex, filteredStudents.length)}</span> of{" "}
+                        <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{filteredStudents.length}</span> students
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor: currentPage === 1 ? "#F3F4F6" : "#FFFFFF",
+                            color: currentPage === 1 ? "#9CA3AF" : "#374151",
+                            border: "1px solid #E5E7EB",
+                          }}
+                        >
+                          Previous
+                        </button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                             <button
-                              key={pageNum}
-                              onClick={() => setCurrentPage(pageNum)}
-                              className="w-9 h-9 rounded-lg border text-sm font-medium transition-colors"
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
                               style={{
-                                backgroundColor: currentPage === pageNum ? "#6C5CE7" : "#FFFFFF",
-                                borderColor: currentPage === pageNum ? "#6C5CE7" : "#E5E7EB",
-                                color: currentPage === pageNum ? "#FFFFFF" : "#1F1F1F"
+                                backgroundColor: currentPage === page ? "#1e3a5f" : "#FFFFFF",
+                                color: currentPage === page ? "#FFFFFF" : "#374151",
+                                border: "1px solid #E5E7EB",
                               }}
                             >
-                              {pageNum}
+                              {page}
                             </button>
-                          );
-                        })}
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor: currentPage === totalPages ? "#F3F4F6" : "#FFFFFF",
+                            color: currentPage === totalPages ? "#9CA3AF" : "#374151",
+                            border: "1px solid #E5E7EB",
+                          }}
+                        >
+                          Next
+                        </button>
                       </div>
-
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ 
-                          backgroundColor: currentPage === totalPages ? "#F3F4F6" : "#FFFFFF",
-                          borderColor: "#E5E7EB",
-                          color: currentPage === totalPages ? "#9CA3AF" : "#1F1F1F"
-                        }}
-                      >
-                        Next →
-                      </button>
-                    </div>
+                    </motion.div>
                   )}
 
                   {/* Content */}
@@ -393,41 +421,6 @@ function AttendanceContent() {
                           />
                         );
                       })}
-                    </div>
-                  )}
-
-                  {/* Pagination Controls - Bottom (optional, for convenience) */}
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-center gap-2 mt-6">
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ 
-                          backgroundColor: currentPage === 1 ? "#F3F4F6" : "#FFFFFF",
-                          borderColor: "#E5E7EB",
-                          color: currentPage === 1 ? "#9CA3AF" : "#1F1F1F"
-                        }}
-                      >
-                        ← Previous
-                      </button>
-                      
-                      <div className="text-sm" style={{ color: "#6B7280" }}>
-                        Page {currentPage} of {totalPages}
-                      </div>
-
-                      <button
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 rounded-lg border text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{ 
-                          backgroundColor: currentPage === totalPages ? "#F3F4F6" : "#FFFFFF",
-                          borderColor: "#E5E7EB",
-                          color: currentPage === totalPages ? "#9CA3AF" : "#1F1F1F"
-                        }}
-                      >
-                        Next →
-                      </button>
                     </div>
                   )}
                 </div>

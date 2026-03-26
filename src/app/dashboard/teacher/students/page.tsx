@@ -79,15 +79,58 @@ function StudentsContent() {
   const [filterSex, setFilterSex] = useState("");
   const [filterModality, setFilterModality] = useState("");
 
-  // Handle search query from URL on mount
+  // Load filters from URL or localStorage on mount
   useEffect(() => {
-    const searchParam = searchParams?.get("search");
-    if (searchParam) {
-      setSearchQuery(searchParam);
-      // Clean up URL after setting search
-      router.replace("/dashboard/teacher/students");
+    const savedFilters = localStorage.getItem(`students_filters_${user?.uid}`);
+    const urlSearch = searchParams?.get("search");
+    const urlSection = searchParams?.get("section");
+    const urlSex = searchParams?.get("sex");
+    const urlModality = searchParams?.get("modality");
+
+    if (urlSearch || urlSection || urlSex || urlModality) {
+      // URL params take priority
+      if (urlSearch) setSearchQuery(urlSearch);
+      if (urlSection) setFilterSection(urlSection);
+      if (urlSex) setFilterSex(urlSex);
+      if (urlModality) setFilterModality(urlModality);
+    } else if (savedFilters) {
+      // Fall back to localStorage
+      try {
+        const parsed = JSON.parse(savedFilters);
+        if (parsed.searchQuery) setSearchQuery(parsed.searchQuery);
+        if (parsed.filterSection) setFilterSection(parsed.filterSection);
+        if (parsed.filterSex) setFilterSex(parsed.filterSex);
+        if (parsed.filterModality) setFilterModality(parsed.filterModality);
+      } catch (e) {
+        console.error("Failed to parse saved filters:", e);
+      }
     }
-  }, []); // Empty deps - only run once on mount
+  }, [user?.uid]);
+
+  // Save filters to localStorage and URL whenever they change
+  useEffect(() => {
+    const filters = {
+      searchQuery,
+      filterSection,
+      filterSex,
+      filterModality,
+    };
+    localStorage.setItem(`students_filters_${user?.uid}`, JSON.stringify(filters));
+
+    // Sync to URL
+    const params = new URLSearchParams();
+    if (searchQuery) params.set("search", searchQuery);
+    if (filterSection) params.set("section", filterSection);
+    if (filterSex) params.set("sex", filterSex);
+    if (filterModality) params.set("modality", filterModality);
+
+    const queryString = params.toString();
+    if (queryString) {
+      router.push(`/dashboard/teacher/students?${queryString}`, { scroll: false });
+    } else {
+      router.push("/dashboard/teacher/students", { scroll: false });
+    }
+  }, [searchQuery, filterSection, filterSex, filterModality, user?.uid, router]);
 
   // Drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);

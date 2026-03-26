@@ -6,10 +6,23 @@ import { TrendingUp, Users, Award, AlertTriangle } from "lucide-react";
 
 interface ClassAnalyticsProps {
   summaries: StudentSummary[];
+  todayDate?: Date;
 }
 
-export default function ClassAnalytics({ summaries }: ClassAnalyticsProps) {
+export default function ClassAnalytics({ summaries, todayDate = new Date() }: ClassAnalyticsProps) {
   const analytics = calculateAnalytics(summaries);
+
+  // Format date as "March 26 Thu"
+  const formatDateLabel = (date: Date) => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const month = months[date.getMonth()];
+    const dayNum = date.getDate();
+    const dayName = days[date.getDay()];
+    return `${month} ${dayNum} ${dayName}`;
+  };
+
+  const todayLabel = formatDateLabel(todayDate);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -149,7 +162,7 @@ export default function ClassAnalytics({ summaries }: ClassAnalyticsProps) {
         transition={{ delay: 0.2, duration: 0.25, ease: "easeOut" }}
       >
         <h3 className="font-semibold text-base mb-4" style={{ color: "#1F1F1F" }}>
-          Overall Summary
+          Today&apos;s Summary
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
@@ -157,7 +170,7 @@ export default function ClassAnalytics({ summaries }: ClassAnalyticsProps) {
               {analytics.totalPresent}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
-              Total Present
+              Present
             </div>
           </div>
           <div className="text-center">
@@ -165,7 +178,7 @@ export default function ClassAnalytics({ summaries }: ClassAnalyticsProps) {
               {analytics.totalLate}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
-              Total Late
+              Late
             </div>
           </div>
           <div className="text-center">
@@ -173,15 +186,12 @@ export default function ClassAnalytics({ summaries }: ClassAnalyticsProps) {
               {analytics.totalAbsent}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
-              Total Absent
+              Absent
             </div>
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#6C5CE7" }}>
-              {analytics.totalDays}
-            </div>
-            <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
-              School Days
+              {todayLabel}
             </div>
           </div>
         </div>
