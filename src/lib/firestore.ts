@@ -15,6 +15,10 @@ import {
   updateDoc,
   Unsubscribe,
   increment,
+  orderBy,
+  limit,
+  startAfter,
+  DocumentSnapshot,
 } from "firebase/firestore";
 
 // ==================== User Profile Types ====================
@@ -1309,4 +1313,122 @@ export async function getSectionSlug(sectionId: string): Promise<string | null> 
 
   console.error("❌ Section not found:", sectionId);
   return null;
+}
+
+/**
+ * Get all attendance sessions for a secretary (for history page)
+ * Returns sessions sorted by date (descending - most recent first)
+ * 
+ * @deprecated Use getSecretaryAttendanceHistoryPaginated instead for better performance
+ */
+export async function getSecretaryAttendanceHistory(
+  secretaryUid: string,
+  useCache = true
+): Promise<Attendance[]> {
+  const cacheKey = `attendance_history_${secretaryUid}`;
+
+  if (useCache) {
+    const cached = getCachedData<Attendance[]>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const attendanceRef = collection(db, "attendance");
+  const q = query(attendanceRef, where("secretaryUid", "==", secretaryUid));
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid filter - history)");
+  const snapshot = await getDocs(q);
+
+  const sessions = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Attendance));
+
+  // Sort by date descending (most recent first)
+  sessions.sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateB - dateA;
+  });
+
+  if (useCache) {
+    setCachedData(cacheKey, sessions);
+  }
+
+  return sessions;
+}
+
+/**
+ * Get secretary's attendance history with pagination
+ * Loads sessions in chunks to reduce initial read cost
+ * 
+ * @param secretaryUid - The secretary's UID
+ * @param limit - Number of sessions to fetch (default: 10)
+ * @param lastVisibleDoc - Last document from previous page (for pagination)
+ * @param useCache - Whether to use manual cache (default: true)
+ * @returns Object with sessions, lastVisible document, and hasMore flag
+ */
+export async function getSecretaryAttendanceHistoryPaginated(
+  secretaryUid: string,
+  limitCount: number = 10,
+  lastVisibleDoc?: DocumentSnapshot | null,
+  useCache = true
+): Promise<{ sessions: Attendance[]; lastVisible: DocumentSnapshot | null; hasMore: boolean }> {
+  const attendanceRef = collection(db, "attendance");
+  
+  // Query with orderBy for pagination (requires composite index)
+  const baseQuery = query(
+    attendanceRef,
+    where("secretaryUid", "==", secretaryUid),
+    orderBy("date", "desc"),
+    limit(limitCount)
+  );
+  
+  // Add startAfter for pagination
+  const paginatedQuery = lastVisibleDoc 
+    ? query(baseQuery, startAfter(lastVisibleDoc))
+    : baseQuery;
+  
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (paginated history)", {
+    secretaryUid,
+    limit,
+    hasLastVisible: !!lastVisibleDoc,
+  });
+  
+  const snapshot = await getDocs(paginatedQuery);
+  
+  const sessions = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Attendance));
+  
+  const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+  const hasMore = sessions.length === limitCount;
+  
+  return { sessions, lastVisible, hasMore };
+}
+
+/**
+ * Calculate attendance stats from records map
+ * Returns counts for present, late, absent
+ */
+export function calculateAttendanceStats(
+  records?: Record<string, AttendanceRecord>
+): { present: number; late: number; absent: number; total: number } {
+  if (!records) {
+    return { present: 0, late: 0, absent: 0, total: 0 };
+  }
+
+  const stats = {
+    present: 0,
+    late: 0,
+    absent: 0,
+    total: Object.keys(records).length,
+  };
+
+  Object.values(records).forEach((record) => {
+    if (record.status === "present") stats.present++;
+    else if (record.status === "late") stats.late++;
+    else if (record.status === "absent") stats.absent++;
+  });
+
+  return stats;
 }

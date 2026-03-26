@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   User,
   LogOut,
+  History,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -44,6 +45,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   const mainNavItems = [
     { icon: LayoutDashboard, label: "Home", href: "/dashboard/secretary/dashboard" },
     { icon: ClipboardCheck, label: "Attendance", href: "/dashboard/secretary/attendance" },
+    { icon: History, label: "History", href: "/dashboard/secretary/history" },
     { icon: User, label: "Profile", href: "/dashboard/secretary/profile" },
   ];
 
