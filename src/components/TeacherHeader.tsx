@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { Section } from "@/lib/firestore";
+import { ChevronDown } from "lucide-react";
 
 interface TeacherHeaderProps {
   title: string;
@@ -78,7 +79,7 @@ export default function TeacherHeader({
               <img
                 alt="User Avatar"
                 className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD__NsPqKYtlRm9fRKN5UCAPgbWqTN_36QZNbTj2TSl2En7OrhpRZHmg-Gj1xJr4uCeze53ZJWM1Vk3eR77w99sr_a31raGwI0I6I2vxBGvWv1CfjoqMQtzacv3Rndxsmls5n4AKdhu_p9utzYzhbb1HwlX4TrLZE2JiTwJwE5DCKQvc4brSPYuLTDRzzq9ZIkz00BJluaTzYy2GJg4kQkEhUzih9dMTknOzOLGBUyc1uO4ltNBUqjKKbCnZw_ITovK_O6vn3uo"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD__NsPqKYtlRm9fRKN5UCAPgbWqTN_36QZNbTj2TSl2En7OrhpRZHmg-Gj1xJr4uCeze53ZJWM1Vk3eR77w99sr_a31raGvWv1CfjoqMQtzacv3Rndxsmls5n4AKdhu_p9utzYzhbb1HwlX4TrLZE2JiTwJwE5DCKQvc4brSPYuLTDRzzq9ZIkz00BJluaTzYy2GJg4kQkEhUzih9dMTknOzOLGBUyc1uO4ltNBUqjKKbCnZw_ITovK_O6vn3uo"
               />
             </div>
           </div>
@@ -96,10 +97,15 @@ export default function TeacherHeader({
           </h3>
           {/* Section Filter Dropdown */}
           {sectionFilter && sectionFilter.sections.length > 0 && (
-            <div className="mt-3">
+            <div className="mt-3 relative inline-block">
               <select
-                className="border rounded-lg py-2 px-3 text-sm focus:ring-2 focus:ring-[#5b3ebf] transition-all outline-none"
-                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB", color: "#1c1a22" }}
+                className="appearance-none border rounded-lg py-2.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-[#5b3ebf] focus:border-[#5b3ebf] transition-all outline-none cursor-pointer"
+                style={{ 
+                  backgroundColor: "#FFFFFF", 
+                  borderColor: "#D1D5DB", 
+                  color: "#1c1a22",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                }}
                 value={sectionFilter.selectedSectionId}
                 onChange={(e) => sectionFilter.onSectionChange(e.target.value)}
               >
@@ -109,6 +115,11 @@ export default function TeacherHeader({
                   </option>
                 ))}
               </select>
+              <ChevronDown 
+                className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" 
+                size={18} 
+                style={{ color: "#6B7280" }}
+              />
             </div>
           )}
         </div>

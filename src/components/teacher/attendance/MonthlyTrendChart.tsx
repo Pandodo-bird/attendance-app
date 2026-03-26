@@ -2,15 +2,48 @@
 
 import { StudentSummary } from "@/lib/firestore";
 import { motion } from "framer-motion";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ChartOptions,
+  ChartData,
+  TooltipItem,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 interface MonthlyTrendChartProps {
   summaries: StudentSummary[];
 }
 
-export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps) {
-  const trends = aggregateMonthlyTrends(summaries);
+interface MonthlyData {
+  month: string;
+  presentPercent: number;
+  latePercent: number;
+  absentPercent: number;
+  hasData: boolean;
+}
 
-  if (trends.length === 0) {
+export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps) {
+  const monthlyData = prepareMonthlyData(summaries);
+  const currentMonthKey = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+
+  if (monthlyData.length === 0) {
     return (
       <div
         className="rounded-xl p-8 border text-center"
@@ -21,14 +54,150 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
     );
   }
 
-  // Find max value for scaling
-  const maxValue = Math.max(
-    ...trends.map((t) => t.present + t.late + t.absent)
-  );
+  const labels = monthlyData.map((d) => {
+    const monthDate = new Date(`${d.month}-01`);
+    return monthDate.toLocaleDateString("en-US", { month: "short" });
+  });
+
+  const presentData = monthlyData.map((d) => (d.hasData ? d.presentPercent : null));
+  const lateData = monthlyData.map((d) => (d.hasData ? d.latePercent : null));
+  const absentData = monthlyData.map((d) => (d.hasData ? d.absentPercent : null));
+
+  const data: ChartData<"line"> = {
+    labels,
+    datasets: [
+      {
+        label: "Present %",
+        data: presentData,
+        borderColor: "#22c55e",
+        backgroundColor: "#22c55e",
+        tension: 0.3,
+        pointRadius: monthlyData.map((d, i) => {
+          const isCurrentMonth = d.month === currentMonthKey;
+          return d.hasData ? (isCurrentMonth ? 8 : 6) : 0;
+        }),
+        pointHoverRadius: 7,
+        pointBackgroundColor: "#22c55e",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        fill: false,
+        spanGaps: false,
+      },
+      {
+        label: "Late %",
+        data: lateData,
+        borderColor: "#f59e0b",
+        backgroundColor: "#f59e0b",
+        tension: 0.3,
+        pointRadius: monthlyData.map((d, i) => {
+          const isCurrentMonth = d.month === currentMonthKey;
+          return d.hasData ? (isCurrentMonth ? 8 : 6) : 0;
+        }),
+        pointHoverRadius: 7,
+        pointBackgroundColor: "#f59e0b",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        fill: false,
+        spanGaps: false,
+      },
+      {
+        label: "Absent %",
+        data: absentData,
+        borderColor: "#ef4444",
+        backgroundColor: "#ef4444",
+        tension: 0.3,
+        pointRadius: monthlyData.map((d, i) => {
+          const isCurrentMonth = d.month === currentMonthKey;
+          return d.hasData ? (isCurrentMonth ? 8 : 6) : 0;
+        }),
+        pointHoverRadius: 7,
+        pointBackgroundColor: "#ef4444",
+        pointBorderColor: "#fff",
+        pointBorderWidth: 2,
+        fill: false,
+        spanGaps: false,
+      },
+    ],
+  };
+
+  const options: ChartOptions<"line"> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: "index" as const,
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: "#1F1F1F",
+        titleColor: "#FFFFFF",
+        bodyColor: "#FFFFFF",
+        borderColor: "#374151",
+        borderWidth: 1,
+        padding: 12,
+        titleFont: {
+          size: 14,
+          weight: "bold" as const,
+        },
+        bodyFont: {
+          size: 13,
+          weight: "normal" as const,
+        },
+        callbacks: {
+          title: (tooltipItems: TooltipItem<"line">[]) => {
+            const index = tooltipItems[0].dataIndex;
+            const monthDate = new Date(`${monthlyData[index].month}-01`);
+            return monthDate.toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            });
+          },
+          label: (context: TooltipItem<"line">) => {
+            const value = context.parsed.y;
+            const label = context.dataset.label;
+            if (value === null || value === undefined) return "";
+            return `${label}: ${value.toFixed(1)}%`;
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: "#6B7280",
+          font: {
+            size: 12,
+            weight: "bold" as const,
+          },
+        },
+      },
+      y: {
+        min: 0,
+        max: 100,
+        grid: {
+          color: "#F3F4F6",
+        },
+        ticks: {
+          color: "#9CA3AF",
+          font: {
+            size: 12,
+            weight: "bold" as const,
+          },
+          callback: (value) => `${value}%`,
+        },
+      },
+    },
+  };
 
   return (
     <motion.div
-      className="rounded-xl p-6 border"
+      className="rounded-xl p-6 border shadow-sm"
       style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -38,83 +207,9 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         Monthly Attendance Trend
       </h3>
 
-      {/* Chart */}
-      <div className="flex items-end gap-3 h-48 mb-4 overflow-x-auto">
-        {trends.map((trend) => {
-          const total = trend.present + trend.late + trend.absent;
-          const heightPercent = maxValue > 0 ? (total / maxValue) * 100 : 0;
-
-          const monthLabel = new Date(`${trend.month}-01`).toLocaleDateString(
-            "en-US",
-            {
-              month: "short",
-              year: "numeric",
-            }
-          );
-
-          return (
-            <div
-              key={trend.month}
-              className="flex-1 min-w-[60px] flex flex-col items-center gap-2"
-            >
-              {/* Tooltip */}
-              <div className="opacity-0 hover:opacity-100 transition-opacity absolute z-10 mb-20 pointer-events-none">
-                <div
-                  className="rounded-lg p-2 text-xs shadow-lg"
-                  style={{ backgroundColor: "#1F1F1F", color: "#FFFFFF" }}
-                >
-                  <div className="font-semibold mb-1">{monthLabel}</div>
-                  <div style={{ color: "#86EFAC" }}>Present: {trend.present}</div>
-                  <div style={{ color: "#FDE047" }}>Late: {trend.late}</div>
-                  <div style={{ color: "#FCA5A5" }}>Absent: {trend.absent}</div>
-                  <div style={{ color: "#93C5FD" }}>Rate: {trend.attendanceRate}%</div>
-                </div>
-              </div>
-
-              {/* Stacked Bar - using flexbox for proper proportional heights */}
-              <div
-                className="w-full rounded-t-lg overflow-hidden flex flex-col-reverse"
-                style={{ 
-                  height: `${Math.max(heightPercent * 1.92, 8)}px`,
-                  minHeight: '8px'
-                }}
-              >
-                {/* Present (bottom - green) */}
-                <div
-                  style={{
-                    flex: trend.present || 1,
-                    backgroundColor: trend.present > 0 ? "#16A34A" : "transparent",
-                    minHeight: trend.present > 0 ? '4px' : '0'
-                  }}
-                  className="transition-all duration-300"
-                />
-                {/* Late (middle - yellow) */}
-                <div
-                  style={{
-                    flex: trend.late || 0,
-                    backgroundColor: trend.late > 0 ? "#CA8A04" : "transparent",
-                    minHeight: trend.late > 0 ? '4px' : '0'
-                  }}
-                  className="transition-all duration-300"
-                />
-                {/* Absent (top - red) */}
-                <div
-                  style={{
-                    flex: trend.absent || 0,
-                    backgroundColor: trend.absent > 0 ? "#DC2626" : "transparent",
-                    minHeight: trend.absent > 0 ? '4px' : '0'
-                  }}
-                  className="transition-all duration-300"
-                />
-              </div>
-
-              {/* X-axis label */}
-              <div className="text-xs text-center" style={{ color: "#6B7280" }}>
-                {monthLabel}
-              </div>
-            </div>
-          );
-        })}
+      {/* Chart Container */}
+      <div className="h-80 w-full">
+        <Line data={data} options={options} />
       </div>
 
       {/* Legend */}
@@ -122,21 +217,21 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded"
-            style={{ backgroundColor: "#16A34A" }}
+            style={{ backgroundColor: "#22c55e" }}
           />
           <span className="text-sm" style={{ color: "#6B7280" }}>Present</span>
         </div>
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded"
-            style={{ backgroundColor: "#CA8A04" }}
+            style={{ backgroundColor: "#f59e0b" }}
           />
           <span className="text-sm" style={{ color: "#6B7280" }}>Late</span>
         </div>
         <div className="flex items-center gap-2">
           <div
             className="w-3 h-3 rounded"
-            style={{ backgroundColor: "#DC2626" }}
+            style={{ backgroundColor: "#ef4444" }}
           />
           <span className="text-sm" style={{ color: "#6B7280" }}>Absent</span>
         </div>
@@ -145,26 +240,16 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
   );
 }
 
-// Inline aggregation function (can also import from firestore.ts)
-function aggregateMonthlyTrends(
-  summaries: StudentSummary[]
-): Array<{
-  month: string;
-  present: number;
-  late: number;
-  absent: number;
-  attendanceRate: number;
-}> {
+function prepareMonthlyData(summaries: StudentSummary[]): MonthlyData[] {
   const monthMap = new Map<string, { present: number; late: number; absent: number }>();
 
   // Aggregate all months from all students
   summaries.forEach((summary) => {
     Object.entries(summary.trend).forEach(([month, data]) => {
-      // Defensive checks for undefined fields
       const present = data.present ?? 0;
       const late = data.late ?? 0;
       const absent = data.absent ?? 0;
-      
+
       const existing = monthMap.get(month) || { present: 0, late: 0, absent: 0 };
       monthMap.set(month, {
         present: existing.present + present,
@@ -174,18 +259,55 @@ function aggregateMonthlyTrends(
     });
   });
 
-  // Convert to array and sort by month
-  const trends = Array.from(monthMap.entries())
+  if (monthMap.size === 0) {
+    return [];
+  }
+
+  // Get all months with data, sorted
+  const monthsWithData = Array.from(monthMap.entries())
     .map(([month, data]) => ({
       month,
       present: data.present,
       late: data.late,
       absent: data.absent,
-      attendanceRate: data.present + data.late + data.absent > 0
-        ? Math.round(((data.present + data.late) / (data.present + data.late + data.absent)) * 100 * 100) / 100
-        : 0,
     }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  return trends;
+  // Determine school year range (June to March)
+  const firstMonth = monthsWithData[0].month;
+  const lastMonth = monthsWithData[monthsWithData.length - 1].month;
+
+  // Generate all months in range (including gaps)
+  const allMonths: MonthlyData[] = [];
+  let currentDate = new Date(`${firstMonth}-01`);
+  const endDate = new Date(`${lastMonth}-01`);
+
+  while (currentDate <= endDate) {
+    const monthKey = currentDate.toISOString().slice(0, 7);
+    const monthData = monthsWithData.find((m) => m.month === monthKey);
+
+    if (monthData) {
+      const total = monthData.present + monthData.late + monthData.absent;
+      allMonths.push({
+        month: monthKey,
+        presentPercent: total > 0 ? (monthData.present / total) * 100 : 0,
+        latePercent: total > 0 ? (monthData.late / total) * 100 : 0,
+        absentPercent: total > 0 ? (monthData.absent / total) * 100 : 0,
+        hasData: true,
+      });
+    } else {
+      allMonths.push({
+        month: monthKey,
+        presentPercent: 0,
+        latePercent: 0,
+        absentPercent: 0,
+        hasData: false,
+      });
+    }
+
+    // Move to next month
+    currentDate.setMonth(currentDate.getMonth() + 1);
+  }
+
+  return allMonths;
 }

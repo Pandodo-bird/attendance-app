@@ -82,13 +82,15 @@ export default function SecretaryAttendancePage() {
     ? `${selectedDate}_${sectionSlug}_${selectedAppointment.subject.replace(/\s+/g, '-')}_${selectedAppointment.secretaryLrn}`
     : null;
 
-  // TanStack Query: Fetch attendance session (cached - no refetch on navigation)
+  // TanStack Query: Fetch attendance session (cached - no refetch on navigation or window focus)
   const { data: existingSession, isLoading: sessionLoading } = useQuery({
     queryKey: ["attendanceSession", attendanceId],
     queryFn: () => getAttendanceSession(attendanceId!),
     enabled: !!attendanceId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - check for updates periodically
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes - session existence rarely changes
+    gcTime: 60 * 60 * 1000, // 1 hour
+    refetchOnWindowFocus: false, // Don't refetch when alt-tabbing
+    refetchOnMount: false, // Don't refetch when navigating back to this page
   });
 
   // TanStack Query: Fetch students from the section
@@ -296,8 +298,9 @@ export default function SecretaryAttendancePage() {
   const endIndex = startIndex + STUDENTS_PER_PAGE;
   const paginatedStudents = attendanceRecords.slice(startIndex, endIndex);
 
-  // Loading state
-  if (appointmentsLoading || studentsLoading || sessionLoading) {
+  // Loading state - only show during initial appointments/students fetch
+  // Don't block UI when checking for existing session (that should be cached)
+  if (appointmentsLoading || studentsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F8FAFC" }}>
         <div className="text-center">

@@ -28,7 +28,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Total Students */}
       <motion.div
-        className="rounded-xl p-5 border"
+        className="rounded-xl p-5 border shadow-sm"
         style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -58,7 +58,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
 
       {/* Average Attendance Rate */}
       <motion.div
-        className="rounded-xl p-5 border"
+        className="rounded-xl p-5 border shadow-sm"
         style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -95,7 +95,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
 
       {/* Perfect Attendance */}
       <motion.div
-        className="rounded-xl p-5 border"
+        className="rounded-xl p-5 border shadow-sm"
         style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -125,7 +125,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
 
       {/* At Risk Students */}
       <motion.div
-        className="rounded-xl p-5 border"
+        className="rounded-xl p-5 border shadow-sm"
         style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -147,7 +147,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
               {analytics.atRiskStudents}
             </div>
             <div className="text-sm" style={{ color: "#6B7280" }}>
-              At Risk {"(<75%)"}
+              At Risk <span className="text-xs" style={{ color: "#9CA3AF" }}>{"(<75%)"}</span>
             </div>
           </div>
         </div>
@@ -155,7 +155,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
 
       {/* Summary Stats */}
       <motion.div
-        className="md:col-span-2 lg:col-span-4 rounded-xl p-5 border"
+        className="md:col-span-2 lg:col-span-4 rounded-xl p-5 border shadow-sm"
         style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
@@ -190,7 +190,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
             </div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold" style={{ color: "#6C5CE7" }}>
+            <div className="text-3xl font-bold" style={{ color: "#1e3a5f" }}>
               {todayLabel}
             </div>
           </div>
