@@ -1072,18 +1072,48 @@ export async function checkExistingSession(
 ): Promise<Attendance | null> {
   const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
   const attendanceRef = doc(db, "attendance", attendanceId);
-  
+
+  console.log("🔍 checkExistingSession | Input params:", {
+    date,
+    sectionSlug,
+    subject: appointment.subject,
+    secretaryLrn: appointment.secretaryLrn,
+    secretaryUid: appointment.secretaryUid,
+    teacherId: appointment.teacherId,
+    constructedAttendanceId: attendanceId
+  });
+
   console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [attendance/{attendanceId}] (check existing session)");
-  const attendanceSnap = await getDoc(attendanceRef);
-
-  if (attendanceSnap.exists()) {
-    return {
-      id: attendanceSnap.id,
-      ...attendanceSnap.data()
-    } as Attendance;
+  console.log("📖 Attempting to read attendance document with ID:", attendanceId);
+  
+  try {
+    const attendanceSnap = await getDoc(attendanceRef);
+    console.log("✅ getDoc succeeded for attendanceId:", attendanceId);
+    console.log("📄 Document exists:", attendanceSnap.exists());
+    
+    if (attendanceSnap.exists()) {
+      const data = attendanceSnap.data();
+      console.log("📄 Document data:", {
+        id: attendanceSnap.id,
+        secretaryUid: data.secretaryUid,
+        teacherId: data.teacherId,
+        status: data.status
+      });
+      return {
+        id: attendanceSnap.id,
+        ...data
+      } as Attendance;
+    }
+    
+    console.log("ℹ️ No existing session found for this date - this is normal for first-time attendance");
+    return null;
+  } catch (error) {
+    console.error("❌ getDoc FAILED for attendanceId:", attendanceId);
+    console.error("❌ Error details:", error);
+    console.error("❌ Error code:", (error as any)?.code);
+    console.error("❌ Error message:", (error as any)?.message);
+    throw error;
   }
-
-  return null;
 }
 
 /**

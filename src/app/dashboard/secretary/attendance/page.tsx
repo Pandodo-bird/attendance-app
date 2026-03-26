@@ -150,15 +150,36 @@ export default function SecretaryAttendancePage() {
   // Check for existing session when date or appointment changes
   useEffect(() => {
     async function checkForExistingSession() {
-      if (!selectedAppointment || !sectionSlug || !selectedDate) return;
+      console.log("🔍 checkForExistingSession | Starting check...");
+      console.log("🔍 checkForExistingSession | State:", {
+        selectedAppointment: selectedAppointment ? {
+          id: selectedAppointment.id,
+          secretaryUid: selectedAppointment.secretaryUid,
+          secretaryLrn: selectedAppointment.secretaryLrn,
+          teacherId: selectedAppointment.teacherId,
+          sectionId: selectedAppointment.sectionId,
+          subject: selectedAppointment.subject,
+        } : null,
+        sectionSlug,
+        selectedDate,
+        userUid: user?.uid,
+        userProfileRole: userProfile?.role,
+      });
+      
+      if (!selectedAppointment || !sectionSlug || !selectedDate) {
+        console.log("⚠️ checkForExistingSession | Skipping - missing required data");
+        return;
+      }
 
       try {
+        console.log("🔍 checkForExistingSession | Calling checkExistingSession...");
         const existingSession = await checkExistingSession(
           selectedAppointment,
           sectionSlug,
           selectedDate
         );
-
+        console.log("✅ checkForExistingSession | Result:", existingSession ? { exists: true, id: existingSession.id } : { exists: false });
+        
         if (existingSession) {
           setHasSessionToday(true);
           setAttendanceId(existingSession.id);
@@ -167,7 +188,7 @@ export default function SecretaryAttendancePage() {
           if (existingSession.status === "locked" || (existingSession.records && Object.keys(existingSession.records).length > 0)) {
             setSessionSubmitted(true);
             setIsEditing(false);
-            
+
             // Load existing records for display
             if (existingSession.records) {
               setAttendanceRecords((prev) =>
@@ -191,13 +212,20 @@ export default function SecretaryAttendancePage() {
           }
         } else {
           // No session for this date
+          console.log("ℹ️ No existing session found for this date - this is expected for new attendance");
           setHasSessionToday(false);
           setAttendanceId(null);
           setSessionSubmitted(false);
           setIsEditing(false);
         }
       } catch (err) {
-        console.error("Error checking for existing session:", err);
+        console.error("❌ Error checking for existing session:");
+        console.error("❌ Error object:", err);
+        console.error("❌ Error name:", (err as Error)?.name);
+        console.error("❌ Error message:", (err as Error)?.message);
+        console.error("❌ Error stack:", (err as Error)?.stack);
+        console.error("❌ Firebase error code:", (err as any)?.code);
+        console.error("❌ Firebase error details:", (err as any)?.details);
         setError("Failed to check attendance session status");
       }
     }
