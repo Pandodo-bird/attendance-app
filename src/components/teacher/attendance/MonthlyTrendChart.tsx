@@ -3,25 +3,27 @@
 import { StudentSummary } from "@/lib/firestore";
 import { motion } from "framer-motion";
 import {
-  Chart as ChartJS,
+  BarElement,
   CategoryScale,
+  Chart as ChartJS,
+  ChartData,
+  ChartOptions,
+  Legend,
+  LineElement,
   LinearScale,
   PointElement,
-  LineElement,
   Title,
   Tooltip,
-  Legend,
-  ChartOptions,
-  ChartData,
   TooltipItem,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
+import { Bar } from "react-chartjs-2";
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  PointElement,
+  BarElement,
   LineElement,
+  PointElement,
   Title,
   Tooltip,
   Legend
@@ -36,12 +38,11 @@ interface MonthlyData {
   presentPercent: number;
   latePercent: number;
   absentPercent: number;
-  hasData: boolean;
+  attendanceRate: number;
 }
 
 export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps) {
   const monthlyData = prepareMonthlyData(summaries);
-  const currentMonthKey = new Date().toISOString().slice(0, 7); // "YYYY-MM"
 
   if (monthlyData.length === 0) {
     return (
@@ -54,73 +55,54 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
     );
   }
 
-  const labels = monthlyData.map((d) => {
-    const monthDate = new Date(`${d.month}-01`);
-    return monthDate.toLocaleDateString("en-US", { month: "short" });
-  });
+  const labels = monthlyData.map((dataPoint) =>
+    new Date(`${dataPoint.month}-01`).toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    })
+  );
 
-  const presentData = monthlyData.map((d) => (d.hasData ? d.presentPercent : null));
-  const lateData = monthlyData.map((d) => (d.hasData ? d.latePercent : null));
-  const absentData = monthlyData.map((d) => (d.hasData ? d.absentPercent : null));
-
-  const data: ChartData<"line"> = {
+  const data: ChartData<"bar"> = {
     labels,
     datasets: [
       {
+        type: "bar",
         label: "Present %",
-        data: presentData,
-        borderColor: "#22c55e",
+        data: monthlyData.map((dataPoint) => dataPoint.presentPercent),
         backgroundColor: "#22c55e",
-        tension: 0.3,
-        pointRadius: monthlyData.map((d, i) => {
-          const isCurrentMonth = d.month === currentMonthKey;
-          return d.hasData ? (isCurrentMonth ? 8 : 6) : 0;
-        }),
-        pointHoverRadius: 7,
-        pointBackgroundColor: "#22c55e",
-        pointBorderColor: "#fff",
-        pointBorderWidth: 2,
-        fill: false,
-        spanGaps: false,
+        stack: "attendancePct",
+        borderRadius: 4,
       },
       {
+        type: "bar",
         label: "Late %",
-        data: lateData,
-        borderColor: "#f59e0b",
+        data: monthlyData.map((dataPoint) => dataPoint.latePercent),
         backgroundColor: "#f59e0b",
-        tension: 0.3,
-        pointRadius: monthlyData.map((d, i) => {
-          const isCurrentMonth = d.month === currentMonthKey;
-          return d.hasData ? (isCurrentMonth ? 8 : 6) : 0;
-        }),
-        pointHoverRadius: 7,
-        pointBackgroundColor: "#f59e0b",
-        pointBorderColor: "#fff",
-        pointBorderWidth: 2,
-        fill: false,
-        spanGaps: false,
+        stack: "attendancePct",
+        borderRadius: 4,
       },
       {
+        type: "bar",
         label: "Absent %",
-        data: absentData,
-        borderColor: "#ef4444",
+        data: monthlyData.map((dataPoint) => dataPoint.absentPercent),
         backgroundColor: "#ef4444",
-        tension: 0.3,
-        pointRadius: monthlyData.map((d, i) => {
-          const isCurrentMonth = d.month === currentMonthKey;
-          return d.hasData ? (isCurrentMonth ? 8 : 6) : 0;
-        }),
-        pointHoverRadius: 7,
-        pointBackgroundColor: "#ef4444",
-        pointBorderColor: "#fff",
-        pointBorderWidth: 2,
-        fill: false,
-        spanGaps: false,
+        stack: "attendancePct",
+        borderRadius: 4,
+      },
+      {
+        type: "line",
+        label: "Attendance Rate",
+        data: monthlyData.map((dataPoint) => dataPoint.attendanceRate),
+        borderColor: "#1e3a5f",
+        backgroundColor: "#1e3a5f",
+        tension: 0.25,
+        pointRadius: 3,
+        pointHoverRadius: 5,
       },
     ],
   };
 
-  const options: ChartOptions<"line"> = {
+  const options: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
@@ -138,24 +120,15 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         borderColor: "#374151",
         borderWidth: 1,
         padding: 12,
-        titleFont: {
-          size: 14,
-          weight: "bold" as const,
-        },
-        bodyFont: {
-          size: 13,
-          weight: "normal" as const,
-        },
         callbacks: {
-          title: (tooltipItems: TooltipItem<"line">[]) => {
+          title: (tooltipItems: TooltipItem<"bar">[]) => {
             const index = tooltipItems[0].dataIndex;
-            const monthDate = new Date(`${monthlyData[index].month}-01`);
-            return monthDate.toLocaleDateString("en-US", {
+            return new Date(`${monthlyData[index].month}-01`).toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",
             });
           },
-          label: (context: TooltipItem<"line">) => {
+          label: (context: TooltipItem<"bar">) => {
             const value = context.parsed.y;
             const label = context.dataset.label;
             if (value === null || value === undefined) return "";
@@ -166,29 +139,21 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
     },
     scales: {
       x: {
-        grid: {
-          display: false,
-        },
+        stacked: true,
+        grid: { display: false },
         ticks: {
           color: "#6B7280",
-          font: {
-            size: 12,
-            weight: "bold" as const,
-          },
+          font: { size: 12, weight: "bold" as const },
         },
       },
       y: {
+        stacked: true,
         min: 0,
         max: 100,
-        grid: {
-          color: "#F3F4F6",
-        },
+        grid: { color: "#F3F4F6" },
         ticks: {
           color: "#9CA3AF",
-          font: {
-            size: 12,
-            weight: "bold" as const,
-          },
+          font: { size: 12, weight: "bold" as const },
           callback: (value) => `${value}%`,
         },
       },
@@ -207,33 +172,26 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         Monthly Attendance Trend
       </h3>
 
-      {/* Chart Container */}
       <div className="h-80 w-full">
-        <Line data={data} options={options} />
+        <Bar data={data} options={options} />
       </div>
 
-      {/* Legend */}
       <div className="flex items-center justify-center gap-6 pt-4 border-t" style={{ borderColor: "#F3F4F6" }}>
         <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded"
-            style={{ backgroundColor: "#22c55e" }}
-          />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#22c55e" }} />
           <span className="text-sm" style={{ color: "#6B7280" }}>Present</span>
         </div>
         <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded"
-            style={{ backgroundColor: "#f59e0b" }}
-          />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#f59e0b" }} />
           <span className="text-sm" style={{ color: "#6B7280" }}>Late</span>
         </div>
         <div className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded"
-            style={{ backgroundColor: "#ef4444" }}
-          />
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#ef4444" }} />
           <span className="text-sm" style={{ color: "#6B7280" }}>Absent</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#1e3a5f" }} />
+          <span className="text-sm" style={{ color: "#6B7280" }}>Attendance Rate</span>
         </div>
       </div>
     </motion.div>
@@ -243,71 +201,27 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
 function prepareMonthlyData(summaries: StudentSummary[]): MonthlyData[] {
   const monthMap = new Map<string, { present: number; late: number; absent: number }>();
 
-  // Aggregate all months from all students
   summaries.forEach((summary) => {
-    Object.entries(summary.trend).forEach(([month, data]) => {
-      const present = data.present ?? 0;
-      const late = data.late ?? 0;
-      const absent = data.absent ?? 0;
-
-      const existing = monthMap.get(month) || { present: 0, late: 0, absent: 0 };
+    Object.entries(summary.trend).forEach(([month, trend]) => {
+      const existing = monthMap.get(month) ?? { present: 0, late: 0, absent: 0 };
       monthMap.set(month, {
-        present: existing.present + present,
-        late: existing.late + late,
-        absent: existing.absent + absent,
+        present: existing.present + (trend.present ?? 0),
+        late: existing.late + (trend.late ?? 0),
+        absent: existing.absent + (trend.absent ?? 0),
       });
     });
   });
 
-  if (monthMap.size === 0) {
-    return [];
-  }
-
-  // Get all months with data, sorted
-  const monthsWithData = Array.from(monthMap.entries())
-    .map(([month, data]) => ({
-      month,
-      present: data.present,
-      late: data.late,
-      absent: data.absent,
-    }))
+  return Array.from(monthMap.entries())
+    .map(([month, values]) => {
+      const total = values.present + values.late + values.absent;
+      return {
+        month,
+        presentPercent: total > 0 ? (values.present / total) * 100 : 0,
+        latePercent: total > 0 ? (values.late / total) * 100 : 0,
+        absentPercent: total > 0 ? (values.absent / total) * 100 : 0,
+        attendanceRate: total > 0 ? ((values.present + values.late) / total) * 100 : 0,
+      };
+    })
     .sort((a, b) => a.month.localeCompare(b.month));
-
-  // Determine school year range (June to March)
-  const firstMonth = monthsWithData[0].month;
-  const lastMonth = monthsWithData[monthsWithData.length - 1].month;
-
-  // Generate all months in range (including gaps)
-  const allMonths: MonthlyData[] = [];
-  let currentDate = new Date(`${firstMonth}-01`);
-  const endDate = new Date(`${lastMonth}-01`);
-
-  while (currentDate <= endDate) {
-    const monthKey = currentDate.toISOString().slice(0, 7);
-    const monthData = monthsWithData.find((m) => m.month === monthKey);
-
-    if (monthData) {
-      const total = monthData.present + monthData.late + monthData.absent;
-      allMonths.push({
-        month: monthKey,
-        presentPercent: total > 0 ? (monthData.present / total) * 100 : 0,
-        latePercent: total > 0 ? (monthData.late / total) * 100 : 0,
-        absentPercent: total > 0 ? (monthData.absent / total) * 100 : 0,
-        hasData: true,
-      });
-    } else {
-      allMonths.push({
-        month: monthKey,
-        presentPercent: 0,
-        latePercent: 0,
-        absentPercent: 0,
-        hasData: false,
-      });
-    }
-
-    // Move to next month
-    currentDate.setMonth(currentDate.getMonth() + 1);
-  }
-
-  return allMonths;
 }

@@ -4,7 +4,20 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useState, useMemo } from "react";
-import { getTeacherSections, createSection, importStudentsBatch, Section, Student, deleteSection, getSectionById, getSectionStudents, updateSection } from "@/lib/firestore";
+import {
+  getTeacherSections,
+  createSection,
+  importStudentsBatch,
+  Section,
+  Student,
+  deleteSection,
+  getSectionById,
+  getSectionStudents,
+  updateSection,
+  getTeacherAppointments,
+  getUserProfilesBatch,
+  UserData,
+} from "@/lib/firestore";
 import { useRouter } from "next/navigation";
 import { ImportModal, StudentData, SectionDetailModal } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
@@ -48,6 +61,34 @@ function SectionsContent() {
     ...section,
     studentCount: section.studentCount || 0,
   } as SectionWithCount));
+
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["appointments", user?.uid],
+    queryFn: () => getTeacherAppointments(user?.uid || ""),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+
+  const secretaryUids = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          appointments
+            .filter((appointment) => appointment.status === "active")
+            .map((appointment) => appointment.secretaryUid)
+        )
+      ),
+    [appointments]
+  );
+
+  const { data: secretaryProfiles = new Map<string, UserData>() } = useQuery({
+    queryKey: ["secretaryProfiles", user?.uid, secretaryUids],
+    queryFn: () => getUserProfilesBatch(secretaryUids),
+    enabled: !!user?.uid && secretaryUids.length > 0,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
 
   const [showImportModal, setShowImportModal] = useState(false);
   const [pendingSectionData, setPendingSectionData] = useState<{
@@ -103,6 +144,17 @@ function SectionsContent() {
       section.gradeLevel?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       section.schoolYear.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const activeAppointmentsBySection = useMemo(() => {
+    const map = new Map<string, typeof appointments>();
+    appointments.forEach((appointment) => {
+      if (appointment.status !== "active") return;
+      const existing = map.get(appointment.sectionId) ?? [];
+      existing.push(appointment);
+      map.set(appointment.sectionId, existing);
+    });
+    return map;
+  }, [appointments]);
 
   // Handle opening the import modal
   const handleOpenModal = () => {
@@ -489,6 +541,50 @@ function SectionsContent() {
                           <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
                             Students enrolled
                           </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Appointed Secretary */}
+                    <div className="mb-4">
+                      <div className="flex items-start gap-3">
+                        <span
+                          className="material-symbols-outlined text-lg"
+                          style={{ color: "#9CA3AF" }}
+                        >
+                          badge
+                        </span>
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "#6B7280" }}>
+                            Appointed Secretary
+                          </p>
+                          {(() => {
+                            const sectionAppointments = activeAppointmentsBySection.get(section.id) ?? [];
+                            if (sectionAppointments.length === 0) {
+                              return (
+                                <p className="text-sm font-medium" style={{ color: "#9CA3AF" }}>
+                                  No secretary appointed yet
+                                </p>
+                              );
+                            }
+
+                            return (
+                              <div className="space-y-1 mt-1">
+                                {sectionAppointments.map((appointment) => {
+                                  const profile = secretaryProfiles.get(appointment.secretaryUid);
+                                  return (
+                                    <p
+                                      key={appointment.id}
+                                      className="text-sm font-medium"
+                                      style={{ color: "#1F1F1F" }}
+                                    >
+                                      {profile?.displayName || `Secretary ${appointment.secretaryLrn}`}
+                                    </p>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
