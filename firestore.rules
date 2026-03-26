@@ -37,19 +37,20 @@ service cloud.firestore {
     
     // ==================== Sections Collection ====================
     match /sections/{sectionId} {
-      allow read: if isAuthenticated() && 
-                     resource.data.teacherId == getUid();
-      allow create: if isAuthenticated() && 
+      // Teachers can read their own sections, secretaries can read any section (app logic filters to their appointment)
+      allow read: if isAuthenticated() &&
+                     (resource.data.teacherId == getUid() || isSecretary());
+      allow create: if isAuthenticated() &&
                        request.resource.data.teacherId == getUid();
-      allow update: if isAuthenticated() && 
+      allow update: if isAuthenticated() &&
                        resource.data.teacherId == getUid();
-      allow delete: if isAuthenticated() && 
+      allow delete: if isAuthenticated() &&
                        resource.data.teacherId == getUid();
-      
+
       // Students subcollection
       match /students/{studentLrn} {
         allow read: if isAuthenticated();
-        allow create, update, delete: if isAuthenticated() && 
+        allow create, update, delete: if isAuthenticated() &&
                                          get(/databases/$(database)/documents/sections/$(sectionId)).data.teacherId == getUid();
       }
     }
@@ -70,20 +71,43 @@ service cloud.firestore {
     
     // ==================== Attendance Collection ====================
     match /attendance/{attendanceId} {
-      allow read: if isAuthenticated() && 
-                     (resource.data.teacherId == getUid() || 
+      // Secretaries can read/write their own attendance, teachers can read attendance for their sections
+      // Note: resource.data is null for non-existent documents, so allow read when checking existence
+      allow read: if isAuthenticated() &&
+                     (resource.data == null ||
+                      resource.data.teacherId == getUid() ||
                       resource.data.secretaryUid == getUid());
-      allow create: if isAuthenticated() && 
+      allow create: if isAuthenticated() &&
                        isSecretary() &&
                        request.resource.data.secretaryUid == getUid();
-      allow update, delete: if false;
-      
+      allow update: if isAuthenticated() &&
+                       (resource.data.secretaryUid == getUid() || resource.data.teacherId == getUid());
+      allow delete: if false;
+
       match /records/{recordId} {
-        allow read: if isAuthenticated() && 
+        allow read: if isAuthenticated() &&
                        (get(/databases/$(database)/documents/attendance/$(attendanceId)).data.teacherId == getUid() ||
                         get(/databases/$(database)/documents/attendance/$(attendanceId)).data.secretaryUid == getUid());
         allow create, update, delete: if false;
       }
+    }
+
+    // ==================== AttendanceRecords Collection ====================
+    match /attendanceRecords/{recordId} {
+      // Teachers can read records for their sections, secretaries can read their own records
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+                       isSecretary();
+      allow update, delete: if false;
+    }
+
+    // ==================== StudentSummaries Collection ====================
+    match /studentSummaries/{summaryId} {
+      // Teachers can read summaries for their sections, secretaries can read their section's summaries
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() &&
+                               isSecretary();
+      allow delete: if false;
     }
   }
 }

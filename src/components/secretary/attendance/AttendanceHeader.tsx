@@ -8,10 +8,8 @@ interface AttendanceHeaderProps {
   hasSessionToday: boolean;
   sessionSubmitted: boolean;
   isEditing: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   allowCorrections: boolean;
   onStartSession: () => void;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onEnableEditing: () => void;
 }
 

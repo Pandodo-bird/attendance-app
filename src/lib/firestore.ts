@@ -109,10 +109,27 @@ export interface Attendance {
   sectionId: string;
   teacherId: string;
   secretaryUid: string;
+  secretaryLrn: string;
   subject: string;
   date: string;              // "2025-03-17"
   schoolYear: string;
-  records?: Record<string, AttendanceRecord>;  // Subcollection: records/{lrn}
+  status: "open" | "locked";
+  records?: Record<string, AttendanceRecord>;  // Map for live view only
+  createdAt: Date | Timestamp;
+}
+
+// ==================== Student Summary Types ====================
+
+export interface StudentSummary {
+  id: string;
+  lrn: string;
+  sectionId: string;
+  schoolYear: string;
+  totalDays: number;
+  present: number;
+  late: number;
+  absent: number;
+  trend: Record<string, { present: number; late: number; absent: number }>;
 }
 
 // ==================== Cache Implementation ====================
@@ -940,12 +957,14 @@ export async function getSecretaryAttendance(
 /**
  * Submit attendance for a class session
  * Creates attendance document with records subcollection
+ * @deprecated Use submitFullAttendance instead for the new attendance layer structure
  */
 export async function submitAttendance(
   appointmentId: string,
   sectionId: string,
   teacherId: string,
   secretaryUid: string,
+  secretaryLrn: string,
   subject: string,
   date: string,
   schoolYear: string,
@@ -960,18 +979,24 @@ export async function submitAttendance(
 
   // Create attendance document
   const attendanceRef = doc(collection(db, "attendance"));
-  
-  const attendanceData: Omit<Attendance, "id"> = {
+
+  const attendanceData: Omit<Attendance, "id" | "createdAt"> = {
     appointmentId,
     sectionId,
     teacherId,
     secretaryUid,
+    secretaryLrn,
     subject,
     date,
     schoolYear,
+    status: "open",
+    records: {},
   };
 
-  batch.set(attendanceRef, attendanceData);
+  batch.set(attendanceRef, {
+    ...attendanceData,
+    createdAt: new Date(),
+  });
 
   // Add records subcollection
   records.forEach((record) => {
@@ -1032,4 +1057,208 @@ export async function getAttendanceRecords(
   });
 
   return records;
+}
+
+// ==================== Attendance Session Functions (Secretary) ====================
+
+/**
+ * Check if an attendance session already exists for the given appointment and date
+ * Uses the deterministic document ID pattern: {date}_{sectionSlug}_{subject}_{secretaryLrn}
+ */
+export async function checkExistingSession(
+  appointment: Appointment,
+  sectionSlug: string,
+  date: string
+): Promise<Attendance | null> {
+  const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
+  const attendanceRef = doc(db, "attendance", attendanceId);
+  
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [attendance/{attendanceId}] (check existing session)");
+  const attendanceSnap = await getDoc(attendanceRef);
+
+  if (attendanceSnap.exists()) {
+    return {
+      id: attendanceSnap.id,
+      ...attendanceSnap.data()
+    } as Attendance;
+  }
+
+  return null;
+}
+
+/**
+ * Start an attendance session by creating the attendance/{id} document
+ * This marks the commencement of attendance record for the day
+ */
+export async function startAttendanceSession(
+  appointment: Appointment,
+  sectionSlug: string,
+  date: string,
+  schoolYear: string
+): Promise<string> {
+  const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
+  const attendanceRef = doc(db, "attendance", attendanceId);
+
+  const attendanceData: Omit<Attendance, "id" | "createdAt"> = {
+    appointmentId: appointment.id,
+    sectionId: appointment.sectionId,
+    teacherId: appointment.teacherId,
+    secretaryUid: appointment.secretaryUid,
+    secretaryLrn: appointment.secretaryLrn,
+    subject: appointment.subject,
+    date,
+    schoolYear,
+    status: "open",
+    records: {},
+  };
+
+  await setDoc(attendanceRef, {
+    ...attendanceData,
+    createdAt: new Date(),
+  });
+
+  console.log("✅ Attendance session started:", attendanceId);
+  return attendanceId;
+}
+
+/**
+ * Submit full attendance for a session
+ * Performs atomic batch write to 3 collections:
+ * 1. attendance/{id} - update records map and lock status
+ * 2. attendanceRecords/{id} - create flat audit log per student
+ * 3. studentSummaries/{id} - upsert running totals per student
+ */
+export async function submitFullAttendance(
+  attendanceId: string,
+  appointment: Appointment,
+  sectionSlug: string,
+  date: string,
+  schoolYear: string,
+  students: Array<{
+    lrn: string;
+    studentName: string;
+    lastName: string;
+    status: "present" | "late" | "absent";
+    remarks: string;
+  }>
+): Promise<void> {
+  const batch = writeBatch(db);
+  const monthKey = date.slice(0, 7); // "YYYY-MM"
+
+  // 1. Update attendance session header with records map and lock it
+  const attendanceRef = doc(db, "attendance", attendanceId);
+  const recordsMap: Record<string, AttendanceRecord> = {};
+  
+  students.forEach((student) => {
+    recordsMap[student.lrn] = {
+      studentName: student.studentName,
+      status: student.status,
+      remarks: student.remarks,
+      timeRecorded: new Date(),
+    };
+  });
+
+  batch.update(attendanceRef, {
+    records: recordsMap,
+    status: "locked",
+  });
+
+  // 2. Create flat attendance records (audit log)
+  students.forEach((student) => {
+    const recordId = `${date}_${sectionSlug}_${student.lrn}`;
+    const recordRef = doc(db, "attendanceRecords", recordId);
+    
+    batch.set(recordRef, {
+      attendanceId,
+      teacherId: appointment.teacherId,
+      lrn: student.lrn,
+      sectionId: appointment.sectionId,
+      subject: appointment.subject,
+      date,
+      schoolYear,
+      status: student.status,
+      remarks: student.remarks,
+      timeRecorded: new Date(),
+    });
+  });
+
+  // 3. Upsert student summaries (running totals)
+  students.forEach((student) => {
+    const summaryId = `${sectionSlug}_${student.lastName.toUpperCase().replace(/\s+/g, '-')}_${student.lrn}_${schoolYear}`;
+    const summaryRef = doc(db, "studentSummaries", summaryId);
+    
+    // Use set with merge to upsert
+    batch.set(summaryRef, {
+      lrn: student.lrn,
+      sectionId: appointment.sectionId,
+      schoolYear,
+      totalDays: 1,
+      [student.status]: 1,
+      trend: {
+        [monthKey]: {
+          [student.status]: 1,
+        },
+      },
+    }, { merge: true });
+  });
+
+  await batch.commit();
+  console.log("✅ Full attendance submitted:", attendanceId);
+  
+  // Invalidate caches
+  invalidateCache(`attendance_secretary_${appointment.secretaryUid}`);
+  invalidateCache(`attendance_teacher_${appointment.teacherId}_${date}`);
+}
+
+/**
+ * Subscribe to real-time updates for an attendance session
+ * Use this ONLY on the active attendance page
+ */
+export function subscribeToAttendanceSession(
+  attendanceId: string,
+  callback: (attendance: Attendance | null) => void,
+  errorCallback?: (error: FirestoreError) => void
+): Unsubscribe {
+  const attendanceRef = doc(db, "attendance", attendanceId);
+
+  const unsubscribe = onSnapshot(
+    attendanceRef,
+    (doc) => {
+      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [attendance/{attendanceId}]");
+      if (doc.exists()) {
+        callback({
+          id: doc.id,
+          ...doc.data()
+        } as Attendance);
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      errorCallback?.(error as FirestoreError);
+    }
+  );
+
+  return unsubscribe;
+}
+
+/**
+ * Get section slug from section ID
+ * Helper function to construct the sectionSlug: {gradeLevel}-{sectionName}
+ */
+export async function getSectionSlug(sectionId: string): Promise<string | null> {
+  const sectionRef = doc(db, "sections", sectionId);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [sections/{sectionId}] (get section slug)", { sectionId, sectionPath: sectionRef.path });
+  const sectionSnap = await getDoc(sectionRef);
+
+  if (sectionSnap.exists()) {
+    const section = sectionSnap.data() as Section;
+    console.log("✅ Section found:", { id: sectionId, gradeLevel: section.gradeLevel, sectionName: section.sectionName });
+    const slug = `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, '-')}`;
+    console.log("📋 Generated slug:", slug);
+    return slug;
+  }
+
+  console.error("❌ Section not found:", sectionId);
+  return null;
 }

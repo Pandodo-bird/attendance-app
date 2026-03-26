@@ -9,7 +9,6 @@ interface StudentAttendanceRowProps {
   lrn: string;
   studentName: string;
   status: AttendanceStatus | null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   remarks: string;
   index: number;
   isEditable: boolean;
