@@ -182,6 +182,23 @@ function AttendanceContent() {
 
           {/* Content Canvas */}
           <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
+            <div
+              className="rounded-xl border px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+              style={{ backgroundColor: "#EEF4FF", borderColor: "#D8E5FF" }}
+            >
+              <p className="text-sm" style={{ color: "#1E3A5F" }}>
+                Attendance page is analytics-only. For secretary daily history records, open Secretary Records.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/teacher/reports")}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors w-fit"
+                style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
+              >
+                Open Secretary Records
+              </button>
+            </div>
+
             {/* Class Analytics Overview */}
             {!selectedSectionId ? (
               <div

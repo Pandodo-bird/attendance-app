@@ -53,7 +53,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
 
   const toolNavItems = [
     { icon: ClipboardCheck, label: "Attendance", href: "/dashboard/teacher/attendance" },
-    { icon: FileBarChart, label: "Reports", href: "/dashboard/teacher/reports" },
+    { icon: FileBarChart, label: "Secretary Records", href: "/dashboard/teacher/reports" },
     { icon: UserCheck, label: "Secretaries", href: "/dashboard/teacher/secretaries" },
   ];
 
