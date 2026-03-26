@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Calendar, Clock, ChevronRight, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
-import { getSecretaryAttendanceHistory, calculateAttendanceStats, Attendance } from "@/lib/firestore";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance } from "@/lib/firestore";
 import { PopupAlert } from "@/components/ui";
+import { DocumentSnapshot } from "firebase/firestore";
 
 interface AttendanceSessionCardProps {
   session: Attendance;
@@ -18,31 +19,102 @@ export default function HistoryPage() {
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch secretary's attendance history (simple query - no pagination needed for most cases)
-  // Attendance sessions are added once per day, so most secretaries will have < 100 sessions
-  const { data: sessions = [], isLoading, error: fetchError } = useQuery({
+  // Infinite query for paginated attendance history (10 sessions per page)
+  const {
+    data,
+    isLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+    error: fetchError,
+    refetch,
+  } = useInfiniteQuery({
     queryKey: ["attendanceHistory", user?.uid],
-    queryFn: () => getSecretaryAttendanceHistory(user?.uid || ""),
-    enabled: !!user?.uid,
+    queryFn: async ({ pageParam }: { pageParam: DocumentSnapshot | null }) => {
+      console.log("📄 FETCHING PAGE:", {
+        pageParam: pageParam ? "cursor exists" : "first page",
+        uid: user?.uid,
+      });
+      
+      const result = await getSecretaryAttendanceHistoryPaginated(
+        user?.uid || "",
+        10, // Load 10 sessions per page
+        pageParam
+      );
+      
+      console.log("✅ RECEIVED:", {
+        sessionsCount: result.sessions.length,
+        hasMore: result.hasMore,
+      });
+      
+      return result;
+    },
+    initialPageParam: null as DocumentSnapshot | null,
+    getNextPageParam: (lastPage) => {
+      return lastPage.hasMore ? lastPage.lastVisible : undefined;
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes - sessions don't change
     gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
-  // Show error if fetch fails
-  useEffect(() => {
-    if (fetchError) {
-      setError(`Failed to load attendance history: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`);
-    }
-  }, [fetchError]);
+  // Debug: Log only when data actually changes (not on every render)
+  const previousTotalRef = useRef<number>(-1);
 
-  // Calculate overall stats
+  useEffect(() => {
+    const currentTotal = data?.pages.flatMap(p => p.sessions).length || 0;
+    
+    // Only log if total changed (prevents duplicate logs in Strict Mode)
+    if (currentTotal !== previousTotalRef.current) {
+      console.log("📊 DATA CHANGED:", {
+        pages: data?.pages.length,
+        totalSessions: currentTotal,
+        hasNextPage,
+      });
+      previousTotalRef.current = currentTotal;
+    }
+  }, [data, hasNextPage]);
+
+  // Flatten all pages into a single array
+  const sessions = data?.pages.flatMap(page => page.sessions) || [];
   const totalSessions = sessions.length;
+
+  // Calculate total records across all loaded sessions
   const totalStudentsMarked = sessions.reduce((acc, session) => {
     return acc + (session.records ? Object.keys(session.records).length : 0);
   }, 0);
 
+  // Show error if fetch fails
+  useEffect(() => {
+    if (fetchError) {
+      console.error("❌ FETCH ERROR:", fetchError);
+      setError(`Failed to load attendance history: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`);
+    }
+  }, [fetchError]);
+
+  // Handle manual load more
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      console.log("📥 Loading more sessions...");
+      fetchNextPage();
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+      {/* Debug Panel - Shows pagination state */}
+      <div className="fixed bottom-4 right-4 bg-white border-2 border-blue-500 rounded-lg p-4 shadow-lg z-50 text-xs max-w-xs">
+        <p className="font-bold mb-2 text-blue-600">🧪 Pagination Status</p>
+        <div className="space-y-1">
+          <p>Sessions loaded: <strong className="text-lg">{totalSessions}</strong></p>
+          <p>Has more data: <strong>{hasNextPage ? "✅ Yes" : "❌ No"}</strong></p>
+          <p>Loading more: <strong>{isFetchingNextPage ? "⏳ Yes" : "❌ No"}</strong></p>
+          <p>Is loading: <strong>{isLoading ? "⏳ Yes" : "❌ No"}</strong></p>
+          <p className="text-gray-500 mt-2 pt-2 border-t">
+            💡 Click "Load More Sessions" button to load next 10
+          </p>
+        </div>
+      </div>
+
       {/* Error Alert */}
       {error && (
         <PopupAlert
@@ -87,12 +159,17 @@ export default function HistoryPage() {
                   <Calendar className="w-4 h-4" style={{ color: "#493598" }} />
                 </div>
                 <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B7280" }}>
-                  Total Sessions
+                  Sessions Loaded
                 </p>
               </div>
               <p className="text-3xl font-bold" style={{ color: "#1F1F1F" }}>
                 {totalSessions}
               </p>
+              {hasNextPage && (
+                <p className="text-xs mt-1" style={{ color: "#9CA3AF" }}>
+                  Scroll to load more
+                </p>
+              )}
             </motion.div>
 
             <motion.div
@@ -190,6 +267,49 @@ export default function HistoryPage() {
                   onClick={() => setSelectedSession(session)}
                 />
               ))}
+
+              {/* Load More Button */}
+              {hasNextPage && (
+                <div className="py-8 text-center">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={isFetchingNextPage}
+                    className="px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: isFetchingNextPage ? "#9CA3AF" : "#1e3a5f",
+                      color: "#FFFFFF",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isFetchingNextPage) {
+                        e.currentTarget.style.backgroundColor = "#16304a";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isFetchingNextPage) {
+                        e.currentTarget.style.backgroundColor = "#1e3a5f";
+                      }
+                    }}
+                  >
+                    {isFetchingNextPage ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Loading...
+                      </span>
+                    ) : (
+                      "Load More Sessions"
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* End of List Message */}
+              {!hasNextPage && sessions.length > 0 && (
+                <div className="py-8 text-center">
+                  <p className="text-sm" style={{ color: "#9CA3AF" }}>
+                    You&apos;ve reached the end of your attendance history
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>
