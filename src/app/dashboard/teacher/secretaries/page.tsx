@@ -14,6 +14,7 @@ import { RoleGuard } from "@/hooks/useRequireRole";
 import {
   Attendance,
   AttendanceStatus,
+  Appointment,
   calculateAttendanceStats,
   getTeacherAppointments,
   getTeacherSections,
@@ -28,6 +29,18 @@ interface SecretaryGroupedRecords {
   secretaryLrn: string;
   secretaryName: string;
   sessions: SessionWithStats[];
+}
+
+interface SecretaryCardItem {
+  secretaryUid: string;
+  secretaryLrn: string;
+  secretaryName: string;
+  sectionId: string;
+  sectionName: string;
+  gradeLevel: string;
+  subject: string;
+  schoolYear: string;
+  appointedAt: Date | string | { toDate: () => Date };
 }
 
 async function getTeacherAttendanceSessions(teacherId: string): Promise<Attendance[]> {
@@ -61,6 +74,24 @@ function formatDate(dateString: string): string {
     month: "short",
     day: "numeric",
   });
+}
+
+function getSortableTime(value: Date | string | { toDate: () => Date } | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  let parsed: Date;
+  if (typeof value === "string") {
+    parsed = new Date(value);
+  } else if ("toDate" in value) {
+    parsed = value.toDate();
+  } else {
+    parsed = value;
+  }
+
+  const time = parsed.getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function getStatusStyles(status: AttendanceStatus): { backgroundColor: string; color: string } {
@@ -130,7 +161,13 @@ function SecretariesContent() {
     gcTime: 20 * 60 * 1000,
   });
 
-  const secretaryUids = Array.from(new Set(attendanceSessions.map((session) => session.secretaryUid))).sort();
+  const activeAppointments = appointments.filter((appointment) => appointment.status === "active");
+  const secretaryUids = Array.from(
+    new Set([
+      ...attendanceSessions.map((session) => session.secretaryUid),
+      ...activeAppointments.map((appointment) => appointment.secretaryUid),
+    ])
+  ).sort();
   const { data: secretaryProfiles = new Map<string, UserData>() } = useQuery({
     queryKey: ["secretaryProfiles", user?.uid, secretaryUids],
     queryFn: () => getUserProfilesBatch(secretaryUids),
@@ -152,6 +189,53 @@ function SecretariesContent() {
       `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, "-")}`,
     ])
   );
+
+  const activeAppointmentBySecretary = new Map<string, Appointment>();
+  activeAppointments.forEach((appointment) => {
+    const existing = activeAppointmentBySecretary.get(appointment.secretaryUid);
+    if (!existing) {
+      activeAppointmentBySecretary.set(appointment.secretaryUid, appointment);
+      return;
+    }
+
+    const existingTime = getSortableTime(existing.appointedAt);
+    const currentTime = getSortableTime(appointment.appointedAt);
+    if (currentTime > existingTime) {
+      activeAppointmentBySecretary.set(appointment.secretaryUid, appointment);
+    }
+  });
+
+  const secretaryCards = Array.from(activeAppointmentBySecretary.values())
+    .map((appointment) => {
+      const profile = secretaryProfiles.get(appointment.secretaryUid);
+      const sectionLabel = sectionLabelById.get(appointment.sectionId) ?? "Unknown Section";
+      const sectionParts = sectionLabel.split(" - ");
+
+      return {
+        secretaryUid: appointment.secretaryUid,
+        secretaryLrn: appointment.secretaryLrn,
+        secretaryName: profile?.displayName ?? `Secretary ${appointment.secretaryLrn}`,
+        sectionId: appointment.sectionId,
+        sectionName: sectionParts.slice(1).join(" - ") || sectionLabel,
+        gradeLevel: sectionParts[0] ?? "",
+        subject: appointment.subject,
+        schoolYear: appointment.schoolYear,
+        appointedAt: appointment.appointedAt,
+      } satisfies SecretaryCardItem;
+    })
+    .filter((card) => {
+      if (!searchQuery.trim()) return true;
+      const normalizedSearch = searchQuery.toLowerCase();
+      const sectionLabel = sectionLabelById.get(card.sectionId) ?? "";
+
+      return (
+        card.secretaryName.toLowerCase().includes(normalizedSearch) ||
+        card.secretaryLrn.toLowerCase().includes(normalizedSearch) ||
+        card.subject.toLowerCase().includes(normalizedSearch) ||
+        sectionLabel.toLowerCase().includes(normalizedSearch)
+      );
+    })
+    .sort((a, b) => getSortableTime(b.appointedAt) - getSortableTime(a.appointedAt));
 
   const filteredSessions = attendanceSessions.filter((session) => {
     if (!searchQuery.trim()) return true;
@@ -221,15 +305,26 @@ function SecretariesContent() {
       return;
     }
 
-    const secretaryStillVisible = groupedRecords.some((group) => group.secretaryUid === selectedSecretaryUid);
+    const secretaryStillVisible = secretaryCards.some((card) => card.secretaryUid === selectedSecretaryUid);
     if (!secretaryStillVisible) {
       setSelectedSecretaryUid(null);
       setSelectedSessionId(null);
     }
-  }, [groupedRecords, selectedSecretaryUid]);
+  }, [secretaryCards, selectedSecretaryUid]);
 
   const selectedSecretaryGroup = selectedSecretaryUid
-    ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ?? null
+    ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ??
+      (() => {
+        const appointment = activeAppointmentBySecretary.get(selectedSecretaryUid);
+        if (!appointment) return null;
+        return {
+          secretaryUid: appointment.secretaryUid,
+          secretaryLrn: appointment.secretaryLrn,
+          secretaryName:
+            secretaryProfiles.get(appointment.secretaryUid)?.displayName ?? `Secretary ${appointment.secretaryLrn}`,
+          sessions: [],
+        } satisfies SecretaryGroupedRecords;
+      })()
     : null;
   const selectedSession = selectedSecretaryGroup?.sessions.find((session) => session.id === selectedSessionId) ?? null;
 
@@ -388,10 +483,10 @@ function SecretariesContent() {
               Failed to load attendance records. Please refresh and try again.
             </p>
           </div>
-        ) : groupedRecords.length === 0 ? (
+        ) : secretaryCards.length === 0 ? (
           <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
             <p style={{ color: "#9CA3AF" }}>
-              No attendance records found for this teacher yet.
+              No active secretaries found for this teacher yet.
             </p>
           </div>
         ) : selectedSecretaryGroup ? (
@@ -437,8 +532,13 @@ function SecretariesContent() {
                 </div>
               </div>
 
-              <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
-                {selectedSecretaryGroup.sessions.map((session) => {
+              {selectedSecretaryGroup.sessions.length === 0 ? (
+                <div className="px-5 py-8 text-sm text-center" style={{ color: "#94A3B8" }}>
+                  No attendance sessions submitted by this secretary yet.
+                </div>
+              ) : (
+                <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
+                  {selectedSecretaryGroup.sessions.map((session) => {
                   const isEditingEnabled = Boolean(editableSessionIds[session.id]);
 
                   return (
@@ -535,32 +635,28 @@ function SecretariesContent() {
                     </button>
                   );
                 })}
-              </div>
+                </div>
+              )}
             </motion.div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {groupedRecords.map((group, groupIndex) => {
-              const latestSession = group.sessions[0];
-              const sectionParts = latestSession?.sectionLabel?.split(" - ") ?? [];
-              const latestGradeLevel = sectionParts[0] ?? "";
-              const latestSectionName = sectionParts.slice(1).join(" - ") || latestSession?.sectionLabel || "Unknown";
-
+            {secretaryCards.map((card, groupIndex) => {
               return (
                 <SecretaryCard
-                  key={group.secretaryUid}
-                  secretaryUid={group.secretaryUid}
-                  secretaryLrn={group.secretaryLrn}
-                  secretaryName={group.secretaryName}
+                  key={card.secretaryUid}
+                  secretaryUid={card.secretaryUid}
+                  secretaryLrn={card.secretaryLrn}
+                  secretaryName={card.secretaryName}
                   secretaryEmail=""
-                  sectionId={latestSession?.sectionId ?? ""}
-                  sectionName={latestSectionName}
-                  gradeLevel={latestGradeLevel}
-                  subject={latestSession?.subject ?? "N/A"}
-                  schoolYear={latestSession?.schoolYear ?? "N/A"}
+                  sectionId={card.sectionId}
+                  sectionName={card.sectionName}
+                  gradeLevel={card.gradeLevel}
+                  subject={card.subject}
+                  schoolYear={card.schoolYear}
                   status="active"
-                  appointedAt={latestSession?.createdAt ?? latestSession?.date ?? new Date().toISOString()}
-                  onViewRecords={() => setSelectedSecretaryUid(group.secretaryUid)}
+                  appointedAt={card.appointedAt}
+                  onViewRecords={() => setSelectedSecretaryUid(card.secretaryUid)}
                   index={groupIndex}
                   viewRecordsOnly={true}
                 />
