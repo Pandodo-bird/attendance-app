@@ -3,12 +3,14 @@
 import { StudentSummary } from "@/lib/firestore";
 import { motion } from "framer-motion";
 import {
+  BarController,
   BarElement,
   CategoryScale,
   Chart as ChartJS,
   ChartData,
   ChartOptions,
   Legend,
+  LineController,
   LineElement,
   LinearScale,
   PointElement,
@@ -19,6 +21,8 @@ import {
 import { Chart } from "react-chartjs-2";
 
 ChartJS.register(
+  BarController,
+  LineController,
   CategoryScale,
   LinearScale,
   BarElement,
