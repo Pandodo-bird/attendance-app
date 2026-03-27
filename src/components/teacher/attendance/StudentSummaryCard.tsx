@@ -38,18 +38,18 @@ export default function StudentSummaryCard({
     // Compact table row style
     return (
       <motion.div
-        className="grid grid-cols-12 gap-4 items-center py-3 px-4 border-b last:border-0"
-        style={{ borderColor: "#F3F4F6" }}
+        className="grid grid-cols-12 gap-3 items-center py-2.5 px-4 border-b last:border-0"
+        style={{ borderColor: "#E2E8F0" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: index * 0.03 }}
       >
         {/* Name */}
         <div className="col-span-3">
-          <div className="font-medium text-sm truncate" style={{ color: "#1F1F1F" }}>
+          <div className="font-medium text-sm truncate" style={{ color: "#0F172A" }}>
             {studentName}
           </div>
-          <div className="text-xs font-medium mt-0.5" style={{ color: "#64748B" }}>
+          <div className="text-[11px] font-medium mt-0.5" style={{ color: "#64748B" }}>
             LRN: {lrn}
           </div>
         </div>
@@ -57,10 +57,10 @@ export default function StudentSummaryCard({
         {/* Attendance Rate */}
         <div className="col-span-2 text-center">
           <span
-            className="px-2 py-1 rounded text-xs font-medium"
+            className="px-2 py-1 rounded-md text-[11px] font-semibold"
             style={{
-              backgroundColor: isPerfect ? "#D1FAE5" : isAtRisk ? "#FEE2E2" : attendanceRate >= 90 ? "#D1FAE5" : attendanceRate >= 75 ? "#FEF3C7" : "#FEE2E2",
-              color: isPerfect ? "#059669" : isAtRisk ? "#DC2626" : attendanceRate >= 90 ? "#059669" : attendanceRate >= 75 ? "#D97706" : "#DC2626",
+              backgroundColor: isPerfect ? "#DCFCE7" : isAtRisk ? "#FEE2E2" : attendanceRate >= 90 ? "#DCFCE7" : attendanceRate >= 75 ? "#FEF3C7" : "#FEE2E2",
+              color: isPerfect ? "#166534" : isAtRisk ? "#991B1B" : attendanceRate >= 90 ? "#166534" : attendanceRate >= 75 ? "#92400E" : "#991B1B",
             }}
           >
             {attendanceRate}%
@@ -69,28 +69,28 @@ export default function StudentSummaryCard({
 
         {/* Present */}
         <div className="col-span-2 text-center">
-          <div className="text-sm font-semibold" style={{ color: "#16A34A" }}>
+          <div className="text-sm font-semibold" style={{ color: "#166534" }}>
             {present}
           </div>
         </div>
 
         {/* Late */}
         <div className="col-span-2 text-center">
-          <div className="text-sm font-semibold" style={{ color: "#CA8A04" }}>
+          <div className="text-sm font-semibold" style={{ color: "#92400E" }}>
             {late}
           </div>
         </div>
 
         {/* Absent */}
         <div className="col-span-2 text-center">
-          <div className="text-sm font-semibold" style={{ color: "#DC2626" }}>
+          <div className="text-sm font-semibold" style={{ color: "#991B1B" }}>
             {absent}
           </div>
         </div>
 
         {/* Excused */}
         <div className="col-span-1 text-center">
-          <div className="text-sm font-semibold" style={{ color: "#2563EB" }}>
+          <div className="text-sm font-semibold" style={{ color: "#1D4ED8" }}>
             {excused}
           </div>
         </div>
@@ -101,22 +101,22 @@ export default function StudentSummaryCard({
   // Card style (original but simplified)
   return (
     <motion.div
-      className="rounded-xl p-4 border"
-      style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+      className="rounded-xl p-3.5 border"
+      style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
       whileHover={{
-        borderColor: "#D1D5DB",
-        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        borderColor: "#CBD5E1",
+        boxShadow: "0 8px 20px rgba(15,23,42,0.06)",
       }}
     >
       {/* Header */}
       <div className="mb-3">
-        <h3 className="font-semibold text-sm truncate" style={{ color: "#1F1F1F" }}>
+        <h3 className="font-semibold text-sm truncate" style={{ color: "#0F172A" }}>
           {studentName}
         </h3>
-        <p className="text-xs font-medium mt-0.5" style={{ color: "#64748B" }}>
+        <p className="text-[11px] font-medium mt-0.5" style={{ color: "#64748B" }}>
           LRN: {lrn}
         </p>
       </div>
@@ -124,7 +124,7 @@ export default function StudentSummaryCard({
       {/* Stats Grid - Simplified */}
       <div className="grid grid-cols-5 gap-2">
         <div className="text-center">
-          <div className="text-lg font-bold" style={{ color: "#16A34A" }}>
+          <div className="text-lg font-semibold" style={{ color: "#166534" }}>
             {present}
           </div>
           <div className="text-[10px] uppercase tracking-tight" style={{ color: "#6B7280" }}>
@@ -132,7 +132,7 @@ export default function StudentSummaryCard({
           </div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold" style={{ color: "#CA8A04" }}>
+          <div className="text-lg font-semibold" style={{ color: "#92400E" }}>
             {late}
           </div>
           <div className="text-[10px] uppercase tracking-tight" style={{ color: "#6B7280" }}>
@@ -140,7 +140,7 @@ export default function StudentSummaryCard({
           </div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold" style={{ color: "#DC2626" }}>
+          <div className="text-lg font-semibold" style={{ color: "#991B1B" }}>
             {absent}
           </div>
           <div className="text-[10px] uppercase tracking-tight" style={{ color: "#6B7280" }}>
@@ -148,7 +148,7 @@ export default function StudentSummaryCard({
           </div>
         </div>
         <div className="text-center">
-          <div className="text-lg font-bold" style={{ color: "#2563EB" }}>
+          <div className="text-lg font-semibold" style={{ color: "#1D4ED8" }}>
             {excused}
           </div>
           <div className="text-[10px] uppercase tracking-tight" style={{ color: "#6B7280" }}>
@@ -157,8 +157,8 @@ export default function StudentSummaryCard({
         </div>
         <div className="text-center">
           <div
-            className="text-lg font-bold"
-            style={{ color: isPerfect ? "#059669" : isAtRisk ? "#DC2626" : "#6C5CE7" }}
+            className="text-lg font-semibold"
+            style={{ color: isPerfect ? "#166534" : isAtRisk ? "#991B1B" : "#1E3A5F" }}
           >
             {attendanceRate}%
           </div>

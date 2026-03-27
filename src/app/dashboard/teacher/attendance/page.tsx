@@ -226,19 +226,19 @@ function AttendanceContent() {
           />
 
           {/* Content Canvas */}
-          <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
+          <div className="p-4 lg:p-6 space-y-5 lg:space-y-6">
             <div
               className="rounded-xl border px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
-              style={{ backgroundColor: "#EEF4FF", borderColor: "#D8E5FF" }}
+              style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
             >
-              <p className="text-sm" style={{ color: "#1E3A5F" }}>
+              <p className="text-sm" style={{ color: "#334155" }}>
                 Attendance page is analytics-only. For secretary daily history records, open Secretaries and Records.
               </p>
               <button
                 type="button"
                 onClick={() => router.push("/dashboard/teacher/secretaries")}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors w-fit"
-                style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
+                style={{ backgroundColor: "#334155", color: "#FFFFFF" }}
               >
                 Open Secretaries & Records
               </button>
@@ -247,8 +247,8 @@ function AttendanceContent() {
             {/* Class Analytics Overview */}
             {!effectiveSectionId ? (
               <div
-                className="rounded-xl p-8 border text-center"
-                style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                className="rounded-xl p-6 border text-center"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
               >
                 <p style={{ color: "#9CA3AF" }}>
                   Select a section to view attendance analytics
@@ -256,15 +256,15 @@ function AttendanceContent() {
               </div>
             ) : summariesLoading || summariesFetching ? (
               <div
-                className="rounded-xl p-8 border text-center"
-                style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                className="rounded-xl p-6 border text-center"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
               >
                 <p style={{ color: "#6B7280" }}>Loading section analytics...</p>
               </div>
             ) : summaries.length === 0 ? (
               <div
-                className="rounded-xl p-8 border text-center"
-                style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                className="rounded-xl p-6 border text-center"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
               >
                 <p style={{ color: "#9CA3AF" }}>
                   No attendance records yet. Start taking attendance to see analytics.
@@ -283,18 +283,18 @@ function AttendanceContent() {
                 <MonthlyTrendChart summaries={summaries} />
 
                 {/* Individual Student List */}
-                <div>
+                <div className="rounded-xl border p-4" style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}>
                   {/* Top Bar: Title, View Toggle */}
-                  <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-col gap-3 mb-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <h3 className="font-semibold text-lg" style={{ color: "#1F1F1F" }}>
+                      <h3 className="font-semibold text-[15px]" style={{ color: "#0F172A" }}>
                         Students
                       </h3>
                       <div
                         className="mt-2 rounded-lg border px-3 py-2"
-                        style={{ backgroundColor: "#F1F5FF", borderColor: "#D8E5FF" }}
+                        style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
                       >
-                        <p className="text-sm font-medium leading-relaxed" style={{ color: "#334155" }}>
+                        <p className="text-xs font-medium leading-relaxed" style={{ color: "#475569" }}>
                           Tip: Values in both table and card view show each student&apos;s accumulated attendance totals for the currently selected section and school year.
                         </p>
                       </div>
@@ -303,7 +303,7 @@ function AttendanceContent() {
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <div
                         className="flex items-center gap-2 px-3 py-2 rounded-lg border min-w-0 sm:min-w-[280px]"
-                        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                        style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
                       >
                         <Search size={16} style={{ color: "#9CA3AF", flexShrink: 0 }} />
                         <input
@@ -319,14 +319,14 @@ function AttendanceContent() {
                         />
                       </div>
 
-                      <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: "#EAF2FF" }}>
+                      <div className="flex items-center gap-1 p-1 rounded-lg border" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
                         <button
                           onClick={() => { setViewMode("table"); setCurrentPage(1); }}
                           className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
                           style={{
-                            backgroundColor: viewMode === "table" ? "#F8FBFF" : "transparent",
-                            color: viewMode === "table" ? "#1F1F1F" : "#6B7280",
-                            boxShadow: viewMode === "table" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                            backgroundColor: viewMode === "table" ? "#FFFFFF" : "transparent",
+                            color: viewMode === "table" ? "#0F172A" : "#64748B",
+                            boxShadow: viewMode === "table" ? "0 1px 2px rgba(15,23,42,0.08)" : "none",
                           }}
                         >
                           Table
@@ -335,9 +335,9 @@ function AttendanceContent() {
                           onClick={() => { setViewMode("cards"); setCurrentPage(1); }}
                           className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
                           style={{
-                            backgroundColor: viewMode === "cards" ? "#F8FBFF" : "transparent",
-                            color: viewMode === "cards" ? "#1F1F1F" : "#6B7280",
-                            boxShadow: viewMode === "cards" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                            backgroundColor: viewMode === "cards" ? "#FFFFFF" : "transparent",
+                            color: viewMode === "cards" ? "#0F172A" : "#64748B",
+                            boxShadow: viewMode === "cards" ? "0 1px 2px rgba(15,23,42,0.08)" : "none",
                           }}
                         >
                           Cards
@@ -407,8 +407,8 @@ function AttendanceContent() {
                   {/* Content */}
                   {paginatedStudents.length === 0 ? (
                     <div
-                      className="rounded-xl p-8 border text-center"
-                      style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                      className="rounded-xl p-6 border text-center"
+                      style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
                     >
                       <p style={{ color: "#9CA3AF" }}>
                         No students found matching &quot;{searchInput}&quot;
@@ -418,13 +418,13 @@ function AttendanceContent() {
                     /* Table View */
                     <div
                       className="rounded-xl border overflow-hidden"
-                      style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                      style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
                     >
                       {/* Table Header */}
                       <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b font-medium text-xs uppercase tracking-wider" style={{ 
-                        backgroundColor: "#EEF4FB",
-                        borderColor: "#D7E2EF",
-                        color: "#6B7280"
+                        backgroundColor: "#F8FAFC",
+                        borderColor: "#E2E8F0",
+                        color: "#64748B"
                       }}>
                         <div className="col-span-3">Student</div>
                         <div className="col-span-2 text-center">Attendance (Overall)</div>
@@ -490,7 +490,7 @@ function AttendanceContent() {
                             <motion.div
                               key={student.lrn}
                               className="rounded-xl p-4 border"
-                              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                              style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
                               initial={{ opacity: 0, y: 8 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: index * 0.05, duration: 0.25 }}

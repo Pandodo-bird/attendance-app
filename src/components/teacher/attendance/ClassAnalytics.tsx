@@ -33,184 +33,147 @@ export default function ClassAnalytics({
   };
 
   const todayLabel = formatDateLabel(todayDate);
+  const metricCards = [
+    {
+      key: "students",
+      label: "Total Students",
+      value: analytics.totalStudents.toString(),
+      icon: Users,
+      accent: "#334155",
+      tint: "#E2E8F0",
+    },
+    {
+      key: "attendance",
+      label: "Avg Attendance",
+      value: `${analytics.averageAttendanceRate}%`,
+      icon: TrendingUp,
+      accent:
+        analytics.averageAttendanceRate >= 90
+          ? "#166534"
+          : analytics.averageAttendanceRate >= 75
+            ? "#92400E"
+            : "#991B1B",
+      tint:
+        analytics.averageAttendanceRate >= 90
+          ? "#DCFCE7"
+          : analytics.averageAttendanceRate >= 75
+            ? "#FEF3C7"
+            : "#FEE2E2",
+    },
+    {
+      key: "perfect",
+      label: "Perfect Attendance",
+      value: analytics.perfectAttendance.toString(),
+      icon: Award,
+      accent: "#166534",
+      tint: "#DCFCE7",
+    },
+    {
+      key: "risk",
+      label: "At Risk (<75%)",
+      value: analytics.atRiskStudents.toString(),
+      icon: AlertTriangle,
+      accent: "#991B1B",
+      tint: "#FEE2E2",
+    },
+  ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {/* Total Students */}
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+        {metricCards.map((metric, index) => {
+          const Icon = metric.icon;
+
+          return (
+            <motion.div
+              key={metric.key}
+              className="rounded-xl border px-4 py-3"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04, duration: 0.22, ease: "easeOut" }}
+              whileHover={{
+                borderColor: "#CBD5E1",
+                boxShadow: "0 8px 20px rgba(15,23,42,0.06)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
+                    {metric.label}
+                  </p>
+                  <p className="mt-1 text-3xl font-semibold leading-none" style={{ color: "#0F172A" }}>
+                    {metric.value}
+                  </p>
+                </div>
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: metric.tint }}
+                >
+                  <Icon size={18} color={metric.accent} />
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
       <motion.div
-        className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+        className="rounded-xl border p-4"
+        style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0, duration: 0.25, ease: "easeOut" }}
-        whileHover={{
-          borderColor: "#D1D5DB",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        }}
+        transition={{ delay: 0.2, duration: 0.22, ease: "easeOut" }}
       >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "#6C5CE7" }}
-          >
-            <Users size={24} color="#FFFFFF" />
-          </div>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {analytics.totalStudents}
-            </div>
-            <div className="text-sm" style={{ color: "#6B7280" }}>
-              Total Students
-            </div>
+            <h3 className="font-semibold text-[15px]" style={{ color: "#0F172A" }}>
+              Today&apos;s Summary
+            </h3>
+            <p className="text-xs mt-1" style={{ color: "#64748B" }}>
+              Session totals for selected section
+            </p>
+          </div>
+          <div
+            className="px-3 py-1.5 rounded-lg text-sm font-semibold"
+            style={{ backgroundColor: "#F1F5F9", color: "#1E3A5F" }}
+          >
+            {todayLabel}
           </div>
         </div>
-      </motion.div>
 
-      {/* Average Attendance Rate */}
-      <motion.div
-        className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05, duration: 0.25, ease: "easeOut" }}
-        whileHover={{
-          borderColor: "#D1D5DB",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{
-              backgroundColor:
-                analytics.averageAttendanceRate >= 90
-                  ? "#16A34A"
-                  : analytics.averageAttendanceRate >= 75
-                  ? "#CA8A04"
-                  : "#DC2626",
-            }}
-          >
-            <TrendingUp size={24} color="#FFFFFF" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {analytics.averageAttendanceRate}%
-            </div>
-            <div className="text-sm" style={{ color: "#6B7280" }}>
-              Avg Attendance
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Perfect Attendance */}
-      <motion.div
-        className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.25, ease: "easeOut" }}
-        whileHover={{
-          borderColor: "#D1D5DB",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "#10B981" }}
-          >
-            <Award size={24} color="#FFFFFF" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {analytics.perfectAttendance}
-            </div>
-            <div className="text-sm" style={{ color: "#6B7280" }}>
-              Perfect Attendance
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* At Risk Students */}
-      <motion.div
-        className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15, duration: 0.25, ease: "easeOut" }}
-        whileHover={{
-          borderColor: "#D1D5DB",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: "#EF4444" }}
-          >
-            <AlertTriangle size={24} color="#FFFFFF" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {analytics.atRiskStudents}
-            </div>
-            <div className="text-sm" style={{ color: "#6B7280" }}>
-              At Risk <span className="text-xs" style={{ color: "#9CA3AF" }}>{"(<75%)"}</span>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Summary Stats */}
-      <motion.div
-        className="md:col-span-2 lg:col-span-4 rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.25, ease: "easeOut" }}
-      >
-        <h3 className="font-semibold text-base mb-4" style={{ color: "#1F1F1F" }}>
-          Today&apos;s Summary
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="text-center">
-            <div className="text-3xl font-bold" style={{ color: "#16A34A" }}>
-              {todayStats?.present ?? 0}
-            </div>
-            <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+          <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
               Present
-            </div>
+            </p>
+            <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#166534" }}>
+              {todayStats?.present ?? 0}
+            </p>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold" style={{ color: "#CA8A04" }}>
-              {todayStats?.late ?? 0}
-            </div>
-            <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
+          <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#FFFBEB", borderColor: "#FDE68A" }}>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#92400E" }}>
               Late
-            </div>
+            </p>
+            <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#92400E" }}>
+              {todayStats?.late ?? 0}
+            </p>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold" style={{ color: "#DC2626" }}>
-              {todayStats?.absent ?? 0}
-            </div>
-            <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
+          <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#FEF2F2", borderColor: "#FECACA" }}>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#991B1B" }}>
               Absent
-            </div>
+            </p>
+            <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#991B1B" }}>
+              {todayStats?.absent ?? 0}
+            </p>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold" style={{ color: "#2563EB" }}>
-              {todayStats?.excused ?? 0}
-            </div>
-            <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
+          <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }}>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#1D4ED8" }}>
               Excused
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold" style={{ color: "#1e3a5f" }}>
-              {todayLabel}
-            </div>
+            </p>
+            <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#1D4ED8" }}>
+              {todayStats?.excused ?? 0}
+            </p>
           </div>
         </div>
       </motion.div>

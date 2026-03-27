@@ -85,24 +85,50 @@ export default function RegisterPage() {
 
       <div className="relative min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-5xl grid lg:grid-cols-2 rounded-3xl overflow-hidden border shadow-xl" style={{ borderColor: "#E5E7EB", backgroundColor: "#FFFFFF" }}>
-          <section className="hidden lg:flex flex-col justify-between p-10" style={{ backgroundColor: "#1e3a5f" }}>
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
+          <section
+            className="hidden lg:flex relative overflow-hidden flex-col justify-between p-10"
+            style={{
+              background: "linear-gradient(150deg, #102a43 0%, #1e3a5f 45%, #2f4f74 100%)",
+            }}
+          >
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle at 20% 18%, rgba(125,211,252,0.26) 0%, transparent 36%), radial-gradient(circle at 82% 82%, rgba(191,219,254,0.24) 0%, transparent 40%), linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)",
+                backgroundSize: "auto, auto, 26px 26px, 26px 26px",
+              }}
+            />
+            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-sky-200/20 blur-2xl pointer-events-none" />
+            <div className="absolute bottom-8 -left-8 h-36 w-36 rounded-full bg-blue-100/20 blur-xl pointer-events-none" />
+
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm">
                 <BookOpen size={18} color="#FFFFFF" />
-                <span className="font-headline text-sm font-semibold text-white">EduAttend Pro</span>
+                <span className="font-headline text-sm font-semibold text-white tracking-wide">EduAttend Pro</span>
               </div>
               <h1 className="font-headline mt-8 text-4xl font-bold leading-tight text-white">
-                Create Your
-                <br />
-                Teacher Account
+                School Attendance Management
               </h1>
-              <p className="font-body mt-4 text-sm text-blue-100 max-w-sm">
-                Set up your teacher account to manage sections, appoint secretaries, and track attendance.
+              <p className="font-body mt-4 text-sm max-w-sm text-blue-100/95">
+                Manage attendance records, class lists, and daily logs in one place.
               </p>
+
+              <div className="mt-7 grid grid-cols-2 gap-3 max-w-md">
+                <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
+                  <p className="text-xs font-semibold text-white">Attendance Recording</p>
+                  <p className="mt-1 text-[11px] text-blue-100">Log daily student attendance</p>
+                </div>
+                <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
+                  <p className="text-xs font-semibold text-white">Reports &amp; Analytics</p>
+                  <p className="mt-1 text-[11px] text-blue-100">View attendance summaries and trends</p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs text-blue-100">
-              <span className="px-3 py-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>Teacher Signup</span>
-              <span className="px-3 py-1 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>Secure Access</span>
+
+            <div className="relative z-10 mt-6 flex items-center gap-3 text-xs text-blue-100">
+              <span className="px-3 py-1 rounded-full border border-white/20 bg-white/10">Teacher Access</span>
+              <span className="px-3 py-1 rounded-full border border-white/20 bg-white/10">Secretary Access</span>
             </div>
           </section>
 

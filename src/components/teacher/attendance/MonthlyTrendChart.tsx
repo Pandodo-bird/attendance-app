@@ -48,8 +48,8 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
   if (monthlyData.length === 0) {
     return (
       <div
-        className="rounded-xl p-8 border text-center"
-        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+        className="rounded-xl p-6 border text-center"
+        style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
       >
         <p style={{ color: "#9CA3AF" }}>No attendance data recorded yet</p>
       </div>
@@ -176,91 +176,93 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
 
   return (
     <motion.div
-      className="rounded-xl p-6 border shadow-sm"
-      style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+      className="rounded-xl border p-4 md:p-5"
+      style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25, duration: 0.25, ease: "easeOut" }}
     >
-      <h3 className="font-semibold text-base mb-6" style={{ color: "#1F1F1F" }}>
-        Monthly Attendance Trend
-      </h3>
-
-      <div
-        className="rounded-lg border p-4 mb-6"
-        style={{ backgroundColor: "#EEF4FB", borderColor: "#D7E2EF" }}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div>
-            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
-              Attendance Rate
-            </p>
-            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#1e3a5f" }}>
-              {latestMonthData.attendanceRate.toFixed(1)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
-              Present
-            </p>
-            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#16A34A" }}>
-              {latestMonthData.presentPercent.toFixed(1)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
-              Late
-            </p>
-            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#CA8A04" }}>
-              {latestMonthData.latePercent.toFixed(1)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
-              Absent
-            </p>
-            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#DC2626" }}>
-              {latestMonthData.absentPercent.toFixed(1)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
-              Excused
-            </p>
-            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#2563EB" }}>
-              {latestMonthData.excusedPercent.toFixed(1)}%
-            </p>
-          </div>
-        </div>
-        <p className="text-xs mt-3" style={{ color: "#9CA3AF" }}>
+      <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+        <h3 className="font-semibold text-[15px]" style={{ color: "#0F172A" }}>
+          Monthly Attendance Trend
+        </h3>
+        <p className="text-xs" style={{ color: "#64748B" }}>
           Showing percentages for {latestMonthLabel}
         </p>
       </div>
 
-      <div className="h-80 w-full">
+      <div
+        className="rounded-lg border px-3 py-3 mt-3 mb-4"
+        style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
+      >
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
+              Attendance Rate
+            </p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: "#1E3A5F" }}>
+              {latestMonthData.attendanceRate.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
+              Present
+            </p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: "#166534" }}>
+              {latestMonthData.presentPercent.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
+              Late
+            </p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: "#92400E" }}>
+              {latestMonthData.latePercent.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
+              Absent
+            </p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: "#991B1B" }}>
+              {latestMonthData.absentPercent.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold" style={{ color: "#64748B" }}>
+              Excused
+            </p>
+            <p className="text-xl md:text-2xl font-semibold" style={{ color: "#1D4ED8" }}>
+              {latestMonthData.excusedPercent.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="h-72 md:h-80 w-full">
         <Chart type="bar" data={data} options={options} />
       </div>
 
-      <div className="flex items-center justify-center gap-6 pt-4 border-t" style={{ borderColor: "#F3F4F6" }}>
+      <div className="flex flex-wrap items-center justify-center gap-4 pt-3 mt-3 border-t" style={{ borderColor: "#E2E8F0" }}>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#22c55e" }} />
-          <span className="text-sm" style={{ color: "#6B7280" }}>Present</span>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#22c55e" }} />
+          <span className="text-xs font-medium" style={{ color: "#64748B" }}>Present</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#f59e0b" }} />
-          <span className="text-sm" style={{ color: "#6B7280" }}>Late</span>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#f59e0b" }} />
+          <span className="text-xs font-medium" style={{ color: "#64748B" }}>Late</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#ef4444" }} />
-          <span className="text-sm" style={{ color: "#6B7280" }}>Absent</span>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#ef4444" }} />
+          <span className="text-xs font-medium" style={{ color: "#64748B" }}>Absent</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#60a5fa" }} />
-          <span className="text-sm" style={{ color: "#6B7280" }}>Excused</span>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#60a5fa" }} />
+          <span className="text-xs font-medium" style={{ color: "#64748B" }}>Excused</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded" style={{ backgroundColor: "#1e3a5f" }} />
-          <span className="text-sm" style={{ color: "#6B7280" }}>Attendance Rate</span>
+          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#1e3a5f" }} />
+          <span className="text-xs font-medium" style={{ color: "#64748B" }}>Attendance Rate</span>
         </div>
       </div>
     </motion.div>
