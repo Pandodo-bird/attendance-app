@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, KeyRound, Mail } from "lucide-react";
 
@@ -130,6 +131,13 @@ export default function LoginPage() {
                 {loading ? "Signing in..." : "Sign In"}
               </button>
             </form>
+
+            <p className="mt-6 text-sm text-center" style={{ color: "#6B7280" }}>
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="font-semibold" style={{ color: "#1e3a5f" }}>
+                Go to Register
+              </Link>
+            </p>
           </section>
         </div>
       </div>
