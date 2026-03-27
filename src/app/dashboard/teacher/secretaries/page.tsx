@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, Info, Lock, Pencil, ShieldCheck, UserPlus, UserRound } from "lucide-react";
+import { ArrowLeft, ShieldCheck, UserPlus } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
+import { DailyRecordDetailsModal } from "@/components/teacher/secretary-records";
 import { ActiveSecretariesCounter, SecretaryCard, SecretaryCreationForm } from "@/components/teacher/secretaries";
 import { useAuth } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import {
   Attendance,
-  AttendanceRecord,
   AttendanceStatus,
   calculateAttendanceStats,
   getTeacherAppointments,
@@ -82,33 +82,6 @@ function formatDate(dateString: string): string {
   });
 }
 
-function formatDateTime(value?: Date | { toDate?: () => Date } | null): string {
-  if (!value) return "Time unavailable";
-
-  const parsedDate = value instanceof Date
-    ? value
-    : typeof value === "object" && "toDate" in value && typeof value.toDate === "function"
-      ? value.toDate()
-      : null;
-
-  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
-    return "Time unavailable";
-  }
-
-  return parsedDate.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function getDayBadge(date: string, today: string): string {
-  if (date === today) return "Today";
-  return "Recorded";
-}
-
 function getStatusStyles(status: AttendanceStatus): { backgroundColor: string; color: string } {
   switch (status) {
     case "present":
@@ -141,6 +114,7 @@ function SecretariesContent() {
   const [editableSessionIds, setEditableSessionIds] = useState<Record<string, boolean>>({});
   const [pendingOverride, setPendingOverride] = useState<PendingOverride | null>(null);
   const [selectedSecretaryUid, setSelectedSecretaryUid] = useState<string | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
 
@@ -262,18 +236,21 @@ function SecretariesContent() {
 
   useEffect(() => {
     if (!selectedSecretaryUid) {
+      setSelectedSessionId(null);
       return;
     }
 
     const secretaryStillVisible = groupedRecords.some((group) => group.secretaryUid === selectedSecretaryUid);
     if (!secretaryStillVisible) {
       setSelectedSecretaryUid(null);
+      setSelectedSessionId(null);
     }
   }, [groupedRecords, selectedSecretaryUid]);
 
   const selectedSecretaryGroup = selectedSecretaryUid
     ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ?? null
     : null;
+  const selectedSession = selectedSecretaryGroup?.sessions.find((session) => session.id === selectedSessionId) ?? null;
 
   const teacherStats = [
     {
@@ -440,7 +417,10 @@ function SecretariesContent() {
           <div className="space-y-4">
             <button
               type="button"
-              onClick={() => setSelectedSecretaryUid(null)}
+              onClick={() => {
+                setSelectedSecretaryUid(null);
+                setSelectedSessionId(null);
+              }}
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", color: "#1E3A5F" }}
             >
@@ -478,62 +458,58 @@ function SecretariesContent() {
 
               <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
                 {selectedSecretaryGroup.sessions.map((session) => {
-                  const studentEntries = Object.entries(session.records ?? {}).sort((a, b) =>
-                    a[1].studentName.localeCompare(b[1].studentName)
-                  );
                   const isEditingEnabled = Boolean(editableSessionIds[session.id]);
 
                   return (
-                    <details key={session.id} className="group" open={session.date === today}>
-                      <summary
-                        className="list-none cursor-pointer px-5 py-4 flex flex-col gap-4"
-                        style={{ backgroundColor: session.date === today ? "#FCFDFE" : "#FFFFFF" }}
-                      >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
-                                style={{
-                                  backgroundColor: session.date === today ? "#DBEAFE" : "#E2E8F0",
-                                  color: session.date === today ? "#1D4ED8" : "#475569",
-                                }}
-                              >
-                                {getDayBadge(session.date, today)}
-                              </span>
-                              <span className="text-sm font-semibold" style={{ color: "#111827" }}>
-                                {formatDate(session.date)}
-                              </span>
-                              <span
-                                className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
-                                style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
-                              >
-                                Subject: {session.subject}
-                              </span>
-                            </div>
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => setSelectedSessionId(session.id)}
+                      className="w-full text-left px-5 py-4 transition-colors"
+                      style={{ backgroundColor: session.date === today ? "#FCFDFE" : "#FFFFFF" }}
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
+                              style={{
+                                backgroundColor: session.date === today ? "#DBEAFE" : "#E2E8F0",
+                                color: session.date === today ? "#1D4ED8" : "#475569",
+                              }}
+                            >
+                              {session.date === today ? "Today" : "Recorded"}
+                            </span>
+                            <span className="text-sm font-semibold" style={{ color: "#111827" }}>
+                              {formatDate(session.date)}
+                            </span>
+                            <span
+                              className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
+                              style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
+                            >
+                              Subject: {session.subject}
+                            </span>
+                            <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ backgroundColor: isEditingEnabled ? "#E0E7FF" : "#F1F5F9", color: isEditingEnabled ? "#1E3A8A" : "#64748B" }}>
+                              {isEditingEnabled ? "Editing Enabled" : "Editing Locked"}
+                            </span>
+                          </div>
 
-                            <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "#64748B" }}>
-                              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
-                                <CalendarDays size={14} />
-                                <span className="font-semibold" style={{ color: "#334155" }}>Section</span>
-                                <span>{session.sectionLabel}</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
-                                <UserRound size={14} />
-                                <span className="font-semibold" style={{ color: "#334155" }}>Recorder</span>
-                                <span>{session.recorderName}</span>
-                              </span>
-                              <span className="rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC", color: "#475569" }}>
-                                Session: <span className="font-semibold uppercase">{session.status}</span>
-                              </span>
-                              <span className="rounded-md px-2 py-1 font-semibold" style={{ backgroundColor: isEditingEnabled ? "#E0E7FF" : "#F1F5F9", color: isEditingEnabled ? "#1E3A8A" : "#64748B" }}>
-                                {isEditingEnabled ? "Editing Enabled" : "Editing Locked"}
-                              </span>
-                            </div>
+                          <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "#64748B" }}>
+                            <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
+                              <span className="font-semibold" style={{ color: "#334155" }}>Section</span>
+                              <span>{session.sectionLabel}</span>
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
+                              <span className="font-semibold" style={{ color: "#334155" }}>Recorder</span>
+                              <span>{session.recorderName}</span>
+                            </span>
+                            <span className="rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC", color: "#475569" }}>
+                              Session: <span className="font-semibold uppercase">{session.status}</span>
+                            </span>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                        <div className="flex flex-wrap items-center justify-start lg:justify-end gap-2 text-xs font-semibold lg:max-w-[360px]">
                           <span
                             className="px-2.5 py-1 rounded-full"
                             style={{
@@ -574,137 +550,8 @@ function SecretariesContent() {
                             Total Students: {session.totalStudents}
                           </span>
                         </div>
-                      </summary>
-
-                      <div className="px-5 pb-4">
-                        {studentEntries.length === 0 ? (
-                          <p className="text-xs" style={{ color: "#9CA3AF" }}>
-                            No individual student records saved for this day.
-                          </p>
-                        ) : (
-                          <div className="rounded-xl border overflow-hidden" style={{ borderColor: "#E5E7EB" }}>
-                            <div
-                              className="px-3 py-2.5 border-b flex flex-wrap items-center justify-between gap-2"
-                              style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
-                            >
-                              <p className="text-xs font-semibold" style={{ color: "#334155" }}>
-                                Student Records ({studentEntries.length})
-                              </p>
-                              <button
-                                type="button"
-                                onClick={(event) => {
-                                  event.preventDefault();
-                                  event.stopPropagation();
-                                  toggleSessionEditing(session.id);
-                                }}
-                                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors w-fit"
-                                style={{
-                                  backgroundColor: isEditingEnabled ? "#1E3A5F" : "#EEF2FF",
-                                  border: `1px solid ${isEditingEnabled ? "#1E3A5F" : "#C7D2FE"}`,
-                                  color: isEditingEnabled ? "#FFFFFF" : "#1E3A8A",
-                                }}
-                                aria-pressed={isEditingEnabled}
-                              >
-                                {isEditingEnabled ? <Lock size={13} /> : <Pencil size={13} />}
-                                {isEditingEnabled ? "Disable Editing" : "Enable Editing"}
-                              </button>
-                            </div>
-                            <div
-                              className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide"
-                              style={{ backgroundColor: "#F8FAFC", color: "#64748B" }}
-                            >
-                              <div className="col-span-12 lg:col-span-6">Student</div>
-                              <div className="col-span-4 lg:col-span-2">Status</div>
-                              <div className="col-span-8 lg:col-span-4">Teacher Override</div>
-                            </div>
-
-                            {studentEntries.map(([lrn, record]) => {
-                              const typedRecord = record as AttendanceRecord;
-                              const recordKey = `${session.id}:${lrn}`;
-                              const isSaving = savingRecordKey === recordKey;
-                              const statusStyles = getStatusStyles(typedRecord.status);
-                              const hasTeacherOverride = Boolean(typedRecord.updatedByTeacherName);
-
-                              return (
-                                <div
-                                  key={lrn}
-                                  className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t"
-                                  style={{ borderColor: "#F1F5F9" }}
-                                >
-                                  <div className="col-span-12 lg:col-span-6">
-                                    <p className="text-sm font-medium leading-5" style={{ color: "#111827" }}>
-                                      {typedRecord.studentName}
-                                    </p>
-                                    <div className="mt-0.5 flex items-center gap-1.5">
-                                      <p className="text-[11px]" style={{ color: "#94A3B8" }}>
-                                        {lrn}
-                                      </p>
-                                      <span
-                                        className="inline-flex items-center"
-                                        title={
-                                          hasTeacherOverride
-                                            ? `Teacher override saved on ${formatDateTime(typedRecord.updatedAt)}`
-                                            : `Original record saved on ${formatDateTime(typedRecord.timeRecorded)}`
-                                        }
-                                        style={{ color: hasTeacherOverride ? "#1E3A8A" : "#94A3B8" }}
-                                      >
-                                        <Info size={12} />
-                                      </span>
-                                    </div>
-                                  </div>
-
-                                  <div className="col-span-4 lg:col-span-2">
-                                    <span
-                                      className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
-                                      style={statusStyles}
-                                    >
-                                      {typedRecord.status}
-                                    </span>
-                                  </div>
-
-                                  <div className="col-span-8 lg:col-span-4 space-y-1">
-                                    <select
-                                      value={typedRecord.status}
-                                      disabled={isSaving || !isEditingEnabled}
-                                      onChange={(event) => {
-                                        const nextStatus = event.target.value as AttendanceStatus;
-                                        if (nextStatus === typedRecord.status) {
-                                          return;
-                                        }
-
-                                        setPendingOverride({
-                                          session,
-                                          lrn,
-                                          studentName: typedRecord.studentName,
-                                          currentStatus: typedRecord.status,
-                                          nextStatus,
-                                        });
-                                      }}
-                                      className="w-full rounded-md px-2.5 py-1.5 text-xs font-semibold outline-none disabled:cursor-not-allowed"
-                                      style={{
-                                        backgroundColor: !isEditingEnabled ? "#F1F5F9" : "#FFFFFF",
-                                        color: !isEditingEnabled ? "#94A3B8" : "#1E293B",
-                                        border: `1px solid ${!isEditingEnabled ? "#E2E8F0" : "#94A3B8"}`,
-                                      }}
-                                    >
-                                      <option value="present">Present</option>
-                                      <option value="late">Late</option>
-                                      <option value="absent">Absent</option>
-                                      <option value="excused">Excused</option>
-                                    </select>
-                                    {!isEditingEnabled && (
-                                      <p className="text-[10px] font-semibold" style={{ color: "#94A3B8" }}>
-                                        Locked. Enable editing to override.
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
                       </div>
-                    </details>
+                    </button>
                   );
                 })}
               </div>
@@ -741,6 +588,17 @@ function SecretariesContent() {
           </div>
         )}
       </div>
+
+      <DailyRecordDetailsModal
+        isOpen={Boolean(selectedSession)}
+        today={today}
+        session={selectedSession}
+        editableSessionIds={editableSessionIds}
+        savingRecordKey={savingRecordKey}
+        onClose={() => setSelectedSessionId(null)}
+        onToggleSessionEditing={toggleSessionEditing}
+        onSetPendingOverride={(payload) => setPendingOverride(payload)}
+      />
 
       {pendingOverride && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/50 px-4">
