@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { CheckCircle, Clock, XCircle } from "lucide-react";
 
-type AttendanceStatus = "present" | "late" | "absent";
+type AttendanceStatus = "present" | "late" | "absent" | "excused";
 
 interface StudentAttendanceRowProps {
   lrn: string;
@@ -25,11 +25,13 @@ export default function StudentAttendanceRow({
   const getStatusColor = (s: AttendanceStatus) => {
     switch (s) {
       case "present":
-        return { bg: "#D1FAE5", text: "#065F46", border: "#A7F3D0" };
+        return { backgroundColor: "#D1FAE5", color: "#065F46", borderColor: "#A7F3D0" };
       case "late":
-        return { bg: "#FEF3C7", text: "#92400E", border: "#FDE68A" };
+        return { backgroundColor: "#FEF3C7", color: "#92400E", borderColor: "#FDE68A" };
       case "absent":
-        return { bg: "#FEE2E2", text: "#991B1B", border: "#FECACA" };
+        return { backgroundColor: "#FEE2E2", color: "#991B1B", borderColor: "#FECACA" };
+      case "excused":
+        return { backgroundColor: "#DBEAFE", color: "#1E40AF", borderColor: "#93C5FD" };
     }
   };
 
@@ -41,6 +43,8 @@ export default function StudentAttendanceRow({
         return <Clock className="w-4 h-4" />;
       case "absent":
         return <XCircle className="w-4 h-4" />;
+      case "excused":
+        return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -149,7 +153,7 @@ export default function StudentAttendanceRow({
           /* Read-only Status Indicator */
           status && (
             <div
-              className="flex items-center gap-2 px-4 py-2 rounded-lg"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border"
               style={getStatusColor(status)}
             >
               {getStatusIcon(status)}

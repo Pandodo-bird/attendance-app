@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getSecretaryAppointments,
+  getSectionById,
   getSectionStudents,
   startAttendanceSession,
   submitFullAttendance,
@@ -18,7 +19,7 @@ import { BulkAttendanceActions } from "@/components/secretary/attendance";
 import { AttendanceHeader } from "@/components/secretary/attendance";
 import { PopupAlert } from "@/components/ui";
 
-type AttendanceStatus = "present" | "late" | "absent";
+type AttendanceStatus = "present" | "late" | "absent" | "excused";
 
 interface StudentAttendance {
   lrn: string;
@@ -72,6 +73,15 @@ export default function SecretaryAttendancePage() {
   const { data: sectionSlug } = useQuery({
     queryKey: ["sectionSlug", sectionId],
     queryFn: () => getSectionSlug(sectionId!),
+    enabled: !!sectionId,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+
+  // TanStack Query: Fetch section details for display
+  const { data: section } = useQuery({
+    queryKey: ["section", sectionId],
+    queryFn: () => getSectionById(sectionId!),
     enabled: !!sectionId,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
@@ -295,6 +305,9 @@ export default function SecretaryAttendancePage() {
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
   const endIndex = startIndex + STUDENTS_PER_PAGE;
   const paginatedStudents = attendanceRecords.slice(startIndex, endIndex);
+  const sectionDisplayName = section
+    ? `${section.gradeLevel} - ${section.sectionName}`
+    : "Section information unavailable";
 
   // Loading state - only show during initial appointments/students fetch
   // Don't block UI when checking for existing session (that should be cached)
@@ -361,7 +374,7 @@ export default function SecretaryAttendancePage() {
               </h1>
             </div>
             <p className="text-sm" style={{ color: "#6B7280" }}>
-              {selectedAppointment.subject} - {selectedAppointment.sectionId && sectionStudents.length} students
+              {selectedAppointment.subject} • {sectionDisplayName} • {sectionStudents.length} students
             </p>
           </div>
 

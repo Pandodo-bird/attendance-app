@@ -28,7 +28,6 @@ export default function HistoryPage() {
     isFetchingNextPage,
     fetchNextPage,
     error: fetchError,
-    refetch,
   } = useInfiniteQuery({
     queryKey: ["attendanceHistory", user?.uid],
     queryFn: async ({ pageParam }: { pageParam: DocumentSnapshot | null }) => {
@@ -102,20 +101,6 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
-      {/* Debug Panel - Shows pagination state */}
-      <div className="fixed bottom-4 right-4 bg-white border-2 border-blue-500 rounded-lg p-4 shadow-lg z-50 text-xs max-w-xs">
-        <p className="font-bold mb-2 text-blue-600">🧪 Pagination Status</p>
-        <div className="space-y-1">
-          <p>Sessions loaded: <strong className="text-lg">{totalSessions}</strong></p>
-          <p>Has more data: <strong>{hasNextPage ? "✅ Yes" : "❌ No"}</strong></p>
-          <p>Loading more: <strong>{isFetchingNextPage ? "⏳ Yes" : "❌ No"}</strong></p>
-          <p>Is loading: <strong>{isLoading ? "⏳ Yes" : "❌ No"}</strong></p>
-          <p className="text-gray-500 mt-2 pt-2 border-t">
-            💡 Click "Load More Sessions" button to load next 10
-          </p>
-        </div>
-      </div>
-
       {/* Error Alert */}
       {error && (
         <PopupAlert
@@ -347,7 +332,9 @@ function AttendanceSessionCardWithSection({
 
 function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionCardProps) {
   const stats = calculateAttendanceStats(session.records);
-  const attendanceRate = stats.total > 0 ? Math.round((stats.present / stats.total) * 100) : 0;
+  const attendanceRate = stats.total > 0
+    ? Math.round(((stats.present + stats.late + stats.excused) / stats.total) * 100)
+    : 0;
 
   const formattedDate = new Date(session.date).toLocaleDateString("en-US", {
     weekday: "short",
@@ -399,7 +386,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
         </div>
 
         {/* Middle - Stats */}
-        <div className="flex items-center gap-6 mx-6">
+        <div className="flex items-center gap-5 mx-6">
           <div className="text-center">
             <p className="text-2xl font-bold" style={{ color: "#10B981" }}>
               {stats.present}
@@ -422,6 +409,14 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
             </p>
             <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
               Absent
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold" style={{ color: "#2563EB" }}>
+              {stats.excused}
+            </p>
+            <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+              Excused
             </p>
           </div>
           <div className="text-center min-w-[60px]">
@@ -509,7 +504,7 @@ function SessionDetailModal({
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#D1FAE5" }}>
               <p className="text-lg font-bold" style={{ color: "#065F46" }}>{stats.present}</p>
               <p className="text-xs font-medium" style={{ color: "#047857" }}>Present</p>
@@ -521,6 +516,10 @@ function SessionDetailModal({
             <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FEE2E2" }}>
               <p className="text-lg font-bold" style={{ color: "#991B1B" }}>{stats.absent}</p>
               <p className="text-xs font-medium" style={{ color: "#B91C1C" }}>Absent</p>
+            </div>
+            <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#DBEAFE" }}>
+              <p className="text-lg font-bold" style={{ color: "#1D4ED8" }}>{stats.excused}</p>
+              <p className="text-xs font-medium" style={{ color: "#1E40AF" }}>Excused</p>
             </div>
             <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#E0E7FF" }}>
               <p className="text-lg font-bold" style={{ color: "#3730A3" }}>{stats.total}</p>
@@ -558,12 +557,16 @@ function SessionDetailModal({
                             ? "#D1FAE5"
                             : record.status === "late"
                             ? "#FEF3C7"
+                            : record.status === "excused"
+                            ? "#DBEAFE"
                             : "#FEE2E2",
                         color:
                           record.status === "present"
                             ? "#065F46"
                             : record.status === "late"
                             ? "#92400E"
+                            : record.status === "excused"
+                            ? "#1E40AF"
                             : "#991B1B",
                       }}
                     >

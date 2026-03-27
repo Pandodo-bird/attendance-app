@@ -62,6 +62,11 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
       year: "numeric",
     })
   );
+  const latestMonthData = monthlyData[monthlyData.length - 1];
+  const latestMonthLabel = new Date(`${latestMonthData.month}-01`).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
 
   const data: ChartData<"bar"> = {
     labels,
@@ -181,6 +186,57 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         Monthly Attendance Trend
       </h3>
 
+      <div
+        className="rounded-lg border p-4 mb-6"
+        style={{ backgroundColor: "#FAFAFA", borderColor: "#E5E7EB" }}
+      >
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div>
+            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
+              Attendance Rate
+            </p>
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#1e3a5f" }}>
+              {latestMonthData.attendanceRate.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
+              Present
+            </p>
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#16A34A" }}>
+              {latestMonthData.presentPercent.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
+              Late
+            </p>
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#CA8A04" }}>
+              {latestMonthData.latePercent.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
+              Absent
+            </p>
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#DC2626" }}>
+              {latestMonthData.absentPercent.toFixed(1)}%
+            </p>
+          </div>
+          <div>
+            <p className="text-xs md:text-sm font-medium" style={{ color: "#6B7280" }}>
+              Excused
+            </p>
+            <p className="text-2xl md:text-3xl font-bold" style={{ color: "#2563EB" }}>
+              {latestMonthData.excusedPercent.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+        <p className="text-xs mt-3" style={{ color: "#9CA3AF" }}>
+          Showing percentages for {latestMonthLabel}
+        </p>
+      </div>
+
       <div className="h-80 w-full">
         <Bar data={data} options={options} />
       </div>
@@ -213,9 +269,15 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
 
 function prepareMonthlyData(summaries: StudentSummary[]): MonthlyData[] {
   const monthMap = new Map<string, { present: number; late: number; absent: number; excused: number }>();
+  const overallTotals = { present: 0, late: 0, absent: 0, excused: 0 };
 
   summaries.forEach((summary) => {
     if (!summary) return;
+    overallTotals.present += summary.present ?? 0;
+    overallTotals.late += summary.late ?? 0;
+    overallTotals.absent += summary.absent ?? 0;
+    overallTotals.excused += summary.excused ?? 0;
+
     const monthlyTrend = summary.trend ?? {};
     Object.entries(monthlyTrend).forEach(([month, trend]) => {
       if (!trend) return;
@@ -228,6 +290,52 @@ function prepareMonthlyData(summaries: StudentSummary[]): MonthlyData[] {
       });
     });
   });
+
+  if (monthMap.size === 0) {
+    const hasAnyTotals =
+      overallTotals.present > 0 ||
+      overallTotals.late > 0 ||
+      overallTotals.absent > 0 ||
+      overallTotals.excused > 0;
+
+    if (hasAnyTotals) {
+      const currentMonthKey = new Date().toISOString().slice(0, 7);
+      monthMap.set(currentMonthKey, {
+        present: overallTotals.present,
+        late: overallTotals.late,
+        absent: overallTotals.absent,
+        excused: overallTotals.excused,
+      });
+    }
+  } else {
+    const monthlyTotals = Array.from(monthMap.values()).reduce(
+      (acc, values) => ({
+        present: acc.present + values.present,
+        late: acc.late + values.late,
+        absent: acc.absent + values.absent,
+        excused: acc.excused + values.excused,
+      }),
+      { present: 0, late: 0, absent: 0, excused: 0 }
+    );
+
+    const presentDelta = Math.max(0, overallTotals.present - monthlyTotals.present);
+    const lateDelta = Math.max(0, overallTotals.late - monthlyTotals.late);
+    const absentDelta = Math.max(0, overallTotals.absent - monthlyTotals.absent);
+    const excusedDelta = Math.max(0, overallTotals.excused - monthlyTotals.excused);
+
+    if (presentDelta || lateDelta || absentDelta || excusedDelta) {
+      const latestMonth = Array.from(monthMap.keys()).sort().at(-1);
+      if (latestMonth) {
+        const latest = monthMap.get(latestMonth) ?? { present: 0, late: 0, absent: 0, excused: 0 };
+        monthMap.set(latestMonth, {
+          present: latest.present + presentDelta,
+          late: latest.late + lateDelta,
+          absent: latest.absent + absentDelta,
+          excused: latest.excused + excusedDelta,
+        });
+      }
+    }
+  }
 
   return Array.from(monthMap.entries())
     .map(([month, values]) => {
