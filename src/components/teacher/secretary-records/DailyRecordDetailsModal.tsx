@@ -3,30 +3,7 @@
 import { motion } from "framer-motion";
 import { CalendarDays, Info, Lock, Pencil, UserRound, X } from "lucide-react";
 import { AttendanceRecord, AttendanceStatus } from "@/lib/firestore";
-
-interface SessionWithStats {
-  id: string;
-  date: string;
-  status: "open" | "locked";
-  subject: string;
-  sectionLabel: string;
-  sectionSlug: string;
-  recorderName: string;
-  presentCount: number;
-  lateCount: number;
-  absentCount: number;
-  excusedCount: number;
-  totalStudents: number;
-  records: Record<string, AttendanceRecord>;
-}
-
-interface PendingOverridePayload {
-  session: SessionWithStats;
-  lrn: string;
-  studentName: string;
-  currentStatus: AttendanceStatus;
-  nextStatus: AttendanceStatus;
-}
+import { PendingOverridePayload, SessionWithStats } from "./types";
 
 interface DailyRecordDetailsModalProps {
   isOpen: boolean;

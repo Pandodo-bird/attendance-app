@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck, UserPlus } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
-import { DailyRecordDetailsModal } from "@/components/teacher/secretary-records";
+import { DailyRecordDetailsModal, type PendingOverridePayload, type SessionWithStats } from "@/components/teacher/secretary-records";
 import { ActiveSecretariesCounter, SecretaryCard, SecretaryCreationForm } from "@/components/teacher/secretaries";
 import { useAuth } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/hooks/useRequireRole";
@@ -22,25 +22,6 @@ import {
   UserData,
 } from "@/lib/firestore";
 import { db } from "@/lib/firebase";
-
-interface SessionWithStats extends Attendance {
-  presentCount: number;
-  lateCount: number;
-  absentCount: number;
-  excusedCount: number;
-  totalStudents: number;
-  recorderName: string;
-  sectionLabel: string;
-  sectionSlug: string;
-}
-
-interface PendingOverride {
-  session: SessionWithStats;
-  lrn: string;
-  studentName: string;
-  currentStatus: AttendanceStatus;
-  nextStatus: AttendanceStatus;
-}
 
 interface SecretaryGroupedRecords {
   secretaryUid: string;
@@ -112,7 +93,7 @@ function SecretariesContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingRecordKey, setSavingRecordKey] = useState<string | null>(null);
   const [editableSessionIds, setEditableSessionIds] = useState<Record<string, boolean>>({});
-  const [pendingOverride, setPendingOverride] = useState<PendingOverride | null>(null);
+  const [pendingOverride, setPendingOverride] = useState<PendingOverridePayload | null>(null);
   const [selectedSecretaryUid, setSelectedSecretaryUid] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
