@@ -18,7 +18,7 @@ interface AttendanceSessionCardProps {
 export default function HistoryPage() {
   const { user } = useAuth();
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
 
   // Infinite query for paginated attendance history (10 sessions per page)
   const {
@@ -83,11 +83,14 @@ export default function HistoryPage() {
     return acc + (session.records ? Object.keys(session.records).length : 0);
   }, 0);
 
-  // Show error if fetch fails
+  const fetchErrorMessage = fetchError
+    ? `Failed to load attendance history: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`
+    : null;
+
+  // Show error in console if fetch fails
   useEffect(() => {
     if (fetchError) {
       console.error("❌ FETCH ERROR:", fetchError);
-      setError(`Failed to load attendance history: ${fetchError instanceof Error ? fetchError.message : "Unknown error"}`);
     }
   }, [fetchError]);
 
@@ -102,11 +105,11 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
       {/* Error Alert */}
-      {error && (
+      {fetchErrorMessage && dismissedFetchError !== fetchErrorMessage && (
         <PopupAlert
-          message={error}
+          message={fetchErrorMessage}
           type="error"
-          onClose={() => setError(null)}
+          onClose={() => setDismissedFetchError(fetchErrorMessage)}
         />
       )}
 

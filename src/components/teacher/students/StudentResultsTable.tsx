@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useLayoutEffect } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
@@ -56,24 +56,12 @@ export default function StudentResultsTable({
   onDeleteStudent,
   rowsPerPage = 10,
 }: StudentResultsTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const prevFiltersRef = useRef({ searchQuery, filterSection, filterSex, filterModality });
-
-  // Reset page when filters or search change (using useLayoutEffect to avoid cascading renders)
-  useLayoutEffect(() => {
-    const prevFilters = prevFiltersRef.current;
-    if (
-      prevFilters.searchQuery !== searchQuery ||
-      prevFilters.filterSection !== filterSection ||
-      prevFilters.filterSex !== filterSex ||
-      prevFilters.filterModality !== filterModality
-    ) {
-      prevFiltersRef.current = { searchQuery, filterSection, filterSex, filterModality };
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      }
-    }
-  }, [searchQuery, filterSection, filterSex, filterModality, currentPage]);
+  const paginationKey = useMemo(
+    () => `${searchQuery}__${filterSection}__${filterSex}__${filterModality}`,
+    [searchQuery, filterSection, filterSex, filterModality]
+  );
+  const [pageByFilter, setPageByFilter] = useState<Record<string, number>>({});
+  const activePage = pageByFilter[paginationKey] ?? 1;
 
   // Filter and search students
   const filteredStudents = useMemo(() => {
@@ -108,9 +96,13 @@ export default function StudentResultsTable({
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredStudents.length / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
+  const startIndex = (activePage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
+  const setActivePage = (page: number) => {
+    setPageByFilter((prev) => ({ ...prev, [paginationKey]: page }));
+  };
 
   const getFullName = (student: StudentRow) => {
     const middle = student.middleName ? ` ${student.middleName}` : "";
@@ -335,21 +327,21 @@ export default function StudentResultsTable({
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
+              onClick={() => setActivePage(Math.max(activePage - 1, 1))}
+              disabled={activePage === 1}
               className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: currentPage === 1 ? "#F3F4F6" : "#FFFFFF",
-                color: currentPage === 1 ? "#9CA3AF" : "#374151",
+                backgroundColor: activePage === 1 ? "#F3F4F6" : "#FFFFFF",
+                color: activePage === 1 ? "#9CA3AF" : "#374151",
                 border: "1px solid #E5E7EB",
               }}
               onMouseEnter={(e) => {
-                if (currentPage !== 1) {
+                if (activePage !== 1) {
                   e.currentTarget.style.backgroundColor = "#F9FAFB";
                 }
               }}
               onMouseLeave={(e) => {
-                if (currentPage !== 1) {
+                if (activePage !== 1) {
                   e.currentTarget.style.backgroundColor = "#FFFFFF";
                 }
               }}
@@ -360,20 +352,20 @@ export default function StudentResultsTable({
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                 <button
                   key={page}
-                  onClick={() => setCurrentPage(page)}
+                  onClick={() => setActivePage(page)}
                   className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
                   style={{
-                    backgroundColor: currentPage === page ? "#1e3a5f" : "#FFFFFF",
-                    color: currentPage === page ? "#FFFFFF" : "#374151",
+                    backgroundColor: activePage === page ? "#1e3a5f" : "#FFFFFF",
+                    color: activePage === page ? "#FFFFFF" : "#374151",
                     border: "1px solid #E5E7EB",
                   }}
                   onMouseEnter={(e) => {
-                    if (currentPage !== page) {
+                    if (activePage !== page) {
                       e.currentTarget.style.backgroundColor = "#F9FAFB";
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (currentPage !== page) {
+                    if (activePage !== page) {
                       e.currentTarget.style.backgroundColor = "#FFFFFF";
                     }
                   }}
@@ -383,21 +375,21 @@ export default function StudentResultsTable({
               ))}
             </div>
             <button
-              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
+              onClick={() => setActivePage(Math.min(activePage + 1, totalPages))}
+              disabled={activePage === totalPages}
               className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: currentPage === totalPages ? "#F3F4F6" : "#FFFFFF",
-                color: currentPage === totalPages ? "#9CA3AF" : "#374151",
+                backgroundColor: activePage === totalPages ? "#F3F4F6" : "#FFFFFF",
+                color: activePage === totalPages ? "#9CA3AF" : "#374151",
                 border: "1px solid #E5E7EB",
               }}
               onMouseEnter={(e) => {
-                if (currentPage !== totalPages) {
+                if (activePage !== totalPages) {
                   e.currentTarget.style.backgroundColor = "#F9FAFB";
                 }
               }}
               onMouseLeave={(e) => {
-                if (currentPage !== totalPages) {
+                if (activePage !== totalPages) {
                   e.currentTarget.style.backgroundColor = "#FFFFFF";
                 }
               }}

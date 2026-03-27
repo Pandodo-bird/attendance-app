@@ -49,16 +49,26 @@ interface InputFieldProps {
 }
 
 function InputField({ label, field, type = "text", isEditMode, value, onChange }: InputFieldProps) {
+  const parseStudentDate = (date: Date | Timestamp | string): Date | null => {
+    if (!date) return null;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) return null;
+    return parsedDate;
+  };
+
   const formatDate = (date: Date | Timestamp | string) => {
-    if (!date) return "";
-    const d = new Date(date as any);
-    return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const parsedDate = parseStudentDate(date);
+    if (!parsedDate) return "";
+    return parsedDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   };
 
   const formatDateInput = (date: Date | Timestamp | string) => {
-    if (!date) return "";
-    const d = new Date(date as any);
-    return d.toISOString().split("T")[0];
+    const parsedDate = parseStudentDate(date);
+    if (!parsedDate) return "";
+    return parsedDate.toISOString().split("T")[0];
   };
 
   const isEmpty = !value || (typeof value === "string" && value.trim() === "");

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { RoleGuard } from "@/hooks/useRequireRole";
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -56,35 +56,25 @@ function AttendanceContent() {
     gcTime: 60 * 60 * 1000,
   });
 
-  // Initialize section filter from URL or localStorage when sections are loaded
-  useEffect(() => {
-    // Skip if already selected or sections not loaded
-    if (selectedSectionId || sections.length === 0) return;
+  const resolvedSectionId = useMemo(() => {
+    if (sections.length === 0) return "";
 
     const sectionParam = searchParams?.get("section");
-    if (sectionParam) {
-      // Check if the section from URL is valid
-      const isValidSection = sections.some(s => s.id === sectionParam);
-      if (isValidSection) {
-        setSelectedSectionId(sectionParam);
-        // Save to localStorage for future navigation
-        localStorage.setItem(`attendance_section_${user?.uid}`, sectionParam);
-        return;
-      }
-    } else {
-      // No URL param, try localStorage
-      const savedSection = localStorage.getItem(`attendance_section_${user?.uid}`);
-      if (savedSection) {
-        const isValidSection = sections.some(s => s.id === savedSection);
-        if (isValidSection) {
-          setSelectedSectionId(savedSection);
-          return;
-        }
-      }
+    if (sectionParam && sections.some((section) => section.id === sectionParam)) {
+      return sectionParam;
     }
-    // Fallback to first section
-    setSelectedSectionId(sections[0].id);
-  }, [sections, searchParams, selectedSectionId, user?.uid]);
+
+    const savedSection = localStorage.getItem(`attendance_section_${user?.uid}`);
+    if (savedSection && sections.some((section) => section.id === savedSection)) {
+      return savedSection;
+    }
+
+    return sections[0].id;
+  }, [sections, searchParams, user?.uid]);
+
+  const effectiveSectionId = sections.some((section) => section.id === selectedSectionId)
+    ? selectedSectionId
+    : resolvedSectionId;
 
   // Sync section filter to URL
   const handleSectionChange = (sectionId: string) => {
@@ -103,29 +93,29 @@ function AttendanceContent() {
 
   // Fetch students for selected section
   const { data: students = [] } = useQuery({
-    queryKey: ["sectionStudents", selectedSectionId],
-    queryFn: () => getSectionStudents(selectedSectionId),
-    enabled: !!selectedSectionId,
+    queryKey: ["sectionStudents", effectiveSectionId],
+    queryFn: () => getSectionStudents(effectiveSectionId),
+    enabled: !!effectiveSectionId,
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
   });
 
   // Fetch student summaries for selected section
-  const selectedSection = sections.find((section) => section.id === selectedSectionId);
+  const selectedSection = sections.find((section) => section.id === effectiveSectionId);
   const currentSchoolYear = selectedSection?.schoolYear ?? "2025-2026";
   const {
     data: sectionSummaries = [],
     isLoading: summariesLoading,
     isFetching: summariesFetching,
   } = useQuery({
-    queryKey: ["studentSummaries", selectedSectionId, currentSchoolYear],
-    queryFn: () => getSectionSummariesBySection(selectedSectionId, currentSchoolYear),
-    enabled: !!selectedSectionId,
+    queryKey: ["studentSummaries", effectiveSectionId, currentSchoolYear],
+    queryFn: () => getSectionSummariesBySection(effectiveSectionId, currentSchoolYear),
+    enabled: !!effectiveSectionId,
     staleTime: 30 * 60 * 1000, // 30 minutes - summaries are stable
     gcTime: 60 * 60 * 1000,
     placeholderData: [],
   });
-  const summaries = sectionSummaries.filter((summary) => summary.sectionId === selectedSectionId);
+  const summaries = sectionSummaries.filter((summary) => summary.sectionId === effectiveSectionId);
 
   const todayDate = new Date();
   const todayDateKey = formatLocalDateKey(todayDate);
@@ -140,7 +130,7 @@ function AttendanceContent() {
   });
 
   const todaysSectionSessions = todaysSessions.filter(
-    (session) => session.sectionId === selectedSectionId
+    (session) => session.sectionId === effectiveSectionId
   );
 
   const todaysSummary = todaysSectionSessions.reduce(
@@ -230,7 +220,7 @@ function AttendanceContent() {
             }}
             sectionFilter={{
               sections,
-              selectedSectionId,
+              selectedSectionId: effectiveSectionId,
               onSectionChange: handleSectionChange,
             }}
           />
@@ -255,7 +245,7 @@ function AttendanceContent() {
             </div>
 
             {/* Class Analytics Overview */}
-            {!selectedSectionId ? (
+            {!effectiveSectionId ? (
               <div
                 className="rounded-xl p-8 border text-center"
                 style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}

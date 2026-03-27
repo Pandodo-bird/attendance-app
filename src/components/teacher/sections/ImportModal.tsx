@@ -71,7 +71,7 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
     return -1;
   };
 
-  const parseExcelData = (data: any[][]): StudentData[] => {
+  const parseExcelData = (data: unknown[][]): StudentData[] => {
     if (data.length === 0) return [];
 
     const headers = data[0].map(h => String(h).trim());
@@ -252,7 +252,7 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
           setStudents(parsedStudents);
           setImportSuccess(true);
           showSuccess(`Successfully loaded ${parsedStudents.length} student(s)!`);
-        } catch (err) {
+        } catch {
           showError('Error parsing file. Please check the file format.');
         }
       };
@@ -267,7 +267,7 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
           const data = e.target?.result;
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json<any>(firstSheet, { header: 1 });
+          const jsonData = XLSX.utils.sheet_to_json<unknown[]>(firstSheet, { header: 1 });
 
           const parsedStudents = parseExcelData(jsonData);
 
@@ -279,7 +279,7 @@ export default function ImportModal({ isOpen, onClose, onSave }: ImportModalProp
           setStudents(parsedStudents);
           setImportSuccess(true);
           showSuccess(`Successfully loaded ${parsedStudents.length} student(s)!`);
-        } catch (err) {
+        } catch {
           showError('Error parsing Excel file. Please check the file format.');
         }
       };
