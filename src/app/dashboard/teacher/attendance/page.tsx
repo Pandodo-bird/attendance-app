@@ -11,6 +11,7 @@ import {
   getTeacherSections,
   getSectionStudents,
   getSectionSummariesBySection,
+  getTeacherAttendance,
   StudentSummary,
   calculateClassAnalytics,
 } from "@/lib/firestore";
@@ -36,6 +37,13 @@ function AttendanceContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [studentsPerPage] = useState(15);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+
+  const formatLocalDateKey = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   // Fetch teacher's sections
   const { data: sections = [], isLoading: sectionsLoading } = useQuery({
@@ -108,6 +116,36 @@ function AttendanceContent() {
     staleTime: 30 * 60 * 1000, // 30 minutes - summaries are stable
     gcTime: 60 * 60 * 1000,
   });
+
+  const todayDate = new Date();
+  const todayDateKey = formatLocalDateKey(todayDate);
+
+  // Fetch today's attendance sessions and scope to selected section
+  const { data: todaysSessions = [] } = useQuery({
+    queryKey: ["teacherAttendanceToday", user?.uid, todayDateKey],
+    queryFn: () => getTeacherAttendance(user?.uid || "", todayDateKey),
+    enabled: !!user?.uid,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+
+  const todaysSectionSessions = todaysSessions.filter(
+    (session) => session.sectionId === selectedSectionId
+  );
+
+  const todaysSummary = todaysSectionSessions.reduce(
+    (acc, session) => {
+      const records = session.records ? Object.values(session.records) : [];
+      records.forEach((record) => {
+        if (record.status === "present") acc.present += 1;
+        else if (record.status === "late") acc.late += 1;
+        else if (record.status === "absent") acc.absent += 1;
+        else if (record.status === "excused") acc.excused += 1;
+      });
+      return acc;
+    },
+    { present: 0, late: 0, absent: 0, excused: 0 }
+  );
 
   // Calculate analytics
   const analytics = calculateClassAnalytics(summaries);
@@ -228,7 +266,11 @@ function AttendanceContent() {
             ) : (
               <>
                 {/* Class Overview Stats */}
-                <ClassAnalytics summaries={summaries} todayDate={new Date()} />
+                <ClassAnalytics
+                  summaries={summaries}
+                  todayDate={todayDate}
+                  todayStats={todaysSummary}
+                />
 
                 {/* Monthly Trend Chart */}
                 <MonthlyTrendChart summaries={summaries} />

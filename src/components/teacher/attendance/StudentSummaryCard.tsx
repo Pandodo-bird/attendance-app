@@ -24,13 +24,15 @@ export default function StudentSummaryCard({
   const absent = summary.absent ?? 0;
   const excused = summary.excused ?? 0;
   const totalDays = summary.totalDays ?? 0;
+  const inferredTotalDays = present + late + absent + excused;
+  const effectiveTotalDays = Math.max(totalDays, inferredTotalDays);
 
-  const attendanceRate = totalDays > 0
-    ? Math.round(((present + late + excused) / totalDays) * 100)
+  const attendanceRate = effectiveTotalDays > 0
+    ? Math.round(((present + late + excused) / effectiveTotalDays) * 100)
     : 0;
 
-  const isAtRisk = attendanceRate < 75 && totalDays > 0;
-  const isPerfect = attendanceRate === 100 && totalDays > 0;
+  const isAtRisk = attendanceRate < 75 && effectiveTotalDays > 0;
+  const isPerfect = attendanceRate === 100 && effectiveTotalDays > 0;
 
   if (compact) {
     // Compact table row style

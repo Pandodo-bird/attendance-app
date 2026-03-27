@@ -50,7 +50,7 @@ export default function AttendanceHeader({
               type="date"
               value={selectedDate}
               onChange={(e) => onDateChange(e.target.value)}
-              disabled={hasSessionToday || sessionSubmitted}
+              disabled={isEditing}
               className="pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: "#F9FAFB",

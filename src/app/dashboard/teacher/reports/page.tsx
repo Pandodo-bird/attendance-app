@@ -301,8 +301,11 @@ function ReportsContent() {
         teacherName
       );
 
-      await queryClient.invalidateQueries({ queryKey: ["teacherAttendanceSessions", user.uid] });
-      await queryClient.invalidateQueries({ queryKey: ["studentSummaries"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["teacherAttendanceSessions", user.uid] }),
+        queryClient.invalidateQueries({ queryKey: ["studentSummaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["teacherAttendanceToday", user.uid] }),
+      ]);
       setPendingOverride(null);
     } catch (error) {
       console.error("Error overriding attendance record:", error);

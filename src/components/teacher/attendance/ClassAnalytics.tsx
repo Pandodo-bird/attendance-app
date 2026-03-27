@@ -7,9 +7,19 @@ import { TrendingUp, Users, Award, AlertTriangle } from "lucide-react";
 interface ClassAnalyticsProps {
   summaries: StudentSummary[];
   todayDate?: Date;
+  todayStats?: {
+    present: number;
+    late: number;
+    absent: number;
+    excused: number;
+  };
 }
 
-export default function ClassAnalytics({ summaries, todayDate = new Date() }: ClassAnalyticsProps) {
+export default function ClassAnalytics({
+  summaries,
+  todayDate = new Date(),
+  todayStats,
+}: ClassAnalyticsProps) {
   const analytics = calculateAnalytics(summaries);
 
   // Format date as "March 26 Thu"
@@ -167,7 +177,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#16A34A" }}>
-              {analytics.totalPresent}
+              {todayStats?.present ?? 0}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
               Present
@@ -175,7 +185,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#CA8A04" }}>
-              {analytics.totalLate}
+              {todayStats?.late ?? 0}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
               Late
@@ -183,7 +193,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#DC2626" }}>
-              {analytics.totalAbsent}
+              {todayStats?.absent ?? 0}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
               Absent
@@ -191,7 +201,7 @@ export default function ClassAnalytics({ summaries, todayDate = new Date() }: Cl
           </div>
           <div className="text-center">
             <div className="text-3xl font-bold" style={{ color: "#2563EB" }}>
-              {analytics.totalExcused}
+              {todayStats?.excused ?? 0}
             </div>
             <div className="text-sm mt-1" style={{ color: "#6B7280" }}>
               Excused
@@ -239,28 +249,30 @@ function calculateAnalytics(summaries: StudentSummary[]) {
     const absent = summary.absent ?? 0;
     const excused = summary.excused ?? 0;
     const summaryTotalDays = summary.totalDays ?? 0;
+    const inferredTotalDays = present + late + absent + excused;
+    const effectiveTotalDays = Math.max(summaryTotalDays, inferredTotalDays);
 
     totalPresent += present;
     totalLate += late;
     totalAbsent += absent;
     totalExcused += excused;
-    totalDays = Math.max(totalDays, summaryTotalDays);
+    totalDays += effectiveTotalDays;
 
-    const attendanceRate = summaryTotalDays > 0
-      ? ((present + late + excused) / summaryTotalDays) * 100
+    const attendanceRate = effectiveTotalDays > 0
+      ? ((present + late + excused) / effectiveTotalDays) * 100
       : 0;
 
-    if (attendanceRate === 100 && summaryTotalDays > 0) {
+    if (attendanceRate === 100 && effectiveTotalDays > 0) {
       perfectAttendanceCount++;
     }
 
-    if (attendanceRate < 75 && summaryTotalDays > 0) {
+    if (attendanceRate < 75 && effectiveTotalDays > 0) {
       atRiskCount++;
     }
   });
 
-  const averageAttendanceRate = totalDays > 0 && summaries.length > 0
-    ? ((totalPresent + totalLate + totalExcused) / (totalDays * summaries.length)) * 100
+  const averageAttendanceRate = totalDays > 0
+    ? ((totalPresent + totalLate + totalExcused) / totalDays) * 100
     : 0;
 
   return {

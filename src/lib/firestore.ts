@@ -1278,18 +1278,16 @@ export async function submitFullAttendance(
     const summaryId = buildStudentSummaryId(sectionSlug, student.lastName, student.lrn, schoolYear);
     const summaryRef = doc(db, "studentSummaries", summaryId);
     
-    // Use set with merge to upsert
+    // Use atomic increments so totals remain consistent across repeated submissions.
+    const monthlyStatusPath = `trend.${monthKey}.${student.status}`;
+
     batch.set(summaryRef, {
       lrn: student.lrn,
       sectionId: appointment.sectionId,
       schoolYear,
-      totalDays: 1,
-      [student.status]: 1,
-      trend: {
-        [monthKey]: {
-          [student.status]: 1,
-        },
-      },
+      totalDays: increment(1),
+      [student.status]: increment(1),
+      [monthlyStatusPath]: increment(1),
     }, { merge: true });
   });
 
@@ -1776,27 +1774,30 @@ export function calculateClassAnalytics(
     const late = summary.late ?? 0;
     const absent = summary.absent ?? 0;
     const summaryTotalDays = summary.totalDays ?? 0;
+    const excused = summary.excused ?? 0;
+    const inferredTotalDays = present + late + absent + excused;
+    const effectiveTotalDays = Math.max(summaryTotalDays, inferredTotalDays);
 
     totalPresent += present;
     totalLate += late;
     totalAbsent += absent;
-    totalDays = Math.max(totalDays, summaryTotalDays);
+    totalDays += effectiveTotalDays;
 
-    const attendanceRate = summaryTotalDays > 0
-      ? ((present + late) / summaryTotalDays) * 100
+    const attendanceRate = effectiveTotalDays > 0
+      ? ((present + late + excused) / effectiveTotalDays) * 100
       : 0;
 
-    if (attendanceRate === 100 && summaryTotalDays > 0) {
+    if (attendanceRate === 100 && effectiveTotalDays > 0) {
       perfectAttendanceCount++;
     }
 
-    if (attendanceRate < 75 && summaryTotalDays > 0) {
+    if (attendanceRate < 75 && effectiveTotalDays > 0) {
       atRiskCount++;
     }
   });
 
-  const averageAttendanceRate = totalDays > 0 && summaries.length > 0
-    ? ((totalPresent + totalLate) / (totalDays * summaries.length)) * 100
+  const averageAttendanceRate = totalDays > 0
+    ? ((totalPresent + totalLate) / totalDays) * 100
     : 0;
 
   return {
