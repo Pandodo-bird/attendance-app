@@ -1,40 +1,125 @@
 "use client";
 
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { motion } from "framer-motion";
+import { ArrowLeft, CalendarDays, Info, Lock, Pencil, ShieldCheck, UserPlus, UserRound } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
-import { SecretaryCard, ActiveSecretariesCounter, SecretaryCreationForm } from "@/components/teacher/secretaries";
-import { useState } from "react";
+import { ActiveSecretariesCounter, SecretaryCard, SecretaryCreationForm } from "@/components/teacher/secretaries";
+import { useAuth } from "@/contexts/AuthContext";
+import { RoleGuard } from "@/hooks/useRequireRole";
 import {
+  Attendance,
+  AttendanceRecord,
+  AttendanceStatus,
+  calculateAttendanceStats,
   getTeacherAppointments,
   getTeacherSections,
-  updateAppointmentStatus,
-  deleteAppointment,
-  Section,
   getUserProfilesBatch,
+  overrideAttendanceRecord,
   UserData,
 } from "@/lib/firestore";
-import { RoleGuard } from "@/hooks/useRequireRole";
-import { motion } from "framer-motion";
-import { UserPlus } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { db } from "@/lib/firebase";
 
-// Extended appointment with enriched data
-interface SecretaryAppointment {
-  id: string;
-  appointmentId: string;
+interface SessionWithStats extends Attendance {
+  presentCount: number;
+  lateCount: number;
+  absentCount: number;
+  excusedCount: number;
+  totalStudents: number;
+  recorderName: string;
+  sectionLabel: string;
+  sectionSlug: string;
+}
+
+interface PendingOverride {
+  session: SessionWithStats;
+  lrn: string;
+  studentName: string;
+  currentStatus: AttendanceStatus;
+  nextStatus: AttendanceStatus;
+}
+
+interface SecretaryGroupedRecords {
   secretaryUid: string;
   secretaryLrn: string;
   secretaryName: string;
-  secretaryEmail: string;
-  sectionId: string;
-  sectionName: string;
-  gradeLevel: string;
-  subject: string;
-  schoolYear: string;
-  status: "active" | "removed";
-  appointedAt: Date | string;
-  lastActive?: string;
+  sessions: SessionWithStats[];
+}
+
+async function getTeacherAttendanceSessions(teacherId: string): Promise<Attendance[]> {
+  const attendanceRef = collection(db, "attendance");
+  const q = query(attendanceRef, where("teacherId", "==", teacherId));
+  console.log("🔥 FIRESTORE | [teacher/secretaries/page.tsx] | [getDocs] | [attendance] (teacherId filter)");
+  const snapshot = await getDocs(q);
+
+  const sessions = snapshot.docs.map((attendanceDoc) => ({
+    id: attendanceDoc.id,
+    ...attendanceDoc.data(),
+  } as Attendance));
+
+  sessions.sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date);
+    if (dateCompare !== 0) return dateCompare;
+    return b.id.localeCompare(a.id);
+  });
+
+  return sessions;
+}
+
+function formatDate(dateString: string): string {
+  const parsedDate = new Date(dateString);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function formatDateTime(value?: Date | { toDate?: () => Date } | null): string {
+  if (!value) return "Time unavailable";
+
+  const parsedDate = value instanceof Date
+    ? value
+    : typeof value === "object" && "toDate" in value && typeof value.toDate === "function"
+      ? value.toDate()
+      : null;
+
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+    return "Time unavailable";
+  }
+
+  return parsedDate.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function getDayBadge(date: string, today: string): string {
+  if (date === today) return "Today";
+  return "Recorded";
+}
+
+function getStatusStyles(status: AttendanceStatus): { backgroundColor: string; color: string } {
+  switch (status) {
+    case "present":
+      return { backgroundColor: "#DCFCE7", color: "#166534" };
+    case "late":
+      return { backgroundColor: "#FEF3C7", color: "#92400E" };
+    case "absent":
+      return { backgroundColor: "#FEE2E2", color: "#B91C1C" };
+    case "excused":
+      return { backgroundColor: "#DBEAFE", color: "#1D4ED8" };
+  }
 }
 
 export default function SecretariesPage() {
@@ -51,298 +136,681 @@ function SecretariesContent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-
-  // TanStack Query for appointments (rarely changes - 30 min cache)
-  const { data: appointments = [], isLoading, error } = useQuery({
-    queryKey: ["appointments", user?.uid],
-    queryFn: () => getTeacherAppointments(user?.uid || "", true),
-    enabled: !!user?.uid,
-    staleTime: 30 * 60 * 1000, // 30 minutes - appointments set once per semester
-    gcTime: 60 * 60 * 1000, // 1 hour
-  });
-
-  // TanStack Query for sections (rarely changes - 30 min cache)
-  const { data: sections = [] } = useQuery({
-    queryKey: ["sections", user?.uid],
-    queryFn: () => getTeacherSections(user?.uid || "", true),
-    enabled: !!user?.uid,
-    staleTime: 30 * 60 * 1000, // 30 minutes - sections rarely change
-    gcTime: 60 * 60 * 1000, // 1 hour
-  });
-
-  // Get unique secretary UIDs for profile fetching
-  const uniqueSecretaryUids = [...new Set(appointments.map(apt => apt.secretaryUid))];
-
-  // TanStack Query for secretary profiles (almost never changes - 60 min cache)
-  const { data: userProfilesResponses } = useQuery({
-    queryKey: ["secretaryProfiles", uniqueSecretaryUids],
-    queryFn: async () => {
-      if (uniqueSecretaryUids.length === 0) return new Map<string, UserData>();
-      return await getUserProfilesBatch(uniqueSecretaryUids);
-    },
-    enabled: uniqueSecretaryUids.length > 0,
-    staleTime: 60 * 60 * 1000, // 60 minutes - user profiles almost never change
-    gcTime: 2 * 60 * 60 * 1000, // 2 hours
-  });
-
-  const userProfilesMap = userProfilesResponses || new Map<string, UserData>();
-
-  // Registration modal state
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savingRecordKey, setSavingRecordKey] = useState<string | null>(null);
+  const [editableSessionIds, setEditableSessionIds] = useState<Record<string, boolean>>({});
+  const [pendingOverride, setPendingOverride] = useState<PendingOverride | null>(null);
+  const [selectedSecretaryUid, setSelectedSecretaryUid] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
 
-  // Format Firestore timestamp to readable string
-  const formatLastActive = (timestamp: Date | { toDate: () => Date } | string | null): string => {
-    if (!timestamp) return "Unknown";
+  const today = new Date().toISOString().split("T")[0];
+  const teacherName = user?.displayName?.trim() || "Teacher";
 
-    // Convert to Date object
-    let date: Date;
-
-    if (typeof timestamp === 'string') {
-      date = new Date(timestamp);
-    } else if (typeof timestamp === 'object' && 'toDate' in timestamp && typeof timestamp.toDate === 'function') {
-      date = timestamp.toDate();
-    } else {
-      date = timestamp as Date;
-    }
-
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins} mins ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    if (diffDays < 7) return `${diffDays} days ago`;
-
-    return date.toLocaleDateString();
-  };
-
-  // Build sections map
-  const sectionsMap = new Map<string, Section>();
-  sections.forEach((section) => {
-    sectionsMap.set(section.id, section);
+  const { data: sections = [] } = useQuery({
+    queryKey: ["sections", user?.uid],
+    queryFn: () => getTeacherSections(user?.uid || ""),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 
-  // Enrich appointments with secretary names and section data
-  const secretaries: SecretaryAppointment[] = appointments.map((apt) => {
-    const section = sectionsMap.get(apt.sectionId);
-    const userInfo = userProfilesMap.get(apt.secretaryUid);
-
-    return {
-      id: `${apt.secretaryUid}-${apt.sectionId}-${apt.subject}`,
-      appointmentId: apt.id,
-      secretaryUid: apt.secretaryUid,
-      secretaryLrn: apt.secretaryLrn,
-      secretaryName: userInfo?.displayName || apt.secretaryLrn,
-      secretaryEmail: userInfo?.email || `${apt.secretaryLrn}@app.local`,
-      sectionId: apt.sectionId,
-      sectionName: section?.sectionName || "Unknown Section",
-      gradeLevel: section?.gradeLevel || "",
-      subject: apt.subject,
-      schoolYear: apt.schoolYear,
-      status: apt.status,
-      appointedAt: apt.appointedAt,
-      lastActive: formatLastActive(apt.appointedAt),
-    } as SecretaryAppointment;
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["appointments", user?.uid],
+    queryFn: () => getTeacherAppointments(user?.uid || ""),
+    enabled: !!user?.uid,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 
-  // Filter secretaries based on search query
-  const filteredSecretaries = secretaries.filter(
-    (sec) =>
-      sec.secretaryName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sec.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sec.sectionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sec.gradeLevel.toLowerCase().includes(searchQuery.toLowerCase())
+  const {
+    data: attendanceSessions = [],
+    isLoading: isLoadingAttendance,
+    error: attendanceError,
+  } = useQuery({
+    queryKey: ["teacherAttendanceSessions", user?.uid],
+    queryFn: () => getTeacherAttendanceSessions(user?.uid || ""),
+    enabled: !!user?.uid,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+  });
+
+  const secretaryUids = Array.from(new Set(attendanceSessions.map((session) => session.secretaryUid))).sort();
+  const { data: secretaryProfiles = new Map<string, UserData>() } = useQuery({
+    queryKey: ["secretaryProfiles", user?.uid, secretaryUids],
+    queryFn: () => getUserProfilesBatch(secretaryUids),
+    enabled: !!user?.uid && secretaryUids.length > 0,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+
+  const sectionLabelById = new Map(
+    sections.map((section) => [
+      section.id,
+      `${section.gradeLevel} - ${section.sectionName}`,
+    ])
   );
 
-  // Handle removing a secretary (deactivating appointment)
-  const handleRemoveSecretary = async (appointmentId: string) => {
-    if (!confirm("Are you sure you want to remove this secretary from this subject?")) return;
+  const sectionSlugById = new Map(
+    sections.map((section) => [
+      section.id,
+      `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, "-")}`,
+    ])
+  );
 
-    try {
-      await updateAppointmentStatus(appointmentId, "removed", user?.uid);
-      // Invalidate queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
-    } catch (error) {
-      console.error("Error removing secretary:", error);
-      alert("Failed to remove secretary. Please try again.");
+  const filteredSessions = attendanceSessions.filter((session) => {
+    if (!searchQuery.trim()) return true;
+    const normalizedSearch = searchQuery.toLowerCase();
+    const profile = secretaryProfiles.get(session.secretaryUid);
+    const secretaryName = profile?.displayName ?? "";
+    const sectionLabel = sectionLabelById.get(session.sectionId) ?? "";
+    const appointmentSubject =
+      appointments.find((appointment) => appointment.id === session.appointmentId)?.subject ??
+      session.subject ??
+      "";
+
+    return (
+      secretaryName.toLowerCase().includes(normalizedSearch) ||
+      session.secretaryLrn.toLowerCase().includes(normalizedSearch) ||
+      session.date.toLowerCase().includes(normalizedSearch) ||
+      sectionLabel.toLowerCase().includes(normalizedSearch) ||
+      appointmentSubject.toLowerCase().includes(normalizedSearch)
+    );
+  });
+
+  const groupedBySecretaryMap = new Map<string, SecretaryGroupedRecords>();
+  filteredSessions.forEach((session) => {
+    const recorderName = secretaryProfiles.get(session.secretaryUid)?.displayName ?? `Secretary ${session.secretaryLrn}`;
+    const sectionLabel = sectionLabelById.get(session.sectionId) ?? session.sectionId;
+    const sectionSlug = sectionSlugById.get(session.sectionId) ?? "";
+    const stats = calculateAttendanceStats(session.records);
+    const sessionWithStats: SessionWithStats = {
+      ...session,
+      presentCount: stats.present,
+      lateCount: stats.late,
+      absentCount: stats.absent,
+      excusedCount: stats.excused,
+      totalStudents: stats.total,
+      recorderName,
+      sectionLabel,
+      sectionSlug,
+    };
+
+    const existingGroup = groupedBySecretaryMap.get(session.secretaryUid);
+    if (existingGroup) {
+      existingGroup.sessions.push(sessionWithStats);
+      return;
     }
-  };
 
-  // Handle deleting an appointment permanently
-  const handleDeleteAppointment = async (appointmentId: string) => {
-    if (!confirm("Are you sure you want to permanently delete this appointment? This cannot be undone.")) return;
+    groupedBySecretaryMap.set(session.secretaryUid, {
+      secretaryUid: session.secretaryUid,
+      secretaryLrn: session.secretaryLrn,
+      secretaryName: recorderName,
+      sessions: [sessionWithStats],
+    });
+  });
 
-    try {
-      await deleteAppointment(appointmentId, user?.uid);
-      // Invalidate queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
-    } catch (error) {
-      console.error("Error deleting appointment:", error);
-      alert("Failed to delete appointment. Please try again.");
+  const groupedRecords = Array.from(groupedBySecretaryMap.values()).sort((a, b) => {
+    const aLatestDate = a.sessions[0]?.date ?? "";
+    const bLatestDate = b.sessions[0]?.date ?? "";
+    return bLatestDate.localeCompare(aLatestDate);
+  });
+
+  groupedRecords.forEach((group) => {
+    group.sessions.sort((a, b) => b.date.localeCompare(a.date));
+  });
+
+  useEffect(() => {
+    if (!selectedSecretaryUid) {
+      return;
     }
-  };
 
-  // Handle opening the registration modal
-  const handleOpenRegisterModal = () => {
-    setShowRegisterModal(true);
-    setShouldRefreshAfterClose(false); // Reset refresh flag
-  };
+    const secretaryStillVisible = groupedRecords.some((group) => group.secretaryUid === selectedSecretaryUid);
+    if (!secretaryStillVisible) {
+      setSelectedSecretaryUid(null);
+    }
+  }, [groupedRecords, selectedSecretaryUid]);
 
-  // Handle closing the registration modal (refresh data only if secretary was created)
-  const handleCloseRegisterModal = () => {
-    // Only refresh if a secretary was successfully created
-    if (shouldRefreshAfterClose) {
-      // Invalidate queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
-      queryClient.invalidateQueries({ queryKey: ["secretaryProfiles"] });
+  const selectedSecretaryGroup = selectedSecretaryUid
+    ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ?? null
+    : null;
+
+  const teacherStats = [
+    {
+      label: "ACTIVE SECRETARIES",
+      value: <ActiveSecretariesCounter teacherId={user?.uid || ""} />,
+    },
+    {
+      label: "SESSIONS",
+      value: selectedSecretaryGroup ? selectedSecretaryGroup.sessions.length : filteredSessions.length,
+    },
+    {
+      label: "DAYS RECORDED",
+      value: new Set(
+        (selectedSecretaryGroup ? selectedSecretaryGroup.sessions : filteredSessions).map((session) => session.date)
+      ).size,
+    },
+    {
+      label: "",
+      value: (
+        <button
+          type="button"
+          onClick={() => {
+            setShowRegisterModal(true);
+            setShouldRefreshAfterClose(false);
+          }}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
+          style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
+          onMouseEnter={(event) => {
+            event.currentTarget.style.backgroundColor = "#1A202C";
+          }}
+          onMouseLeave={(event) => {
+            event.currentTarget.style.backgroundColor = "#2D3748";
+          }}
+        >
+          <UserPlus size={18} strokeWidth={2} />
+          <span className="text-sm">Appoint Secretary</span>
+        </button>
+      ),
+    },
+  ];
+
+  const handleCloseRegisterModal = (): void => {
+    if (shouldRefreshAfterClose && user?.uid) {
+      queryClient.invalidateQueries({ queryKey: ["appointments", user.uid] });
+      queryClient.invalidateQueries({ queryKey: ["teacherAttendanceSessions", user.uid] });
+      queryClient.invalidateQueries({ queryKey: ["secretaryProfiles", user.uid] });
       setShouldRefreshAfterClose(false);
     }
     setShowRegisterModal(false);
   };
 
-  // Handle viewing records (placeholder - to be implemented)
-  const handleViewRecords = (appointmentId: string) => {
-    console.log("View records for appointment:", appointmentId);
-    // TODO: Navigate to attendance records page
+  const toggleSessionEditing = (sessionId: string): void => {
+    setEditableSessionIds((prev) => ({
+      ...prev,
+      [sessionId]: !prev[sessionId],
+    }));
   };
 
-  // Handle restoring a secretary (reactivating appointment)
-  const handleRestoreSecretary = async (appointmentId: string) => {
-    if (!confirm("Are you sure you want to restore this secretary?")) return;
+  const handleOverride = async (): Promise<void> => {
+    if (!user?.uid || !pendingOverride) {
+      return;
+    }
+
+    const { session, lrn, nextStatus } = pendingOverride;
+
+    if (!session.sectionSlug) {
+      setSaveError("Section information is missing for this record.");
+      return;
+    }
+
+    if (!editableSessionIds[session.id]) {
+      setSaveError("Enable editing for this session before changing a record.");
+      return;
+    }
+
+    const recordKey = `${session.id}:${lrn}`;
 
     try {
-      await updateAppointmentStatus(appointmentId, "active", user?.uid);
-      // Invalidate queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
+      setSaveError(null);
+      setSavingRecordKey(recordKey);
+
+      await overrideAttendanceRecord(
+        session.id,
+        session.sectionSlug,
+        lrn,
+        nextStatus,
+        user.uid,
+        teacherName
+      );
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["teacherAttendanceSessions", user.uid] }),
+        queryClient.invalidateQueries({ queryKey: ["studentSummaries"] }),
+        queryClient.invalidateQueries({ queryKey: ["teacherAttendanceToday", user.uid] }),
+      ]);
+      setPendingOverride(null);
     } catch (error) {
-      console.error("Error restoring secretary:", error);
-      alert("Failed to restore secretary. Please try again.");
+      console.error("Error overriding attendance record:", error);
+      setSaveError(error instanceof Error ? error.message : "Failed to override attendance record.");
+    } finally {
+      setSavingRecordKey(null);
     }
   };
 
   return (
     <>
-      {/* Header */}
       <TeacherHeader
-        title="Secretaries"
-        stats={[
-          {
-            label: "ACTIVE SECRETARIES",
-            value: <ActiveSecretariesCounter teacherId={user?.uid || ""} />,
-          },
-          {
-            label: "",
-            value: (
-              <button
-                onClick={handleOpenRegisterModal}
-                className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
-                style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#1A202C";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#2D3748";
-                }}
-              >
-                <UserPlus size={18} strokeWidth={2} />
-                <span className="text-sm">Appoint Secretary</span>
-              </button>
-            ),
-          },
-        ]}
-        searchPlaceholder="Search by name, subject, or section..."
+        title="Secretaries & Records"
+        stats={teacherStats}
+        searchPlaceholder={
+          selectedSecretaryGroup
+            ? "Search records by date, section, or subject..."
+            : "Search secretary by name or LRN..."
+        }
         onSearch={(query) => setSearchQuery(query)}
       />
 
-      {/* Content Canvas */}
-      <motion.div
-        className="p-4 lg:p-8 space-y-6 lg:space-y-8"
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-      >
-            {/* Bento Grid of Secretaries */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-              {error ? (
-                // Error state
-                <div className="col-span-full flex items-center justify-center py-12">
-                  <div className="text-center px-4 max-w-md">
-                    <span
-                      className="material-symbols-outlined text-5xl lg:text-6xl mb-4"
-                      style={{ color: "#EF4444" }}
-                    >
-                      error
-                    </span>
-                    <h3 className="text-xl font-bold mb-2" style={{ color: "#1c1a22" }}>
-                      Unable to Load
-                    </h3>
-                    <p className="text-sm mb-4" style={{ color: "#484553" }}>
-                      {error instanceof Error ? error.message : "Failed to load secretary data. Please refresh the page."}
-                    </p>
-                  </div>
-                </div>
-              ) : isLoading ? (
-                // Loading state
-                <div className="col-span-full flex items-center justify-center py-12">
-                  <div className="flex flex-col items-center gap-4">
-                    <div
-                      className="w-8 h-8 border-4 rounded-full animate-spin"
-                      style={{ borderColor: "#6C5CE7", borderTopColor: "#e7deff" }}
-                    ></div>
-                    <p className="text-sm" style={{ color: "#484553" }}>
-                      Loading appointments...
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {filteredSecretaries.map((secretary, index) => (
-                      <SecretaryCard
-                        key={secretary.appointmentId}
-                        secretaryUid={secretary.secretaryUid}
-                        secretaryLrn={secretary.secretaryLrn}
-                        secretaryName={secretary.secretaryName}
-                        secretaryEmail={secretary.secretaryEmail}
-                        sectionId={secretary.sectionId}
-                        sectionName={secretary.sectionName}
-                        gradeLevel={secretary.gradeLevel}
-                        subject={secretary.subject}
-                        schoolYear={secretary.schoolYear}
-                        status={secretary.status}
-                        appointedAt={secretary.appointedAt}
-                        lastActive={secretary.lastActive}
-                        onViewRecords={() => handleViewRecords(secretary.appointmentId)}
-                        onRemove={() => handleRemoveSecretary(secretary.appointmentId)}
-                        onRestore={() => handleRestoreSecretary(secretary.appointmentId)}
-                        onDelete={() => handleDeleteAppointment(secretary.appointmentId)}
-                        index={index}
-                      />
-                  ))}
-                </>
-              )}
-            </section>
-          </motion.div>
+      <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
+        <div
+          className="rounded-2xl border p-4 lg:p-5"
+          style={{ backgroundColor: "#F8FAFC", borderColor: "#DCE7F3" }}
+        >
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#1E3A5F" }}>
+                Daily secretary-submitted attendance
+              </p>
+              <p className="text-sm" style={{ color: "#475569" }}>
+                Start by selecting a secretary to open their attendance history. Turn on editing for a session before overriding any student entry.
+              </p>
+            </div>
+            <div
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold"
+              style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}
+            >
+              <ShieldCheck size={14} />
+              Teacher override enabled
+            </div>
+          </div>
+          {saveError && (
+            <p className="mt-3 text-sm" style={{ color: "#B91C1C" }}>
+              {saveError}
+            </p>
+          )}
+        </div>
 
-      {/* Registration Modal */}
+        {isLoadingAttendance ? (
+          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
+            <p style={{ color: "#6B7280" }}>Loading attendance records...</p>
+          </div>
+        ) : attendanceError ? (
+          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
+            <p style={{ color: "#DC2626" }}>
+              Failed to load attendance records. Please refresh and try again.
+            </p>
+          </div>
+        ) : groupedRecords.length === 0 ? (
+          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
+            <p style={{ color: "#9CA3AF" }}>
+              No attendance records found for this teacher yet.
+            </p>
+          </div>
+        ) : selectedSecretaryGroup ? (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setSelectedSecretaryUid(null)}
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", color: "#1E3A5F" }}
+            >
+              <ArrowLeft size={16} />
+              Back to Secretaries
+            </button>
+
+            <motion.div
+              key={selectedSecretaryGroup.secretaryUid}
+              className="rounded-2xl border overflow-hidden"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              <div className="px-5 py-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between" style={{ borderColor: "#F1F5F9" }}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-base font-semibold" style={{ color: "#1F2937" }}>
+                    {selectedSecretaryGroup.secretaryName}
+                  </p>
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                    style={{ backgroundColor: "#EEF2FF", color: "#1E3A8A" }}
+                  >
+                    LRN {selectedSecretaryGroup.secretaryLrn}
+                  </span>
+                </div>
+                <div
+                  className="px-3 py-1 rounded-full text-xs font-semibold w-fit"
+                  style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}
+                >
+                  {selectedSecretaryGroup.sessions.length} session{selectedSecretaryGroup.sessions.length > 1 ? "s" : ""}
+                </div>
+              </div>
+
+              <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
+                {selectedSecretaryGroup.sessions.map((session) => {
+                  const studentEntries = Object.entries(session.records ?? {}).sort((a, b) =>
+                    a[1].studentName.localeCompare(b[1].studentName)
+                  );
+                  const isEditingEnabled = Boolean(editableSessionIds[session.id]);
+
+                  return (
+                    <details key={session.id} className="group" open={session.date === today}>
+                      <summary
+                        className="list-none cursor-pointer px-5 py-4 flex flex-col gap-4"
+                        style={{ backgroundColor: session.date === today ? "#FCFDFE" : "#FFFFFF" }}
+                      >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
+                                style={{
+                                  backgroundColor: session.date === today ? "#DBEAFE" : "#E2E8F0",
+                                  color: session.date === today ? "#1D4ED8" : "#475569",
+                                }}
+                              >
+                                {getDayBadge(session.date, today)}
+                              </span>
+                              <span className="text-sm font-semibold" style={{ color: "#111827" }}>
+                                {formatDate(session.date)}
+                              </span>
+                              <span
+                                className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
+                                style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
+                              >
+                                Subject: {session.subject}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "#64748B" }}>
+                              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
+                                <CalendarDays size={14} />
+                                <span className="font-semibold" style={{ color: "#334155" }}>Section</span>
+                                <span>{session.sectionLabel}</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
+                                <UserRound size={14} />
+                                <span className="font-semibold" style={{ color: "#334155" }}>Recorder</span>
+                                <span>{session.recorderName}</span>
+                              </span>
+                              <span className="rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC", color: "#475569" }}>
+                                Session: <span className="font-semibold uppercase">{session.status}</span>
+                              </span>
+                              <span className="rounded-md px-2 py-1 font-semibold" style={{ backgroundColor: isEditingEnabled ? "#E0E7FF" : "#F1F5F9", color: isEditingEnabled ? "#1E3A8A" : "#64748B" }}>
+                                {isEditingEnabled ? "Editing Enabled" : "Editing Locked"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.presentCount === 0 ? "#F1F5F9" : "#DCFCE7",
+                              color: session.presentCount === 0 ? "#94A3B8" : "#166534",
+                            }}
+                          >
+                            Present: {session.presentCount}
+                          </span>
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.lateCount === 0 ? "#F1F5F9" : "#FEF3C7",
+                              color: session.lateCount === 0 ? "#94A3B8" : "#92400E",
+                            }}
+                          >
+                            Late: {session.lateCount}
+                          </span>
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.absentCount === 0 ? "#F1F5F9" : "#FEE2E2",
+                              color: session.absentCount === 0 ? "#94A3B8" : "#B91C1C",
+                            }}
+                          >
+                            Absent: {session.absentCount}
+                          </span>
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.excusedCount === 0 ? "#F1F5F9" : "#DBEAFE",
+                              color: session.excusedCount === 0 ? "#94A3B8" : "#1D4ED8",
+                            }}
+                          >
+                            Excused: {session.excusedCount}
+                          </span>
+                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: "#E2E8F0", color: "#334155" }}>
+                            Total Students: {session.totalStudents}
+                          </span>
+                        </div>
+                      </summary>
+
+                      <div className="px-5 pb-4">
+                        {studentEntries.length === 0 ? (
+                          <p className="text-xs" style={{ color: "#9CA3AF" }}>
+                            No individual student records saved for this day.
+                          </p>
+                        ) : (
+                          <div className="rounded-xl border overflow-hidden" style={{ borderColor: "#E5E7EB" }}>
+                            <div
+                              className="px-3 py-2.5 border-b flex flex-wrap items-center justify-between gap-2"
+                              style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
+                            >
+                              <p className="text-xs font-semibold" style={{ color: "#334155" }}>
+                                Student Records ({studentEntries.length})
+                              </p>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  toggleSessionEditing(session.id);
+                                }}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors w-fit"
+                                style={{
+                                  backgroundColor: isEditingEnabled ? "#1E3A5F" : "#EEF2FF",
+                                  border: `1px solid ${isEditingEnabled ? "#1E3A5F" : "#C7D2FE"}`,
+                                  color: isEditingEnabled ? "#FFFFFF" : "#1E3A8A",
+                                }}
+                                aria-pressed={isEditingEnabled}
+                              >
+                                {isEditingEnabled ? <Lock size={13} /> : <Pencil size={13} />}
+                                {isEditingEnabled ? "Disable Editing" : "Enable Editing"}
+                              </button>
+                            </div>
+                            <div
+                              className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide"
+                              style={{ backgroundColor: "#F8FAFC", color: "#64748B" }}
+                            >
+                              <div className="col-span-12 lg:col-span-6">Student</div>
+                              <div className="col-span-4 lg:col-span-2">Status</div>
+                              <div className="col-span-8 lg:col-span-4">Teacher Override</div>
+                            </div>
+
+                            {studentEntries.map(([lrn, record]) => {
+                              const typedRecord = record as AttendanceRecord;
+                              const recordKey = `${session.id}:${lrn}`;
+                              const isSaving = savingRecordKey === recordKey;
+                              const statusStyles = getStatusStyles(typedRecord.status);
+                              const hasTeacherOverride = Boolean(typedRecord.updatedByTeacherName);
+
+                              return (
+                                <div
+                                  key={lrn}
+                                  className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t"
+                                  style={{ borderColor: "#F1F5F9" }}
+                                >
+                                  <div className="col-span-12 lg:col-span-6">
+                                    <p className="text-sm font-medium leading-5" style={{ color: "#111827" }}>
+                                      {typedRecord.studentName}
+                                    </p>
+                                    <div className="mt-0.5 flex items-center gap-1.5">
+                                      <p className="text-[11px]" style={{ color: "#94A3B8" }}>
+                                        {lrn}
+                                      </p>
+                                      <span
+                                        className="inline-flex items-center"
+                                        title={
+                                          hasTeacherOverride
+                                            ? `Teacher override saved on ${formatDateTime(typedRecord.updatedAt)}`
+                                            : `Original record saved on ${formatDateTime(typedRecord.timeRecorded)}`
+                                        }
+                                        style={{ color: hasTeacherOverride ? "#1E3A8A" : "#94A3B8" }}
+                                      >
+                                        <Info size={12} />
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="col-span-4 lg:col-span-2">
+                                    <span
+                                      className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
+                                      style={statusStyles}
+                                    >
+                                      {typedRecord.status}
+                                    </span>
+                                  </div>
+
+                                  <div className="col-span-8 lg:col-span-4 space-y-1">
+                                    <select
+                                      value={typedRecord.status}
+                                      disabled={isSaving || !isEditingEnabled}
+                                      onChange={(event) => {
+                                        const nextStatus = event.target.value as AttendanceStatus;
+                                        if (nextStatus === typedRecord.status) {
+                                          return;
+                                        }
+
+                                        setPendingOverride({
+                                          session,
+                                          lrn,
+                                          studentName: typedRecord.studentName,
+                                          currentStatus: typedRecord.status,
+                                          nextStatus,
+                                        });
+                                      }}
+                                      className="w-full rounded-md px-2.5 py-1.5 text-xs font-semibold outline-none disabled:cursor-not-allowed"
+                                      style={{
+                                        backgroundColor: !isEditingEnabled ? "#F1F5F9" : "#FFFFFF",
+                                        color: !isEditingEnabled ? "#94A3B8" : "#1E293B",
+                                        border: `1px solid ${!isEditingEnabled ? "#E2E8F0" : "#94A3B8"}`,
+                                      }}
+                                    >
+                                      <option value="present">Present</option>
+                                      <option value="late">Late</option>
+                                      <option value="absent">Absent</option>
+                                      <option value="excused">Excused</option>
+                                    </select>
+                                    {!isEditingEnabled && (
+                                      <p className="text-[10px] font-semibold" style={{ color: "#94A3B8" }}>
+                                        Locked. Enable editing to override.
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </details>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {groupedRecords.map((group, groupIndex) => {
+              const latestSession = group.sessions[0];
+              const sectionParts = latestSession?.sectionLabel?.split(" - ") ?? [];
+              const latestGradeLevel = sectionParts[0] ?? "";
+              const latestSectionName = sectionParts.slice(1).join(" - ") || latestSession?.sectionLabel || "Unknown";
+
+              return (
+                <SecretaryCard
+                  key={group.secretaryUid}
+                  secretaryUid={group.secretaryUid}
+                  secretaryLrn={group.secretaryLrn}
+                  secretaryName={group.secretaryName}
+                  secretaryEmail=""
+                  sectionId={latestSession?.sectionId ?? ""}
+                  sectionName={latestSectionName}
+                  gradeLevel={latestGradeLevel}
+                  subject={latestSession?.subject ?? "N/A"}
+                  schoolYear={latestSession?.schoolYear ?? "N/A"}
+                  status="active"
+                  appointedAt={latestSession?.createdAt ?? latestSession?.date ?? new Date().toISOString()}
+                  onViewRecords={() => setSelectedSecretaryUid(group.secretaryUid)}
+                  index={groupIndex}
+                  viewRecordsOnly={true}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {pendingOverride && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/50 px-4">
+          <motion.div
+            className="w-full max-w-md rounded-2xl border p-6 shadow-xl"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.18 }}
+          >
+            <p className="text-lg font-semibold" style={{ color: "#111827" }}>
+              Confirm attendance change
+            </p>
+            <p className="mt-2 text-sm" style={{ color: "#475569" }}>
+              You are changing this student&apos;s attendance for {formatDate(pendingOverride.session.date)}.
+            </p>
+
+            <div className="mt-4 rounded-xl border p-4 space-y-2" style={{ borderColor: "#E5E7EB", backgroundColor: "#F8FAFC" }}>
+              <p className="text-sm font-semibold" style={{ color: "#111827" }}>
+                {pendingOverride.studentName}
+              </p>
+              <p className="text-xs" style={{ color: "#64748B" }}>
+                {pendingOverride.lrn} • {pendingOverride.session.subject} • {pendingOverride.session.sectionLabel}
+              </p>
+              <div className="flex items-center gap-2 pt-2 text-xs font-semibold">
+                <span className="rounded-full px-2.5 py-1" style={getStatusStyles(pendingOverride.currentStatus)}>
+                  {pendingOverride.currentStatus}
+                </span>
+                <span style={{ color: "#94A3B8" }}>to</span>
+                <span className="rounded-full px-2.5 py-1" style={getStatusStyles(pendingOverride.nextStatus)}>
+                  {pendingOverride.nextStatus}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingOverride(null)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold"
+                style={{ backgroundColor: "#F3F4F6", color: "#374151" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleOverride}
+                disabled={Boolean(savingRecordKey)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+                style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
+              >
+                {savingRecordKey ? "Saving..." : "Confirm Change"}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {showRegisterModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => {
-              setShowRegisterModal(false);
-            }}
+            onClick={handleCloseRegisterModal}
           ></div>
-          
-          {/* Modal Content */}
+
           <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            {/* Header */}
-            <div className="p-6 lg:p-8 border-b flex-shrink-0" style={{ borderColor: "#e6e0ec", backgroundColor: "#faf8fc" }}>
+            <div
+              className="p-6 lg:p-8 border-b flex-shrink-0"
+              style={{ borderColor: "#e6e0ec", backgroundColor: "#faf8fc" }}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold" style={{ color: "#1c1a22" }}>
@@ -353,14 +821,15 @@ function SecretariesContent() {
                   </p>
                 </div>
                 <button
+                  type="button"
                   onClick={handleCloseRegisterModal}
                   className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
                   style={{ backgroundColor: "#f1ecf7", color: "#484553" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#e7deff";
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.backgroundColor = "#e7deff";
                   }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f1ecf7";
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.backgroundColor = "#f1ecf7";
                   }}
                 >
                   <span className="material-symbols-outlined">close</span>
@@ -368,12 +837,11 @@ function SecretariesContent() {
               </div>
             </div>
 
-            {/* Form */}
             <div className="p-6 lg:p-8 flex-1 overflow-y-auto">
               <SecretaryCreationForm
-                teacherId={user?.uid || ''}
+                teacherId={user?.uid || ""}
                 onSuccess={() => {
-                  setShouldRefreshAfterClose(true); // Mark for refresh on close
+                  setShouldRefreshAfterClose(true);
                 }}
                 onCancel={handleCloseRegisterModal}
               />

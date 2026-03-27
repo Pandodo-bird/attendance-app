@@ -7,7 +7,6 @@ import {
   BookOpen,
   Users,
   ClipboardCheck,
-  FileBarChart,
   UserCheck,
   Settings,
   LogOut,
@@ -33,7 +32,6 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
   useEffect(() => {
     if (activeButtonRef.current && navContainerRef.current) {
       const button = activeButtonRef.current;
-      const container = navContainerRef.current;
       const top = button.offsetTop;
       setIndicatorTop(top);
       setIndicatorOpacity(1);
@@ -53,8 +51,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
 
   const toolNavItems = [
     { icon: ClipboardCheck, label: "Attendance", href: "/dashboard/teacher/attendance" },
-    { icon: FileBarChart, label: "Secretary Records", href: "/dashboard/teacher/reports" },
-    { icon: UserCheck, label: "Secretaries", href: "/dashboard/teacher/secretaries" },
+    { icon: UserCheck, label: "Secretaries & Records", href: "/dashboard/teacher/secretaries" },
   ];
 
   const settingsNavItems = [

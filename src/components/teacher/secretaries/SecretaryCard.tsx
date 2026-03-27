@@ -20,6 +20,7 @@ interface SecretaryCardProps {
   onRestore?: () => void;
   onDelete?: () => void;
   index?: number;
+  viewRecordsOnly?: boolean;
 }
 
 function getInitials(name: string): string {
@@ -85,6 +86,7 @@ export default function SecretaryCard({
   onRestore,
   onDelete,
   index = 0,
+  viewRecordsOnly = false,
 }: SecretaryCardProps) {
   const initials = getInitials(secretaryName);
   const avatarBg = getAvatarColor(secretaryLrn);
@@ -200,7 +202,22 @@ export default function SecretaryCard({
       />
 
       <div className="flex p-2">
-        {status === "active" ? (
+        {viewRecordsOnly ? (
+          <button
+            className="w-full py-2.5 text-sm font-medium transition-colors"
+            style={{ color: "#374151" }}
+            onClick={onViewRecords}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#6C5CE7";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = "#374151";
+            }}
+            title="View attendance records for this secretary"
+          >
+            View Records
+          </button>
+        ) : status === "active" ? (
           <>
             <button
               className="flex-1 py-2.5 text-sm font-medium transition-colors"

@@ -233,15 +233,15 @@ function AttendanceContent() {
               style={{ backgroundColor: "#EEF4FF", borderColor: "#D8E5FF" }}
             >
               <p className="text-sm" style={{ color: "#1E3A5F" }}>
-                Attendance page is analytics-only. For secretary daily history records, open Secretary Records.
+                Attendance page is analytics-only. For secretary daily history records, open Secretaries and Records.
               </p>
               <button
                 type="button"
-                onClick={() => router.push("/dashboard/teacher/reports")}
+                onClick={() => router.push("/dashboard/teacher/secretaries")}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors w-fit"
                 style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
               >
-                Open Secretary Records
+                Open Secretaries & Records
               </button>
             </div>
 
