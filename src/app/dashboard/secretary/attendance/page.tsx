@@ -32,6 +32,36 @@ interface StudentAttendance {
 const STUDENTS_PER_PAGE = 10;
 const getDisplayEndIndex = (end: number, total: number): number => Math.min(end, total);
 
+function formatSessionTimestamp(
+  value: Date | string | { toDate?: () => Date } | undefined
+): string {
+  let parsedDate: Date | null = null;
+
+  if (!value) {
+    parsedDate = new Date();
+  } else if (value instanceof Date) {
+    parsedDate = value;
+  } else if (typeof value === "string") {
+    const fromString = new Date(value);
+    parsedDate = Number.isNaN(fromString.getTime()) ? new Date() : fromString;
+  } else if (typeof value === "object" && typeof value.toDate === "function") {
+    const fromTimestamp = value.toDate();
+    parsedDate = fromTimestamp instanceof Date && !Number.isNaN(fromTimestamp.getTime())
+      ? fromTimestamp
+      : new Date();
+  } else {
+    parsedDate = new Date();
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function SecretaryAttendancePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -479,21 +509,9 @@ export default function SecretaryAttendancePage() {
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
                     <Calendar className="w-3.5 h-3.5" />
                     <span>
-                      Submitted on {existingSession?.createdAt
-                        ? new Date(existingSession.createdAt instanceof Date ? existingSession.createdAt : existingSession.createdAt.toDate()).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })
-                        : new Date().toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
+                      Submitted on {formatSessionTimestamp(
+                        existingSession?.createdAt as Date | string | { toDate?: () => Date } | undefined
+                      )}
                     </span>
                   </div>
                 </div>
