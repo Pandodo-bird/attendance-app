@@ -154,7 +154,7 @@ function TeacherDashboardContent() {
               whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <LayoutGrid size={22} style={{ color: "#6C5CE7" }} />
+              <LayoutGrid size={22} style={{ color: "#1E3A5F" }} />
               <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
                 Manage Sections
               </span>
@@ -167,7 +167,7 @@ function TeacherDashboardContent() {
               whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <GraduationCap size={22} style={{ color: "#6C5CE7" }} />
+              <GraduationCap size={22} style={{ color: "#1E3A5F" }} />
               <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
                 View Students
               </span>
@@ -180,7 +180,7 @@ function TeacherDashboardContent() {
               whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <ClipboardCheck size={22} style={{ color: "#6C5CE7" }} />
+              <ClipboardCheck size={22} style={{ color: "#1E3A5F" }} />
               <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
                 Attendance Analytics
               </span>
@@ -193,7 +193,7 @@ function TeacherDashboardContent() {
               whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <UserPlus size={22} style={{ color: "#6C5CE7" }} />
+              <UserPlus size={22} style={{ color: "#1E3A5F" }} />
               <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
                 Secretaries
               </span>

@@ -39,7 +39,10 @@ function SettingsContent() {
       {/* Content Canvas */}
       <div className="p-4 lg:p-8 space-y-6 lg:space-y-8">
         {/* Content Area */}
-        <div className="rounded-xl p-8" style={{ backgroundColor: "#FFFFFF" }}>
+        <div
+          className="rounded-xl p-8 border"
+          style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+        >
           <p className="text-center" style={{ color: "#9CA3AF" }}>
             Settings content coming soon...
           </p>

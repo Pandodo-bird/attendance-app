@@ -31,12 +31,15 @@ export default function TeacherHeader({
     <>
       {/* Top Navigation Bar */}
       <header
-        className="h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 backdrop-blur-md"
-        style={{ backgroundColor: "rgba(253, 247, 255, 0.8)" }}
+        className="h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 backdrop-blur-md border-b"
+        style={{
+          backgroundColor: "rgba(244, 248, 253, 0.88)",
+          borderColor: "rgba(30, 58, 95, 0.14)",
+        }}
       >
         <h2
           className="font-headline text-lg lg:text-xl font-bold"
-          style={{ color: "#1c1a22" }}
+          style={{ color: "#1E3A5F" }}
         >
           Attendance Management
         </h2>
@@ -47,7 +50,7 @@ export default function TeacherHeader({
         <div className="w-full sm:w-auto">
           <h3
             className="font-headline text-3xl sm:text-4xl font-extrabold -tracking-wide"
-            style={{ color: "#1c1a22" }}
+            style={{ color: "#102A43" }}
           >
             {title}
           </h3>
@@ -57,10 +60,10 @@ export default function TeacherHeader({
               <select
                 className="appearance-none border rounded-lg py-2.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-[#5b3ebf] focus:border-[#5b3ebf] transition-all outline-none cursor-pointer"
                 style={{ 
-                  backgroundColor: "#FFFFFF", 
-                  borderColor: "#D1D5DB", 
+                  backgroundColor: "#F8FBFF", 
+                  borderColor: "#C9D9EA", 
                   color: "#1c1a22",
-                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                  boxShadow: "0 1px 2px rgba(16,42,67,0.08)"
                 }}
                 value={sectionFilter.selectedSectionId}
                 onChange={(e) => sectionFilter.onSectionChange(e.target.value)}
@@ -86,8 +89,8 @@ export default function TeacherHeader({
                 key={index}
                 className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg shrink-0 flex flex-col items-end justify-center gap-0.5"
                 style={{ 
-                  backgroundColor: "#FFFFFF",
-                  border: "0.5px solid #E5E7EB"
+                  backgroundColor: "#F8FBFF",
+                  border: "0.5px solid #D7E2EF"
                 }}
               >
                 {stat.label && (
@@ -101,14 +104,14 @@ export default function TeacherHeader({
                 {typeof stat.value === "string" || typeof stat.value === "number" ? (
                   <p
                     className="font-headline text-xl lg:text-2xl font-medium leading-none"
-                    style={{ color: "#1F1F1F" }}
+                    style={{ color: "#1E3A5F" }}
                   >
                     {stat.value}
                   </p>
                 ) : (
                   <div
                     className="font-headline text-xl lg:text-2xl font-medium leading-none"
-                    style={{ color: "#1F1F1F" }}
+                    style={{ color: "#1E3A5F" }}
                   >
                     {stat.value}
                   </div>

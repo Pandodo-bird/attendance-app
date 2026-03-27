@@ -123,29 +123,26 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
         onClick={() => handleNavClick(href)}
         className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors relative"
         style={{
-          backgroundColor: active ? "#F1F5F9" : "transparent",
+          backgroundColor: active ? "rgba(255, 255, 255, 0.16)" : "transparent",
         }}
         onMouseEnter={(e) => {
           if (!active) {
-            e.currentTarget.style.backgroundColor = "#F8FAFC";
+            e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
           }
         }}
         onMouseLeave={(e) => {
           if (!active) {
-            e.currentTarget.style.backgroundColor = active ? "#F1F5F9" : "transparent";
+            e.currentTarget.style.backgroundColor = active
+              ? "rgba(255, 255, 255, 0.16)"
+              : "transparent";
           }
         }}
       >
         <Icon
-          className={`w-5 h-5 shrink-0 ${
-            active ? "text-[#1e3a5f]" : "text-gray-500"
-          }`}
+          className="w-5 h-5 shrink-0"
+          style={{ color: active ? "#FFFFFF" : "#C7D5E6" }}
         />
-        <span
-          className={`text-[15px] font-medium ${
-            active ? "text-[#1e3a5f]" : "text-gray-600"
-          }`}
-        >
+        <span className="text-[15px] font-medium" style={{ color: active ? "#FFFFFF" : "#D8E3EF" }}>
           {label}
         </span>
       </button>
@@ -170,24 +167,24 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
           ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0 lg:w-64'}
         `}
         style={{
-          backgroundColor: "#FFFFFF",
-          borderColor: "#E5E7EB"
+          backgroundColor: "#1E3A5F",
+          borderColor: "rgba(255,255,255,0.14)"
         }}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
-          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "#E5E7EB" }}>
+          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
             <div
               className="w-9 h-9 rounded flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "#1e3a5f" }}
+              style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
             >
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div className="overflow-hidden">
-              <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#1F1F1F" }}>
+              <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#FFFFFF" }}>
                 EduAttend Pro
               </h1>
-              <p className="text-xs" style={{ color: "#6B6B6B" }}>Teacher Portal</p>
+              <p className="text-xs" style={{ color: "#C7D5E6" }}>Teacher Portal</p>
             </div>
           </div>
 
@@ -204,7 +201,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
             {/* Single animated indicator - rendered last to appear on top */}
             <motion.div
               className="absolute left-0 w-[3px] h-[42px] pointer-events-none"
-              style={{ backgroundColor: "#1e3a5f", top: indicatorTop, left: "12px" }}
+              style={{ backgroundColor: "#BFDBFE", top: indicatorTop, left: "12px" }}
               animate={{
                 top: indicatorTop,
                 opacity: indicatorOpacity
@@ -215,7 +212,7 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
           </nav>
 
           {/* User Profile & Logout */}
-          <div className="p-4 shrink-0 border-t" style={{ borderColor: "#E5E7EB" }}>
+          <div className="p-4 shrink-0 border-t" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-10 h-10 rounded flex items-center justify-center font-semibold text-base shrink-0"
@@ -227,26 +224,26 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
                 {(user?.displayName || "T").charAt(0).toUpperCase()}
               </div>
               <div className="overflow-hidden min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: "#1F1F1F" }}>
+                <p className="text-sm font-medium truncate" style={{ color: "#FFFFFF" }}>
                   {user?.displayName || "Teacher"}
                 </p>
-                <p className="text-xs" style={{ color: "#9CA3AF" }}>
+                <p className="text-xs" style={{ color: "#C7D5E6" }}>
                   Teacher
                 </p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 transition-colors border-l-2 border-transparent hover:border-red-500"
+              className="w-full flex items-center gap-3 px-4 py-3 transition-colors border-l-2 border-transparent hover:border-red-300"
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "#FEF2F2";
+                e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.14)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
             >
-              <LogOut className="w-5 h-5 text-gray-500 hover:text-red-600 shrink-0" />
-              <span className="text-sm font-medium text-gray-500 hover:text-red-600">
+              <LogOut className="w-5 h-5 text-slate-200 hover:text-red-200 shrink-0" />
+              <span className="text-sm font-medium text-slate-200 hover:text-red-200">
                 Logout
               </span>
             </button>
