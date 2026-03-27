@@ -17,6 +17,7 @@ import {
 } from "@/lib/firestore";
 import { ClassAnalytics, MonthlyTrendChart, StudentSummaryCard } from "@/components/teacher/attendance";
 import { motion } from "framer-motion";
+import { Search } from "lucide-react";
 
 export default function AttendancePage() {
   return (
@@ -33,7 +34,8 @@ function AttendanceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedSectionId, setSelectedSectionId] = useState<string>("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [studentsPerPage] = useState(15);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
@@ -158,13 +160,24 @@ function AttendanceContent() {
   // Calculate analytics
   const analytics = calculateClassAnalytics(summaries);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedSearchQuery(searchInput);
+    }, 200);
+
+    return () => clearTimeout(timeout);
+  }, [searchInput]);
+
+  const normalizedSearchQuery = debouncedSearchQuery.trim().toLowerCase();
+
   // Filter and sort students alphabetically by last name
   const filteredStudents = students
     .filter(
       (student) =>
-        student.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.lrn.includes(searchQuery)
+        student.lastName.toLowerCase().includes(normalizedSearchQuery) ||
+        student.firstName.toLowerCase().includes(normalizedSearchQuery) ||
+        (student.middleName ?? "").toLowerCase().includes(normalizedSearchQuery) ||
+        student.lrn.includes(debouncedSearchQuery.trim())
     )
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
@@ -173,13 +186,6 @@ function AttendanceContent() {
   const startIndex = (currentPage - 1) * studentsPerPage;
   const endIndex = startIndex + studentsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
-
-  // Reset to page 1 when search query changes
-  useEffect(() => {
-    if (searchQuery) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery]);
 
   // Get summary for a student
   const getStudentSummary = (lrn: string): StudentSummary | undefined => {
@@ -218,7 +224,10 @@ function AttendanceContent() {
             title="Attendance Analytics"
             stats={headerStats}
             searchPlaceholder="Search students..."
-            onSearch={(query) => setSearchQuery(query)}
+            onSearch={(query) => {
+              setSearchInput(query);
+              setCurrentPage(1);
+            }}
             sectionFilter={{
               sections,
               selectedSectionId,
@@ -286,37 +295,54 @@ function AttendanceContent() {
                 {/* Individual Student List */}
                 <div>
                   {/* Top Bar: Title, View Toggle */}
-                  <div className="flex items-center justify-between mb-4">
-                    <h3
-                      className="font-semibold text-lg"
-                      style={{ color: "#1F1F1F" }}
-                    >
+                  <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
+                    <h3 className="font-semibold text-lg" style={{ color: "#1F1F1F" }}>
                       Students
                     </h3>
 
-                    <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: "#F3F4F6" }}>
-                      <button
-                        onClick={() => { setViewMode("table"); setCurrentPage(1); }}
-                        className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
-                        style={{
-                          backgroundColor: viewMode === "table" ? "#FFFFFF" : "transparent",
-                          color: viewMode === "table" ? "#1F1F1F" : "#6B7280",
-                          boxShadow: viewMode === "table" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
-                        }}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <div
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg border min-w-0 sm:min-w-[280px]"
+                        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
                       >
-                        Table
-                      </button>
-                      <button
-                        onClick={() => { setViewMode("cards"); setCurrentPage(1); }}
-                        className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
-                        style={{
-                          backgroundColor: viewMode === "cards" ? "#FFFFFF" : "transparent",
-                          color: viewMode === "cards" ? "#1F1F1F" : "#6B7280",
-                          boxShadow: viewMode === "cards" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
-                        }}
-                      >
-                        Cards
-                      </button>
+                        <Search size={16} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          value={searchInput}
+                          onChange={(event) => {
+                            setSearchInput(event.target.value);
+                            setCurrentPage(1);
+                          }}
+                          placeholder="Search student name or LRN..."
+                          className="w-full bg-transparent text-sm outline-none"
+                          style={{ color: "#1F1F1F" }}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: "#F3F4F6" }}>
+                        <button
+                          onClick={() => { setViewMode("table"); setCurrentPage(1); }}
+                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                          style={{
+                            backgroundColor: viewMode === "table" ? "#FFFFFF" : "transparent",
+                            color: viewMode === "table" ? "#1F1F1F" : "#6B7280",
+                            boxShadow: viewMode === "table" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          }}
+                        >
+                          Table
+                        </button>
+                        <button
+                          onClick={() => { setViewMode("cards"); setCurrentPage(1); }}
+                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                          style={{
+                            backgroundColor: viewMode === "cards" ? "#FFFFFF" : "transparent",
+                            color: viewMode === "cards" ? "#1F1F1F" : "#6B7280",
+                            boxShadow: viewMode === "cards" ? "0 1px 2px rgba(0,0,0,0.1)" : "none",
+                          }}
+                        >
+                          Cards
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -385,7 +411,7 @@ function AttendanceContent() {
                       style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
                     >
                       <p style={{ color: "#9CA3AF" }}>
-                        No students found matching &quot;{searchQuery}&quot;
+                        No students found matching &quot;{searchInput}&quot;
                       </p>
                     </div>
                   ) : viewMode === "table" ? (
