@@ -106,6 +106,7 @@ export type AttendanceStatus = "present" | "late" | "absent" | "excused";
 export interface AttendanceRecord {
   studentName: string;
   status: AttendanceStatus;
+  remarks?: string;
   timeRecorded: Date | Timestamp;
   recordedByUid?: string;
   recordedByName?: string;
@@ -139,6 +140,7 @@ export interface AttendanceFlatRecord {
   date: string;
   schoolYear: string;
   status: AttendanceStatus;
+  remarks?: string;
   timeRecorded: Date | Timestamp;
   recordedByUid?: string;
   recordedByName?: string;

@@ -16,7 +16,7 @@ import {
   Tooltip,
   TooltipItem,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Chart } from "react-chartjs-2";
 
 ChartJS.register(
   CategoryScale,
@@ -68,7 +68,7 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
     year: "numeric",
   });
 
-  const data: ChartData<"bar"> = {
+  const data: ChartData<"bar" | "line"> = {
     labels,
     datasets: [
       {
@@ -116,7 +116,7 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
     ],
   };
 
-  const options: ChartOptions<"bar"> = {
+  const options: ChartOptions<"bar" | "line"> = {
     responsive: true,
     maintainAspectRatio: false,
     interaction: {
@@ -135,14 +135,14 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
         borderWidth: 1,
         padding: 12,
         callbacks: {
-          title: (tooltipItems: TooltipItem<"bar">[]) => {
+          title: (tooltipItems: TooltipItem<"bar" | "line">[]) => {
             const index = tooltipItems[0].dataIndex;
             return new Date(`${monthlyData[index].month}-01`).toLocaleDateString("en-US", {
               month: "long",
               year: "numeric",
             });
           },
-          label: (context: TooltipItem<"bar">) => {
+          label: (context: TooltipItem<"bar" | "line">) => {
             const value = context.parsed.y;
             const label = context.dataset.label;
             if (value === null || value === undefined) return "";
@@ -238,7 +238,7 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
       </div>
 
       <div className="h-80 w-full">
-        <Bar data={data} options={options} />
+        <Chart type="bar" data={data} options={options} />
       </div>
 
       <div className="flex items-center justify-center gap-6 pt-4 border-t" style={{ borderColor: "#F3F4F6" }}>
