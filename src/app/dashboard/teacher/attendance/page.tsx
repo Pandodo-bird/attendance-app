@@ -87,6 +87,7 @@ function AttendanceContent() {
   // Sync section filter to URL
   const handleSectionChange = (sectionId: string) => {
     setSelectedSectionId(sectionId);
+    setCurrentPage(1);
     // Save to localStorage for future navigation
     localStorage.setItem(`attendance_section_${user?.uid}`, sectionId);
     const params = new URLSearchParams(searchParams?.toString() || "");
@@ -108,14 +109,21 @@ function AttendanceContent() {
   });
 
   // Fetch student summaries for selected section
-  const currentSchoolYear = "2025-2026"; // TODO: Make dynamic based on section
-  const { data: summaries = [], isLoading: summariesLoading } = useQuery({
+  const selectedSection = sections.find((section) => section.id === selectedSectionId);
+  const currentSchoolYear = selectedSection?.schoolYear ?? "2025-2026";
+  const {
+    data: sectionSummaries = [],
+    isLoading: summariesLoading,
+    isFetching: summariesFetching,
+  } = useQuery({
     queryKey: ["studentSummaries", selectedSectionId, currentSchoolYear],
     queryFn: () => getSectionSummariesBySection(selectedSectionId, currentSchoolYear),
     enabled: !!selectedSectionId,
     staleTime: 30 * 60 * 1000, // 30 minutes - summaries are stable
     gcTime: 60 * 60 * 1000,
+    placeholderData: [],
   });
+  const summaries = sectionSummaries.filter((summary) => summary.sectionId === selectedSectionId);
 
   const todayDate = new Date();
   const todayDateKey = formatLocalDateKey(todayDate);
@@ -247,12 +255,12 @@ function AttendanceContent() {
                   Select a section to view attendance analytics
                 </p>
               </div>
-            ) : summariesLoading ? (
+            ) : summariesLoading || summariesFetching ? (
               <div
                 className="rounded-xl p-8 border text-center"
                 style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               >
-                <p style={{ color: "#6B7280" }}>Loading analytics...</p>
+                <p style={{ color: "#6B7280" }}>Loading section analytics...</p>
               </div>
             ) : summaries.length === 0 ? (
               <div

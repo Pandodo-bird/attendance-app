@@ -273,6 +273,7 @@ export default function SecretaryAttendancePage() {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
       queryClient.invalidateQueries({ queryKey: ["attendanceSession", attendanceId] });
+      queryClient.invalidateQueries({ queryKey: ["attendanceHistory", user?.uid] });
     } catch (err) {
       console.error("Error submitting attendance:", err);
       setError("Failed to submit attendance. Please try again.");

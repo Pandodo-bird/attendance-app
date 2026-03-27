@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { CalendarDays, ShieldCheck, UserRound } from "lucide-react";
+import { CalendarDays, Info, Lock, Pencil, ShieldCheck, UserRound } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -380,13 +380,16 @@ function ReportsContent() {
               transition={{ delay: groupIndex * 0.04, duration: 0.25, ease: "easeOut" }}
             >
               <div className="px-5 py-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between" style={{ borderColor: "#F1F5F9" }}>
-                <div>
+                <div className="flex flex-wrap items-center gap-2">
                   <p className="text-base font-semibold" style={{ color: "#1F2937" }}>
                     {group.secretaryName}
                   </p>
-                  <p className="text-xs" style={{ color: "#6B7280" }}>
-                    Secretary LRN: {group.secretaryLrn}
-                  </p>
+                  <span
+                    className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                    style={{ backgroundColor: "#EEF2FF", color: "#1E3A8A" }}
+                  >
+                    LRN {group.secretaryLrn}
+                  </span>
                 </div>
                 <div
                   className="px-3 py-1 rounded-full text-xs font-semibold w-fit"
@@ -406,75 +409,97 @@ function ReportsContent() {
                   return (
                     <details key={session.id} className="group" open={session.date === today}>
                       <summary
-                        className="list-none cursor-pointer px-5 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+                        className="list-none cursor-pointer px-5 py-4 flex flex-col gap-4"
                         style={{ backgroundColor: session.date === today ? "#FCFDFE" : "#FFFFFF" }}
                       >
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
-                              style={{
-                                backgroundColor: session.date === today ? "#DBEAFE" : "#E2E8F0",
-                                color: session.date === today ? "#1D4ED8" : "#475569",
-                              }}
-                            >
-                              {getDayBadge(session.date, today)}
-                            </span>
-                            <span className="text-sm font-semibold" style={{ color: "#111827" }}>
-                              {formatDate(session.date)}
-                            </span>
-                            <span className="text-sm" style={{ color: "#94A3B8" }}>
-                              {session.subject}
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: "#64748B" }}>
-                            <span className="inline-flex items-center gap-1.5">
-                              <CalendarDays size={14} />
-                              {session.sectionLabel}
-                            </span>
-                            <span className="inline-flex items-center gap-1.5">
-                              <UserRound size={14} />
-                              Recorded by {session.recorderName}
-                            </span>
-                            <span>Session is {session.status}</span>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
+                                style={{
+                                  backgroundColor: session.date === today ? "#DBEAFE" : "#E2E8F0",
+                                  color: session.date === today ? "#1D4ED8" : "#475569",
+                                }}
+                              >
+                                {getDayBadge(session.date, today)}
+                              </span>
+                              <span className="text-sm font-semibold" style={{ color: "#111827" }}>
+                                {formatDate(session.date)}
+                              </span>
+                              <span
+                                className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
+                                style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
+                              >
+                                Subject: {session.subject}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "#64748B" }}>
+                              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
+                                <CalendarDays size={14} />
+                                <span className="font-semibold" style={{ color: "#334155" }}>Section</span>
+                                <span>{session.sectionLabel}</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
+                                <UserRound size={14} />
+                                <span className="font-semibold" style={{ color: "#334155" }}>Recorder</span>
+                                <span>{session.recorderName}</span>
+                              </span>
+                              <span className="rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC", color: "#475569" }}>
+                                Session: <span className="font-semibold uppercase">{session.status}</span>
+                              </span>
+                              <span className="rounded-md px-2 py-1 font-semibold" style={{ backgroundColor: isEditingEnabled ? "#E0E7FF" : "#F1F5F9", color: isEditingEnabled ? "#1E3A8A" : "#64748B" }}>
+                                {isEditingEnabled ? "Editing Enabled" : "Editing Locked"}
+                              </span>
+                            </div>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              toggleSessionEditing(session.id);
-                            }}
-                            className="px-3 py-1 rounded-full transition-colors"
+                          <span
+                            className="px-2.5 py-1 rounded-full"
                             style={{
-                              backgroundColor: isEditingEnabled ? "#1E3A5F" : "#E2E8F0",
-                              color: isEditingEnabled ? "#FFFFFF" : "#334155",
+                              backgroundColor: session.presentCount === 0 ? "#F1F5F9" : "#DCFCE7",
+                              color: session.presentCount === 0 ? "#94A3B8" : "#166534",
                             }}
                           >
-                            {isEditingEnabled ? "Editing On" : "Enable Edit"}
-                          </button>
-                          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: "#DCFCE7", color: "#166534" }}>
-                            P {session.presentCount}
+                            Present: {session.presentCount}
                           </span>
-                          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FEF3C7", color: "#92400E" }}>
-                            L {session.lateCount}
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.lateCount === 0 ? "#F1F5F9" : "#FEF3C7",
+                              color: session.lateCount === 0 ? "#94A3B8" : "#92400E",
+                            }}
+                          >
+                            Late: {session.lateCount}
                           </span>
-                          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: "#FEE2E2", color: "#B91C1C" }}>
-                            A {session.absentCount}
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.absentCount === 0 ? "#F1F5F9" : "#FEE2E2",
+                              color: session.absentCount === 0 ? "#94A3B8" : "#B91C1C",
+                            }}
+                          >
+                            Absent: {session.absentCount}
                           </span>
-                          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: "#DBEAFE", color: "#1D4ED8" }}>
-                            E {session.excusedCount}
+                          <span
+                            className="px-2.5 py-1 rounded-full"
+                            style={{
+                              backgroundColor: session.excusedCount === 0 ? "#F1F5F9" : "#DBEAFE",
+                              color: session.excusedCount === 0 ? "#94A3B8" : "#1D4ED8",
+                            }}
+                          >
+                            Excused: {session.excusedCount}
                           </span>
-                          <span className="px-2 py-1 rounded-full" style={{ backgroundColor: "#E2E8F0", color: "#334155" }}>
-                            {session.totalStudents} students
+                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: "#E2E8F0", color: "#334155" }}>
+                            Total Students: {session.totalStudents}
                           </span>
                         </div>
                       </summary>
 
-                      <div className="px-5 pb-5">
+                      <div className="px-5 pb-4">
                         {studentEntries.length === 0 ? (
                           <p className="text-xs" style={{ color: "#9CA3AF" }}>
                             No individual student records saved for this day.
@@ -482,13 +507,38 @@ function ReportsContent() {
                         ) : (
                           <div className="rounded-xl border overflow-hidden" style={{ borderColor: "#E5E7EB" }}>
                             <div
-                              className="grid grid-cols-12 gap-3 px-4 py-3 text-[11px] font-semibold uppercase tracking-wide"
+                              className="px-3 py-2.5 border-b flex flex-wrap items-center justify-between gap-2"
+                              style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
+                            >
+                              <p className="text-xs font-semibold" style={{ color: "#334155" }}>
+                                Student Records ({studentEntries.length})
+                              </p>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  toggleSessionEditing(session.id);
+                                }}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors w-fit"
+                                style={{
+                                  backgroundColor: isEditingEnabled ? "#1E3A5F" : "#EEF2FF",
+                                  border: `1px solid ${isEditingEnabled ? "#1E3A5F" : "#C7D2FE"}`,
+                                  color: isEditingEnabled ? "#FFFFFF" : "#1E3A8A",
+                                }}
+                                aria-pressed={isEditingEnabled}
+                              >
+                                {isEditingEnabled ? <Lock size={13} /> : <Pencil size={13} />}
+                                {isEditingEnabled ? "Disable Editing" : "Enable Editing"}
+                              </button>
+                            </div>
+                            <div
+                              className="grid grid-cols-12 gap-2 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide"
                               style={{ backgroundColor: "#F8FAFC", color: "#64748B" }}
                             >
-                              <div className="col-span-12 lg:col-span-4">Student</div>
+                              <div className="col-span-12 lg:col-span-6">Student</div>
                               <div className="col-span-4 lg:col-span-2">Status</div>
-                              <div className="col-span-8 lg:col-span-3">Activity</div>
-                              <div className="col-span-12 lg:col-span-3">Teacher Override</div>
+                              <div className="col-span-8 lg:col-span-4">Teacher Override</div>
                             </div>
 
                             {studentEntries.map(([lrn, record]) => {
@@ -501,50 +551,41 @@ function ReportsContent() {
                               return (
                                 <div
                                   key={lrn}
-                                  className="grid grid-cols-12 gap-3 px-4 py-3 items-center border-t"
+                                  className="grid grid-cols-12 gap-2 px-3 py-2 items-center border-t"
                                   style={{ borderColor: "#F1F5F9" }}
                                 >
-                                  <div className="col-span-12 lg:col-span-4">
-                                    <p className="font-medium" style={{ color: "#111827" }}>
+                                  <div className="col-span-12 lg:col-span-6">
+                                    <p className="text-sm font-medium leading-5" style={{ color: "#111827" }}>
                                       {typedRecord.studentName}
                                     </p>
-                                    <p className="text-xs" style={{ color: "#94A3B8" }}>
-                                      {lrn}
-                                    </p>
+                                    <div className="mt-0.5 flex items-center gap-1.5">
+                                      <p className="text-[11px]" style={{ color: "#94A3B8" }}>
+                                        {lrn}
+                                      </p>
+                                      <span
+                                        className="inline-flex items-center"
+                                        title={
+                                          hasTeacherOverride
+                                            ? `Teacher override saved on ${formatDateTime(typedRecord.updatedAt)}`
+                                            : `Original record saved on ${formatDateTime(typedRecord.timeRecorded)}`
+                                        }
+                                        style={{ color: hasTeacherOverride ? "#1E3A8A" : "#94A3B8" }}
+                                      >
+                                        <Info size={12} />
+                                      </span>
+                                    </div>
                                   </div>
 
                                   <div className="col-span-4 lg:col-span-2">
                                     <span
-                                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase"
+                                      className="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase"
                                       style={statusStyles}
                                     >
                                       {typedRecord.status}
                                     </span>
                                   </div>
 
-                                  <div className="col-span-8 lg:col-span-3 text-xs">
-                                    {hasTeacherOverride ? (
-                                      <>
-                                        <p className="font-semibold" style={{ color: "#1E3A5F" }}>
-                                          Teacher override saved
-                                        </p>
-                                        <p style={{ color: "#64748B" }}>
-                                          Updated {formatDateTime(typedRecord.updatedAt)}
-                                        </p>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <p className="font-semibold" style={{ color: "#334155" }}>
-                                          Original record saved
-                                        </p>
-                                        <p style={{ color: "#64748B" }}>
-                                          Saved {formatDateTime(typedRecord.timeRecorded)}
-                                        </p>
-                                      </>
-                                    )}
-                                  </div>
-
-                                  <div className="col-span-12 lg:col-span-3">
+                                  <div className="col-span-8 lg:col-span-4 space-y-1">
                                     <select
                                       value={typedRecord.status}
                                       disabled={isSaving || !isEditingEnabled}
@@ -562,11 +603,11 @@ function ReportsContent() {
                                           nextStatus,
                                         });
                                       }}
-                                      className="w-full rounded-lg px-3 py-2 text-xs font-semibold outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                      className="w-full rounded-md px-2.5 py-1.5 text-xs font-semibold outline-none disabled:cursor-not-allowed"
                                       style={{
-                                        backgroundColor: "#F8FAFC",
-                                        color: "#334155",
-                                        border: "1px solid #CBD5E1",
+                                        backgroundColor: !isEditingEnabled ? "#F1F5F9" : "#FFFFFF",
+                                        color: !isEditingEnabled ? "#94A3B8" : "#1E293B",
+                                        border: `1px solid ${!isEditingEnabled ? "#E2E8F0" : "#94A3B8"}`,
                                       }}
                                     >
                                       <option value="present">Present</option>
@@ -574,6 +615,11 @@ function ReportsContent() {
                                       <option value="absent">Absent</option>
                                       <option value="excused">Excused</option>
                                     </select>
+                                    {!isEditingEnabled && (
+                                      <p className="text-[10px] font-semibold" style={{ color: "#94A3B8" }}>
+                                        Locked. Enable editing to override.
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
                               );

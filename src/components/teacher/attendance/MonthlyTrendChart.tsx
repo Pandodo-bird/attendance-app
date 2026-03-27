@@ -215,7 +215,10 @@ function prepareMonthlyData(summaries: StudentSummary[]): MonthlyData[] {
   const monthMap = new Map<string, { present: number; late: number; absent: number; excused: number }>();
 
   summaries.forEach((summary) => {
-    Object.entries(summary.trend).forEach(([month, trend]) => {
+    if (!summary) return;
+    const monthlyTrend = summary.trend ?? {};
+    Object.entries(monthlyTrend).forEach(([month, trend]) => {
+      if (!trend) return;
       const existing = monthMap.get(month) ?? { present: 0, late: 0, absent: 0, excused: 0 };
       monthMap.set(month, {
         present: existing.present + (trend.present ?? 0),
