@@ -315,7 +315,7 @@ function StudentsContent() {
         {loading ? (
           <div
             className="rounded-xl border p-12 flex flex-col items-center justify-center gap-4"
-            style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB" }}
+            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
           >
             <span className="material-symbols-outlined text-4xl animate-spin" style={{ color: "#6C5CE7" }}>
               progress_activity

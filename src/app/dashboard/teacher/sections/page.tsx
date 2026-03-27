@@ -437,12 +437,12 @@ function SectionsContent() {
               <button
                 onClick={handleOpenModal}
                 className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
-                style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
+                style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#1A202C";
+                  e.currentTarget.style.backgroundColor = "#152C49";
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#2D3748";
+                  e.currentTarget.style.backgroundColor = "#1E3A5F";
                 }}
               >
                 <Plus size={18} strokeWidth={2} />
@@ -510,8 +510,8 @@ function SectionsContent() {
                         key={section.id}
                         className="group rounded-xl p-4 relative overflow-hidden flex flex-col shadow-sm"
                         style={{
-                          backgroundColor: "#FFFFFF",
-                          border: "0.5px solid #E5E7EB"
+                          backgroundColor: "#F8FBFF",
+                          border: "0.5px solid #D7E2EF"
                         }}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}

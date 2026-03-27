@@ -137,21 +137,27 @@ function TeacherDashboardContent() {
         transition={{ duration: 0.25, ease: "easeOut" }}
       >
         <div
-          className="p-4 lg:p-8 rounded-3xl shadow-sm"
-          style={{ backgroundColor: "#F0EDF7" }}
+          className="p-4 lg:p-8 rounded-3xl shadow-sm border"
+          style={{ backgroundColor: "#EEF4FB", borderColor: "#CFE0F1" }}
         >
-          <h4
-            className="text-xl lg:text-2xl font-bold mb-4 lg:mb-6"
-            style={{ color: "#1F1F1F" }}
-          >
-            Quick Actions
-          </h4>
+          <div className="mb-4 lg:mb-6 flex items-center gap-3">
+            <span
+              className="h-7 w-1.5 rounded-full"
+              style={{ backgroundColor: "#1E3A5F" }}
+            />
+            <h4
+              className="text-xl lg:text-2xl font-bold"
+              style={{ color: "#1E3A5F" }}
+            >
+              Quick Actions
+            </h4>
+          </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             <motion.button
               onClick={() => router.push("/dashboard/teacher/sections")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm"
-              style={{ backgroundColor: "#FFFFFF" }}
-              whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
+              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <LayoutGrid size={22} style={{ color: "#1E3A5F" }} />
@@ -162,9 +168,9 @@ function TeacherDashboardContent() {
 
             <motion.button
               onClick={() => router.push("/dashboard/teacher/students")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm"
-              style={{ backgroundColor: "#FFFFFF" }}
-              whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
+              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <GraduationCap size={22} style={{ color: "#1E3A5F" }} />
@@ -175,9 +181,9 @@ function TeacherDashboardContent() {
 
             <motion.button
               onClick={() => router.push("/dashboard/teacher/attendance")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm"
-              style={{ backgroundColor: "#FFFFFF" }}
-              whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
+              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <ClipboardCheck size={22} style={{ color: "#1E3A5F" }} />
@@ -188,9 +194,9 @@ function TeacherDashboardContent() {
 
             <motion.button
               onClick={() => router.push("/dashboard/teacher/secretaries")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm"
-              style={{ backgroundColor: "#FFFFFF" }}
-              whileHover={{ backgroundColor: "#F7F6FB", scale: 1.02 }}
+              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
               <UserPlus size={22} style={{ color: "#1E3A5F" }} />
@@ -204,7 +210,7 @@ function TeacherDashboardContent() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
           <div
             className="xl:col-span-2 rounded-2xl border p-4 lg:p-5"
-            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
           >
             <div className="flex items-center gap-2 mb-4">
               <CalendarDays size={18} style={{ color: "#1E3A5F" }} />
@@ -219,7 +225,7 @@ function TeacherDashboardContent() {
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#F8FAFC" }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF4FB" }}>
                   <p className="text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
                     Expected Sessions
                   </p>
@@ -227,7 +233,7 @@ function TeacherDashboardContent() {
                     {expectedSessions}
                   </p>
                 </div>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#F8FAFC" }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF4FB" }}>
                   <p className="text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
                     Submitted
                   </p>
@@ -235,7 +241,7 @@ function TeacherDashboardContent() {
                     {submittedSessions}
                   </p>
                 </div>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#F8FAFC" }}>
+                <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF4FB" }}>
                   <p className="text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
                     Coverage
                   </p>
@@ -249,7 +255,7 @@ function TeacherDashboardContent() {
 
           <div
             className="rounded-2xl border p-4 lg:p-5"
-            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
           >
             <div className="flex items-center gap-2 mb-4">
               <FileText size={18} style={{ color: "#1E3A5F" }} />
@@ -273,7 +279,7 @@ function TeacherDashboardContent() {
 
         <div
           className="rounded-2xl border p-4 lg:p-5"
-          style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+          style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
         >
           <div className="flex items-center gap-2 mb-3">
             <Users size={18} style={{ color: "#1E3A5F" }} />

@@ -353,12 +353,12 @@ function SecretariesContent() {
             setShouldRefreshAfterClose(false);
           }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
-          style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
+          style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
           onMouseEnter={(event) => {
-            event.currentTarget.style.backgroundColor = "#1A202C";
+            event.currentTarget.style.backgroundColor = "#152C49";
           }}
           onMouseLeave={(event) => {
-            event.currentTarget.style.backgroundColor = "#2D3748";
+            event.currentTarget.style.backgroundColor = "#1E3A5F";
           }}
         >
           <UserPlus size={18} strokeWidth={2} />
@@ -474,17 +474,17 @@ function SecretariesContent() {
         </div>
 
         {isLoadingAttendance ? (
-          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
+          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
             <p style={{ color: "#6B7280" }}>Loading attendance records...</p>
           </div>
         ) : attendanceError ? (
-          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
+          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
             <p style={{ color: "#DC2626" }}>
               Failed to load attendance records. Please refresh and try again.
             </p>
           </div>
         ) : secretaryCards.length === 0 ? (
-          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}>
+          <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
             <p style={{ color: "#9CA3AF" }}>
               No active secretaries found for this teacher yet.
             </p>
@@ -498,7 +498,7 @@ function SecretariesContent() {
                 setSelectedSessionId(null);
               }}
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", color: "#1E3A5F" }}
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#C9D9EA", color: "#1E3A5F" }}
             >
               <ArrowLeft size={16} />
               Back to Secretaries
@@ -507,7 +507,7 @@ function SecretariesContent() {
             <motion.div
               key={selectedSecretaryGroup.secretaryUid}
               className="rounded-2xl border overflow-hidden"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
@@ -547,7 +547,7 @@ function SecretariesContent() {
                       type="button"
                       onClick={() => setSelectedSessionId(session.id)}
                       className="w-full text-left px-5 py-4 transition-colors"
-                      style={{ backgroundColor: session.date === today ? "#FCFDFE" : "#FFFFFF" }}
+                      style={{ backgroundColor: session.date === today ? "#EFF5FD" : "#F8FBFF" }}
                     >
                       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-2">
@@ -681,7 +681,7 @@ function SecretariesContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/50 px-4">
           <motion.div
             className="w-full max-w-md rounded-2xl border p-6 shadow-xl"
-            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
             initial={{ opacity: 0, y: 10, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.18 }}

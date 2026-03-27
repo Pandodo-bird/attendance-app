@@ -134,7 +134,7 @@ export default function StudentResultsTable({
     return (
       <div
         className="rounded-xl border p-12 flex flex-col items-center justify-center gap-4"
-        style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
       >
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -159,7 +159,7 @@ export default function StudentResultsTable({
     return (
       <div
         className="rounded-xl border p-12 flex flex-col items-center justify-center gap-4"
-        style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
       >
         <div
           className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -193,7 +193,7 @@ export default function StudentResultsTable({
       {/* Table */}
       <div
         className="rounded-xl overflow-hidden border"
-        style={{ borderColor: "#E5E7EB", backgroundColor: "#FFFFFF" }}
+        style={{ borderColor: "#D7E2EF", backgroundColor: "#F8FBFF" }}
       >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -331,18 +331,18 @@ export default function StudentResultsTable({
               disabled={activePage === 1}
               className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: activePage === 1 ? "#F3F4F6" : "#FFFFFF",
+                backgroundColor: activePage === 1 ? "#E5EDF7" : "#F8FBFF",
                 color: activePage === 1 ? "#9CA3AF" : "#374151",
-                border: "1px solid #E5E7EB",
+                border: "1px solid #D7E2EF",
               }}
               onMouseEnter={(e) => {
                 if (activePage !== 1) {
-                  e.currentTarget.style.backgroundColor = "#F9FAFB";
+                  e.currentTarget.style.backgroundColor = "#EEF4FB";
                 }
               }}
               onMouseLeave={(e) => {
                 if (activePage !== 1) {
-                  e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  e.currentTarget.style.backgroundColor = "#F8FBFF";
                 }
               }}
             >
@@ -355,18 +355,18 @@ export default function StudentResultsTable({
                   onClick={() => setActivePage(page)}
                   className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
                   style={{
-                    backgroundColor: activePage === page ? "#1e3a5f" : "#FFFFFF",
+                    backgroundColor: activePage === page ? "#1e3a5f" : "#F8FBFF",
                     color: activePage === page ? "#FFFFFF" : "#374151",
-                    border: "1px solid #E5E7EB",
+                    border: "1px solid #D7E2EF",
                   }}
                   onMouseEnter={(e) => {
                     if (activePage !== page) {
-                      e.currentTarget.style.backgroundColor = "#F9FAFB";
+                      e.currentTarget.style.backgroundColor = "#EEF4FB";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (activePage !== page) {
-                      e.currentTarget.style.backgroundColor = "#FFFFFF";
+                      e.currentTarget.style.backgroundColor = "#F8FBFF";
                     }
                   }}
                 >
@@ -379,18 +379,18 @@ export default function StudentResultsTable({
               disabled={activePage === totalPages}
               className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: activePage === totalPages ? "#F3F4F6" : "#FFFFFF",
+                backgroundColor: activePage === totalPages ? "#E5EDF7" : "#F8FBFF",
                 color: activePage === totalPages ? "#9CA3AF" : "#374151",
-                border: "1px solid #E5E7EB",
+                border: "1px solid #D7E2EF",
               }}
               onMouseEnter={(e) => {
                 if (activePage !== totalPages) {
-                  e.currentTarget.style.backgroundColor = "#F9FAFB";
+                  e.currentTarget.style.backgroundColor = "#EEF4FB";
                 }
               }}
               onMouseLeave={(e) => {
                 if (activePage !== totalPages) {
-                  e.currentTarget.style.backgroundColor = "#FFFFFF";
+                  e.currentTarget.style.backgroundColor = "#F8FBFF";
                 }
               }}
             >

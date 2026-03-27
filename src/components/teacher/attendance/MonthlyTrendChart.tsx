@@ -49,7 +49,7 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
     return (
       <div
         className="rounded-xl p-8 border text-center"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
       >
         <p style={{ color: "#9CA3AF" }}>No attendance data recorded yet</p>
       </div>
@@ -177,7 +177,7 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
   return (
     <motion.div
       className="rounded-xl p-6 border shadow-sm"
-      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+      style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25, duration: 0.25, ease: "easeOut" }}
@@ -188,7 +188,7 @@ export default function MonthlyTrendChart({ summaries }: MonthlyTrendChartProps)
 
       <div
         className="rounded-lg border p-4 mb-6"
-        style={{ backgroundColor: "#FAFAFA", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#EEF4FB", borderColor: "#D7E2EF" }}
       >
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div>

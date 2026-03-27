@@ -102,7 +102,7 @@ export default function StudentSummaryCard({
   return (
     <motion.div
       className="rounded-xl p-4 border"
-      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+      style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}

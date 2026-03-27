@@ -39,7 +39,7 @@ export default function ClassAnalytics({
       {/* Total Students */}
       <motion.div
         className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0, duration: 0.25, ease: "easeOut" }}
@@ -69,7 +69,7 @@ export default function ClassAnalytics({
       {/* Average Attendance Rate */}
       <motion.div
         className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05, duration: 0.25, ease: "easeOut" }}
@@ -106,7 +106,7 @@ export default function ClassAnalytics({
       {/* Perfect Attendance */}
       <motion.div
         className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.25, ease: "easeOut" }}
@@ -136,7 +136,7 @@ export default function ClassAnalytics({
       {/* At Risk Students */}
       <motion.div
         className="rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.25, ease: "easeOut" }}
@@ -166,7 +166,7 @@ export default function ClassAnalytics({
       {/* Summary Stats */}
       <motion.div
         className="md:col-span-2 lg:col-span-4 rounded-xl p-5 border shadow-sm"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.25, ease: "easeOut" }}

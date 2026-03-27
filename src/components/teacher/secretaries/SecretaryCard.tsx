@@ -96,8 +96,8 @@ export default function SecretaryCard({
     <motion.div
       className="rounded-2xl"
       style={{
-        backgroundColor: "#FFFFFF",
-        border: "0.5px solid #E5E7EB",
+        backgroundColor: "#F8FBFF",
+        border: "0.5px solid #D7E2EF",
         opacity: status === "removed" ? 0.7 : 1,
         filter: status === "removed" ? "grayscale(0.3)" : "none",
       }}
