@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { PopupAlert } from "@/components/ui";
+import TeacherHeader from "@/components/TeacherHeader";
 import {
   getAllTeacherStudents,
   updateStudent,
@@ -282,90 +283,13 @@ function StudentsContent() {
         />
       )}
 
-      {/* Header */}
-      <header
-        className="h-16 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-20 backdrop-blur-md"
-        style={{ backgroundColor: "rgba(253, 247, 255, 0.8)" }}
-      >
-        <h2
-          className="font-headline text-lg lg:text-xl font-bold"
-          style={{ color: "#1c1a22" }}
-        >
-          Attendance Management
-        </h2>
-        <div className="flex items-center gap-2 lg:gap-6">
-          <div className="flex items-center gap-2 lg:gap-4">
-            <button
-              className="w-9 h-9 lg:w-10 lg:h-10 flex items-center justify-center rounded-full transition-colors"
-              style={{ color: "#484553" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "#ece6f1")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "transparent")
-              }
-            >
-              <span className="material-symbols-outlined text-base lg:text-xl">help</span>
-            </button>
-            <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full overflow-hidden border-2" style={{ borderColor: '#e6e0ec' }}>
-              <img
-                alt="User Avatar"
-                className="w-full h-full object-cover"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuD__NsPqKYtlRm9fRKN5UCAPgbWqTN_36QZNbTj2TSl2En7OrhpRZHmg-Gj1xJr4uCeze53ZJWM1Vk3eR77w99sr_a31raGwI0I6I2vxBGvWv1CfjoqMQtzacv3Rndxsmls5n4AKdhu_p9utzYzhbb1HwlX4TrLZE2JiTwJwE5DCKQvc4brSPYuLTDRzzq9ZIkz00BJluaTzYy2GJg4kQkEhUzih9dMTknOzOLGBUyc1uO4ltNBUqjKKbCnZw_ITovK_O6vn3uo"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Page Header with Stats */}
-      <section className="flex items-center justify-between px-4 lg:px-8 pt-6 lg:pt-8 pb-4">
-        <h3
-          className="font-headline text-3xl sm:text-4xl font-extrabold -tracking-wide"
-          style={{ color: "#1c1a22" }}
-        >
-          Students
-        </h3>
-        <div className="flex gap-2 lg:gap-4">
-          {/* Total Students Stat */}
-          <div
-            className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg shrink-0 flex flex-col items-end justify-center gap-0.5"
-            style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
-          >
-            <p
-              className="font-label text-[10px] uppercase tracking-tighter font-medium"
-              style={{ color: "#6B7280" }}
-            >
-              Total Students
-            </p>
-            <p
-              className="font-headline text-xl lg:text-2xl font-medium leading-none"
-              style={{ color: "#1F1F1F" }}
-            >
-              {loading ? "-" : totalStudents}
-            </p>
-          </div>
-
-          {/* Active Sections Stat */}
-          <div
-            className="px-4 lg:px-6 py-2 lg:py-3 rounded-lg shrink-0 flex flex-col items-end justify-center gap-0.5"
-            style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
-          >
-            <p
-              className="font-label text-[10px] uppercase tracking-tighter font-medium"
-              style={{ color: "#6B7280" }}
-            >
-              Active Sections
-            </p>
-            <p
-              className="font-headline text-xl lg:text-2xl font-medium leading-none"
-              style={{ color: "#1F1F1F" }}
-            >
-              {loading ? "-" : activeSections}
-            </p>
-          </div>
-        </div>
-      </section>
+      <TeacherHeader
+        title="Students"
+        stats={[
+          { label: "Total Students", value: loading ? "-" : totalStudents },
+          { label: "Active Sections", value: loading ? "-" : activeSections },
+        ]}
+      />
 
       {/* Content Canvas */}
       <div className="p-4 lg:p-8 space-y-6">
