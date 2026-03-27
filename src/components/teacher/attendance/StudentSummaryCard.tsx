@@ -49,8 +49,8 @@ export default function StudentSummaryCard({
           <div className="font-medium text-sm truncate" style={{ color: "#1F1F1F" }}>
             {studentName}
           </div>
-          <div className="text-xs" style={{ color: "#9CA3AF" }}>
-            {lrn}
+          <div className="text-xs font-medium mt-0.5" style={{ color: "#64748B" }}>
+            LRN: {lrn}
           </div>
         </div>
 
@@ -116,8 +116,8 @@ export default function StudentSummaryCard({
         <h3 className="font-semibold text-sm truncate" style={{ color: "#1F1F1F" }}>
           {studentName}
         </h3>
-        <p className="text-xs" style={{ color: "#9CA3AF" }}>
-          {lrn}
+        <p className="text-xs font-medium mt-0.5" style={{ color: "#64748B" }}>
+          LRN: {lrn}
         </p>
       </div>
 

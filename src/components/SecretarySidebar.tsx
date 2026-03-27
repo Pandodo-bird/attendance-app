@@ -9,7 +9,7 @@ import {
   LogOut,
   History,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
 interface SecretarySidebarProps {
@@ -21,7 +21,6 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [isMobileOpen, setIsMobileOpen] = useState(isOpen);
   const [indicatorTop, setIndicatorTop] = useState(0);
   const [indicatorOpacity, setIndicatorOpacity] = useState(0);
   const navContainerRef = useRef<HTMLDivElement>(null);
@@ -30,7 +29,6 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   useEffect(() => {
     if (activeButtonRef.current && navContainerRef.current) {
       const button = activeButtonRef.current;
-      const container = navContainerRef.current;
       const top = button.offsetTop;
       setIndicatorTop(top);
       setIndicatorOpacity(1);
@@ -56,7 +54,6 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   const handleNavClick = (href: string) => {
     router.push(href);
     onClose?.();
-    setIsMobileOpen(false);
   };
 
   const getAvatarColor = (name: string): string => {
@@ -141,10 +138,10 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   return (
     <>
       {/* Mobile Overlay */}
-      {isMobileOpen && (
+      {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setIsMobileOpen(false)}
+          onClick={() => onClose?.()}
         />
       )}
 
@@ -152,8 +149,8 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
       <aside
         className={`
           fixed h-full border-r z-50 transition-transform duration-300 ease-in-out
-          lg:translate-x-0 lg:w-64
-          ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full w-0 lg:w-64'}
+          lg:w-64
+          ${isOpen ? "translate-x-0 w-64" : "-translate-x-full w-0"}
         `}
         style={{
           backgroundColor: "#FFFFFF",
@@ -239,15 +236,6 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           </div>
         </div>
       </aside>
-
-      {/* Mobile Menu Button */}
-      <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg shadow-md"
-        style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-      >
-        <LayoutDashboard className="w-5 h-5" />
-      </button>
     </>
   );
 }

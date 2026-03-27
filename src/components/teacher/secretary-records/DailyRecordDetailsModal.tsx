@@ -214,13 +214,28 @@ export default function DailyRecordDetailsModal({
             </p>
           ) : (
             <div className="rounded-xl overflow-hidden">
+              {!isEditingEnabled && (
+                <div
+                  className="grid grid-cols-12 gap-2 px-5 py-2 border-b"
+                  style={{ borderColor: "#F1F5F9", backgroundColor: "#F8FAFC" }}
+                >
+                  <div className="col-span-12 lg:col-span-9"></div>
+                  <div
+                    className="col-span-12 lg:col-span-3 inline-flex items-center justify-end gap-1.5 text-[11px] font-semibold"
+                    style={{ color: "#64748B" }}
+                  >
+                    <Lock size={12} />
+                    <span>Locked. Enable editing to override.</span>
+                  </div>
+                </div>
+              )}
               <div
                 className="grid grid-cols-12 gap-2 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide"
                 style={{ backgroundColor: "#F8FAFC", color: "#64748B" }}
               >
-                <div className="col-span-12 lg:col-span-6">Student</div>
+                <div className="col-span-12 lg:col-span-7">Student</div>
                 <div className="col-span-4 lg:col-span-2">Status</div>
-                <div className="col-span-8 lg:col-span-4">Teacher Override</div>
+                <div className="col-span-8 lg:col-span-3 text-right">Teacher Override</div>
               </div>
 
               {studentEntries.map(([lrn, record]) => {
@@ -236,7 +251,7 @@ export default function DailyRecordDetailsModal({
                     className="grid grid-cols-12 gap-2 px-5 py-2 items-center border-t"
                     style={{ borderColor: "#F1F5F9" }}
                   >
-                    <div className="col-span-12 lg:col-span-6">
+                    <div className="col-span-12 lg:col-span-7">
                       <p className="text-sm font-medium leading-5" style={{ color: "#111827" }}>
                         {typedRecord.studentName}
                       </p>
@@ -267,7 +282,7 @@ export default function DailyRecordDetailsModal({
                       </span>
                     </div>
 
-                    <div className="col-span-8 lg:col-span-4 space-y-1">
+                    <div className="col-span-8 lg:col-span-3 flex justify-end">
                       <select
                         value={typedRecord.status}
                         disabled={isSaving || !isEditingEnabled}
@@ -285,7 +300,7 @@ export default function DailyRecordDetailsModal({
                             nextStatus,
                           });
                         }}
-                        className="w-full rounded-md px-2.5 py-1.5 text-xs font-semibold outline-none disabled:cursor-not-allowed"
+                        className="w-full max-w-[160px] rounded-md px-2.5 py-1.5 text-xs font-semibold outline-none disabled:cursor-not-allowed"
                         style={{
                           backgroundColor: !isEditingEnabled ? "#F1F5F9" : "#FFFFFF",
                           color: !isEditingEnabled ? "#94A3B8" : "#1E293B",
@@ -297,11 +312,6 @@ export default function DailyRecordDetailsModal({
                         <option value="absent">Absent</option>
                         <option value="excused">Excused</option>
                       </select>
-                      {!isEditingEnabled && (
-                        <p className="text-[10px] font-semibold" style={{ color: "#94A3B8" }}>
-                          Locked. Enable editing to override.
-                        </p>
-                      )}
                     </div>
                   </div>
                 );

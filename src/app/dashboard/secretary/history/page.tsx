@@ -114,28 +114,28 @@ export default function HistoryPage() {
       )}
 
       {/* Main Content */}
-      <main className="p-4 md:p-6 lg:p-8">
+      <main className="p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Page Header */}
-          <div className="mb-8">
+          <div className="mb-6 sm:mb-8">
             <div className="flex items-center gap-3 mb-2">
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: "#1e3a5f" }}
               >
-                <FileText className="w-5 h-5 text-white" />
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <h1 className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+              <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
                 Attendance History
               </h1>
             </div>
-            <p className="text-sm" style={{ color: "#6B7280" }}>
+            <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
               View your past attendance submissions and statistics
             </p>
           </div>
 
           {/* Summary Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
             <motion.div
               className="rounded-xl p-5"
               style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
@@ -204,10 +204,10 @@ export default function HistoryPage() {
 
           {/* Section Title */}
           <div className="mb-4">
-            <h2 className="text-lg font-semibold" style={{ color: "#1F1F1F" }}>
+            <h2 className="text-base sm:text-lg font-semibold" style={{ color: "#1F1F1F" }}>
               Recent Sessions
             </h2>
-            <p className="text-sm" style={{ color: "#6B7280" }}>
+            <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
               Click on a session to view detailed attendance
             </p>
           </div>
@@ -225,7 +225,7 @@ export default function HistoryPage() {
           {/* Empty State */}
           {!isLoading && sessions.length === 0 && (
             <motion.div
-              className="rounded-2xl p-12 text-center"
+              className="rounded-2xl p-6 sm:p-12 text-center"
               style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -237,10 +237,10 @@ export default function HistoryPage() {
               >
                 <Calendar className="w-8 h-8" style={{ color: "#6B7280" }} />
               </div>
-              <h3 className="text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
+              <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
                 No Attendance History
               </h3>
-              <p className="text-sm mb-6" style={{ color: "#6B7280" }}>
+              <p className="text-xs sm:text-sm mb-6" style={{ color: "#6B7280" }}>
                 You haven&apos;t submitted any attendance records yet. Start by marking attendance for your class.
               </p>
             </motion.div>
@@ -263,7 +263,7 @@ export default function HistoryPage() {
                   <button
                     onClick={handleLoadMore}
                     disabled={isFetchingNextPage}
-                    className="px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       backgroundColor: isFetchingNextPage ? "#9CA3AF" : "#1e3a5f",
                       color: "#FFFFFF",
@@ -353,7 +353,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
   return (
     <motion.div
       onClick={onClick}
-      className="rounded-xl p-5 cursor-pointer transition-colors"
+      className="rounded-xl p-4 sm:p-5 cursor-pointer transition-colors"
       style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -363,7 +363,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
         boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
       }}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         {/* Left Side - Date, Section & Subject */}
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -377,7 +377,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
               {formattedDate}
             </span>
           </div>
-          <h3 className="text-lg font-semibold mb-1" style={{ color: "#1F1F1F" }}>
+          <h3 className="text-base sm:text-lg font-semibold mb-1" style={{ color: "#1F1F1F" }}>
             {sectionDisplayName}
           </h3>
           <p className="text-sm font-medium" style={{ color: "#6C5CE7" }}>
@@ -389,7 +389,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
         </div>
 
         {/* Middle - Stats */}
-        <div className="flex items-center gap-5 mx-6">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 lg:mx-6">
           <div className="text-center">
             <p className="text-2xl font-bold" style={{ color: "#10B981" }}>
               {stats.present}
@@ -433,7 +433,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
         </div>
 
         {/* Right Side - Arrow */}
-        <div className="flex items-center">
+        <div className="flex items-center justify-end lg:justify-center">
           <ChevronRight className="w-5 h-5" style={{ color: "#9CA3AF" }} />
         </div>
       </div>
@@ -465,11 +465,11 @@ function SessionDetailModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-4"
       onClick={onClose}
     >
       <motion.div
-        className="rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+        className="rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-hidden flex flex-col"
         style={{ backgroundColor: "#FFFFFF" }}
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -479,15 +479,15 @@ function SessionDetailModal({
       >
         {/* Header */}
         <div
-          className="p-6 border-b"
+          className="p-4 sm:p-6 border-b"
           style={{ borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" }}
         >
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-xl font-bold mb-1" style={{ color: "#1F1F1F" }}>
+              <h2 className="text-lg sm:text-xl font-bold mb-1" style={{ color: "#1F1F1F" }}>
                 {session.subject}
               </h2>
-              <p className="text-sm" style={{ color: "#6B7280" }}>
+              <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
                 {formattedDate}
               </p>
             </div>
@@ -507,7 +507,7 @@ function SessionDetailModal({
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
             <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#D1FAE5" }}>
               <p className="text-lg font-bold" style={{ color: "#065F46" }}>{stats.present}</p>
               <p className="text-xs font-medium" style={{ color: "#047857" }}>Present</p>
@@ -532,13 +532,13 @@ function SessionDetailModal({
         </div>
 
         {/* Student List */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {students.length > 0 ? (
             <div className="space-y-2">
               {students.map(([lrn, record]) => (
                 <div
                   key={lrn}
-                  className="flex items-center justify-between p-3 rounded-lg"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-lg"
                   style={{ backgroundColor: "#F9FAFB" }}
                 >
                   <div className="flex-1">

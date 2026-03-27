@@ -39,19 +39,19 @@ export default function AttendanceHeader({
 
   return (
     <div
-      className="rounded-2xl p-6 mb-6"
+      className="rounded-2xl p-4 sm:p-6 mb-6"
       style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
     >
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         {/* Date Selection */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="relative">
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => onDateChange(e.target.value)}
               disabled={isEditing}
-              className="pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: "#F9FAFB",
                 borderColor: "#E5E7EB",
@@ -63,7 +63,7 @@ export default function AttendanceHeader({
               style={{ color: "#9CA3AF" }}
             />
           </div>
-          <div className="text-sm" style={{ color: "#6B7280" }}>
+          <div className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
             {formatDateDisplay(selectedDate)}
             {isToday(selectedDate) && (
               <span
@@ -81,7 +81,7 @@ export default function AttendanceHeader({
           {!hasSessionToday && !sessionSubmitted ? (
             <button
               onClick={onStartSession}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors"
               style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = "#16304a";
@@ -94,13 +94,13 @@ export default function AttendanceHeader({
               Start Session
             </button>
           ) : sessionSubmitted && !isEditing ? (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ backgroundColor: "#D1FAE5" }}>
+            <div className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl" style={{ backgroundColor: "#D1FAE5" }}>
               <span className="text-sm font-semibold" style={{ color: "#065F46" }}>
                 Session Completed
               </span>
             </div>
           ) : isEditing ? (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ backgroundColor: "#FEF3C7" }}>
+            <div className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-xl" style={{ backgroundColor: "#FEF3C7" }}>
               <Edit2 className="w-4 h-4" style={{ color: "#92400E" }} />
               <span className="text-sm font-semibold" style={{ color: "#92400E" }}>
                 Editing Mode

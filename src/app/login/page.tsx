@@ -42,8 +42,8 @@ export default function LoginPage() {
     <div className="min-h-screen relative overflow-hidden bg-[#F7F6FB]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(108,92,231,0.12)_0%,transparent_42%),radial-gradient(circle_at_90%_75%,rgba(30,58,95,0.14)_0%,transparent_45%)]" />
 
-      <div className="relative min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8">
-        <div className="w-full max-w-5xl grid lg:grid-cols-2 rounded-3xl overflow-hidden border shadow-xl" style={{ borderColor: "#E5E7EB", backgroundColor: "#FFFFFF" }}>
+      <div className="relative min-h-screen flex items-start sm:items-center justify-center px-3 py-6 sm:p-6 lg:p-8">
+        <div className="w-full max-w-5xl grid lg:grid-cols-2 rounded-2xl sm:rounded-3xl overflow-hidden border shadow-lg sm:shadow-xl" style={{ borderColor: "#E5E7EB", backgroundColor: "#FFFFFF" }}>
           <section className="hidden lg:flex flex-col justify-between p-10" style={{ backgroundColor: "#1e3a5f" }}>
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: "rgba(255,255,255,0.14)" }}>
@@ -65,25 +65,41 @@ export default function LoginPage() {
             </div>
           </section>
 
-          <section className="p-8 sm:p-10">
-            <div className="mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg lg:hidden mb-5" style={{ backgroundColor: "#EEF2FF", color: "#1e3a5f" }}>
+          <section className="p-5 sm:p-8 lg:p-10">
+            <div className="mb-6 sm:mb-8">
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg lg:hidden mb-4" style={{ backgroundColor: "#EEF2FF", color: "#1e3a5f" }}>
                 <BookOpen size={18} />
                 <span className="font-headline text-sm font-semibold">EduAttend Pro</span>
               </div>
-              <h2 className="font-headline text-3xl font-bold" style={{ color: "#1c1a22" }}>Welcome Back</h2>
+              <h2 className="font-headline text-2xl sm:text-3xl font-bold leading-tight" style={{ color: "#1c1a22" }}>
+                Welcome Back
+              </h2>
               <p className="font-body mt-2 text-sm" style={{ color: "#6B7280" }}>
                 Sign in to continue to your dashboard.
               </p>
+              <div className="mt-3 flex flex-wrap gap-2 lg:hidden">
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold"
+                  style={{ backgroundColor: "#F1F5F9", color: "#1e3a5f" }}
+                >
+                  Teacher Portal
+                </span>
+                <span
+                  className="px-2.5 py-1 rounded-full text-xs font-semibold"
+                  style={{ backgroundColor: "#F1F5F9", color: "#1e3a5f" }}
+                >
+                  Secretary Portal
+                </span>
+              </div>
             </div>
 
             {error && (
-              <div className="border px-4 py-3 rounded-xl mb-6 text-sm" style={{ backgroundColor: "#FEF2F2", borderColor: "#FECACA", color: "#B91C1C" }}>
+              <div className="border px-4 py-3 rounded-xl mb-5 sm:mb-6 text-sm" style={{ backgroundColor: "#FEF2F2", borderColor: "#FECACA", color: "#B91C1C" }}>
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold mb-2" style={{ color: "#374151" }}>
                   Email Address
@@ -96,7 +112,8 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition"
+                    autoComplete="email"
+                    className="w-full pl-10 pr-4 py-3.5 border rounded-xl outline-none focus:ring-2 transition text-base"
                     style={{ borderColor: "#D1D5DB", color: "#111827" }}
                     placeholder="you@app.local"
                   />
@@ -115,7 +132,8 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full pl-10 pr-4 py-3 border rounded-xl outline-none focus:ring-2 transition"
+                    autoComplete="current-password"
+                    className="w-full pl-10 pr-4 py-3.5 border rounded-xl outline-none focus:ring-2 transition text-base"
                     style={{ borderColor: "#D1D5DB", color: "#111827" }}
                     placeholder="Enter your password"
                   />
@@ -125,14 +143,14 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+                className="w-full py-3.5 px-4 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-base"
                 style={{ backgroundColor: "#2D3748", color: "#FFFFFF" }}
               >
                 {loading ? "Signing in..." : "Sign In"}
               </button>
             </form>
 
-            <p className="mt-6 text-sm text-center" style={{ color: "#6B7280" }}>
+            <p className="mt-5 sm:mt-6 text-sm text-center" style={{ color: "#6B7280" }}>
               Don&apos;t have an account?{" "}
               <Link href="/register" className="font-semibold" style={{ color: "#1e3a5f" }}>
                 Go to Register

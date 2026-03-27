@@ -286,9 +286,19 @@ function AttendanceContent() {
                 <div>
                   {/* Top Bar: Title, View Toggle */}
                   <div className="flex flex-col gap-3 mb-4 md:flex-row md:items-center md:justify-between">
-                    <h3 className="font-semibold text-lg" style={{ color: "#1F1F1F" }}>
-                      Students
-                    </h3>
+                    <div>
+                      <h3 className="font-semibold text-lg" style={{ color: "#1F1F1F" }}>
+                        Students
+                      </h3>
+                      <div
+                        className="mt-2 rounded-lg border px-3 py-2"
+                        style={{ backgroundColor: "#F1F5FF", borderColor: "#D8E5FF" }}
+                      >
+                        <p className="text-sm font-medium leading-relaxed" style={{ color: "#334155" }}>
+                          Tip: Values in both table and card view show each student&apos;s accumulated attendance totals for the currently selected section and school year.
+                        </p>
+                      </div>
+                    </div>
 
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <div
@@ -417,7 +427,7 @@ function AttendanceContent() {
                         color: "#6B7280"
                       }}>
                         <div className="col-span-3">Student</div>
-                        <div className="col-span-2 text-center">Attendance</div>
+                        <div className="col-span-2 text-center">Attendance (Overall)</div>
                         <div className="col-span-2 text-center">Present</div>
                         <div className="col-span-2 text-center">Late</div>
                         <div className="col-span-2 text-center">Absent</div>
@@ -444,8 +454,8 @@ function AttendanceContent() {
                                   <div className="font-medium text-sm" style={{ color: "#1F1F1F" }}>
                                     {studentName}
                                   </div>
-                                  <div className="text-xs" style={{ color: "#9CA3AF" }}>
-                                    {student.lrn}
+                                  <div className="text-xs font-medium mt-0.5" style={{ color: "#64748B" }}>
+                                    LRN: {student.lrn}
                                   </div>
                                 </div>
                                 <div className="col-span-9 text-center text-sm" style={{ color: "#9CA3AF" }}>
@@ -488,6 +498,9 @@ function AttendanceContent() {
                               <h3 className="font-semibold" style={{ color: "#1F1F1F" }}>
                                 {studentName}
                               </h3>
+                              <p className="text-xs font-medium mt-1" style={{ color: "#64748B" }}>
+                                LRN: {student.lrn}
+                              </p>
                               <p className="text-sm" style={{ color: "#9CA3AF" }}>
                                 No attendance records
                               </p>
