@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { motion } from "framer-motion";
-import { CalendarDays, Info, Lock, Pencil, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarDays, Info, Lock, Pencil, ShieldCheck, UserRound } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { useAuth } from "@/contexts/AuthContext";
@@ -139,6 +139,7 @@ function ReportsContent() {
   const [savingRecordKey, setSavingRecordKey] = useState<string | null>(null);
   const [editableSessionIds, setEditableSessionIds] = useState<Record<string, boolean>>({});
   const [pendingOverride, setPendingOverride] = useState<PendingOverride | null>(null);
+  const [selectedSecretaryUid, setSelectedSecretaryUid] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
   const teacherName = user?.displayName?.trim() || "Teacher";
@@ -256,10 +257,33 @@ function ReportsContent() {
     group.sessions.sort((a, b) => b.date.localeCompare(a.date));
   });
 
+  useEffect(() => {
+    if (!selectedSecretaryUid) {
+      return;
+    }
+
+    const secretaryStillVisible = groupedRecords.some((group) => group.secretaryUid === selectedSecretaryUid);
+    if (!secretaryStillVisible) {
+      setSelectedSecretaryUid(null);
+    }
+  }, [groupedRecords, selectedSecretaryUid]);
+
+  const selectedSecretaryGroup = selectedSecretaryUid
+    ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ?? null
+    : null;
+
   const teacherStats = [
     { label: "SECRETARIES", value: groupedRecords.length },
-    { label: "SESSIONS", value: filteredSessions.length },
-    { label: "DAYS RECORDED", value: new Set(filteredSessions.map((session) => session.date)).size },
+    {
+      label: "SESSIONS",
+      value: selectedSecretaryGroup ? selectedSecretaryGroup.sessions.length : filteredSessions.length,
+    },
+    {
+      label: "DAYS RECORDED",
+      value: new Set(
+        (selectedSecretaryGroup ? selectedSecretaryGroup.sessions : filteredSessions).map((session) => session.date)
+      ).size,
+    },
   ];
 
   const toggleSessionEditing = (sessionId: string): void => {
@@ -320,7 +344,11 @@ function ReportsContent() {
       <TeacherHeader
         title="Secretary Records"
         stats={teacherStats}
-        searchPlaceholder="Search records by recorder, date, section, subject..."
+        searchPlaceholder={
+          selectedSecretaryGroup
+            ? "Search records by date, section, or subject..."
+            : "Search secretary by name or LRN..."
+        }
         onSearch={(query) => setSearchQuery(query)}
       />
 
@@ -335,7 +363,7 @@ function ReportsContent() {
                 Daily secretary-submitted attendance
               </p>
               <p className="text-sm" style={{ color: "#475569" }}>
-                Each session shows the class date, who recorded it, and the current saved status. Turn on editing for a session before overriding any student entry.
+                Start by selecting a secretary to open their attendance history. Turn on editing for a session before overriding any student entry.
               </p>
             </div>
             <div
@@ -369,38 +397,48 @@ function ReportsContent() {
               No attendance records found for this teacher yet.
             </p>
           </div>
-        ) : (
-          groupedRecords.map((group, groupIndex) => (
+        ) : selectedSecretaryGroup ? (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setSelectedSecretaryUid(null)}
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", color: "#1E3A5F" }}
+            >
+              <ArrowLeft size={16} />
+              Back to Secretaries
+            </button>
+
             <motion.div
-              key={group.secretaryUid}
+              key={selectedSecretaryGroup.secretaryUid}
               className="rounded-2xl border overflow-hidden"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: groupIndex * 0.04, duration: 0.25, ease: "easeOut" }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
             >
               <div className="px-5 py-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between" style={{ borderColor: "#F1F5F9" }}>
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="text-base font-semibold" style={{ color: "#1F2937" }}>
-                    {group.secretaryName}
+                    {selectedSecretaryGroup.secretaryName}
                   </p>
                   <span
                     className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
                     style={{ backgroundColor: "#EEF2FF", color: "#1E3A8A" }}
                   >
-                    LRN {group.secretaryLrn}
+                    LRN {selectedSecretaryGroup.secretaryLrn}
                   </span>
                 </div>
                 <div
                   className="px-3 py-1 rounded-full text-xs font-semibold w-fit"
                   style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}
                 >
-                  {group.sessions.length} session{group.sessions.length > 1 ? "s" : ""}
+                  {selectedSecretaryGroup.sessions.length} session{selectedSecretaryGroup.sessions.length > 1 ? "s" : ""}
                 </div>
               </div>
 
               <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
-                {group.sessions.map((session) => {
+                {selectedSecretaryGroup.sessions.map((session) => {
                   const studentEntries = Object.entries(session.records ?? {}).sort((a, b) =>
                     a[1].studentName.localeCompare(b[1].studentName)
                   );
@@ -632,7 +670,62 @@ function ReportsContent() {
                 })}
               </div>
             </motion.div>
-          ))
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {groupedRecords.map((group, groupIndex) => {
+              const latestSession = group.sessions[0];
+
+              return (
+                <motion.button
+                  key={group.secretaryUid}
+                  type="button"
+                  onClick={() => setSelectedSecretaryUid(group.secretaryUid)}
+                  className="w-full rounded-2xl border p-5 text-left"
+                  style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: groupIndex * 0.04, duration: 0.25, ease: "easeOut" }}
+                  whileHover={{ borderColor: "#CBD5E1", boxShadow: "0 8px 18px rgba(15, 23, 42, 0.06)" }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-semibold" style={{ color: "#1F2937" }}>
+                        {group.secretaryName}
+                      </p>
+                      <p className="text-xs mt-1" style={{ color: "#64748B" }}>
+                        LRN {group.secretaryLrn}
+                      </p>
+                    </div>
+                    <span
+                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                      style={{ backgroundColor: "#EEF2FF", color: "#1E3A8A" }}
+                    >
+                      {group.sessions.length} session{group.sessions.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-xs" style={{ color: "#475569" }}>
+                    <p>
+                      Latest date:{" "}
+                      <span className="font-semibold" style={{ color: "#1E293B" }}>
+                        {latestSession ? formatDate(latestSession.date) : "No session"}
+                      </span>
+                    </p>
+                    <p>
+                      Latest subject:{" "}
+                      <span className="font-semibold" style={{ color: "#1E293B" }}>
+                        {latestSession?.subject ?? "N/A"}
+                      </span>
+                    </p>
+                    <p className="font-semibold" style={{ color: "#1E3A5F" }}>
+                      View records
+                    </p>
+                  </div>
+                </motion.button>
+              );
+            })}
+          </div>
         )}
       </div>
 
