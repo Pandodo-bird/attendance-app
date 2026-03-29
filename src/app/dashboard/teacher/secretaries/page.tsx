@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { collection, getDocs, query, where } from "firebase/firestore";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShieldCheck, UserPlus } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
@@ -12,17 +11,16 @@ import { ActiveSecretariesCounter, SecretaryCard, SecretaryCreationForm } from "
 import { useAuth } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import {
-  Attendance,
   AttendanceStatus,
   Appointment,
   calculateAttendanceStats,
   getTeacherAppointments,
+  getTeacherAttendanceSessions,
   getTeacherSections,
   getUserProfilesBatch,
   overrideAttendanceRecord,
   UserData,
 } from "@/lib/firestore";
-import { db } from "@/lib/firebase";
 
 interface SecretaryGroupedRecords {
   secretaryUid: string;
@@ -41,26 +39,6 @@ interface SecretaryCardItem {
   subject: string;
   schoolYear: string;
   appointedAt: Date | string | { toDate: () => Date };
-}
-
-async function getTeacherAttendanceSessions(teacherId: string): Promise<Attendance[]> {
-  const attendanceRef = collection(db, "attendance");
-  const q = query(attendanceRef, where("teacherId", "==", teacherId));
-  console.log("🔥 FIRESTORE | [teacher/secretaries/page.tsx] | [getDocs] | [attendance] (teacherId filter)");
-  const snapshot = await getDocs(q);
-
-  const sessions = snapshot.docs.map((attendanceDoc) => ({
-    id: attendanceDoc.id,
-    ...attendanceDoc.data(),
-  } as Attendance));
-
-  sessions.sort((a, b) => {
-    const dateCompare = b.date.localeCompare(a.date);
-    if (dateCompare !== 0) return dateCompare;
-    return b.id.localeCompare(a.id);
-  });
-
-  return sessions;
 }
 
 function formatDate(dateString: string): string {
@@ -139,6 +117,9 @@ function SecretariesContent() {
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
 
   const today = new Date().toISOString().split("T")[0];
+  const recentWindowStart = new Date();
+  recentWindowStart.setDate(recentWindowStart.getDate() - 120);
+  const attendanceWindowStart = recentWindowStart.toISOString().split("T")[0];
   const teacherName = user?.displayName?.trim() || "Teacher";
 
   const { data: sections = [] } = useQuery({
@@ -162,14 +143,15 @@ function SecretariesContent() {
     isLoading: isLoadingAttendance,
     error: attendanceError,
   } = useQuery({
-    queryKey: ["teacherAttendanceSessions", user?.uid],
-    queryFn: () => getTeacherAttendanceSessions(user?.uid || ""),
+    queryKey: ["teacherAttendanceSessions", user?.uid, attendanceWindowStart, today],
+    queryFn: () => getTeacherAttendanceSessions(user?.uid || "", attendanceWindowStart, today),
     enabled: !!user?.uid,
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
   });
 
   const activeAppointments = appointments.filter((appointment) => appointment.status === "active");
+  const activeSecretaryCount = activeAppointments.length;
   const secretaryUids = Array.from(
     new Set([
       ...attendanceSessions.map((session) => session.secretaryUid),
@@ -339,7 +321,7 @@ function SecretariesContent() {
   const teacherStats = [
     {
       label: "ACTIVE SECRETARIES",
-      value: <ActiveSecretariesCounter teacherId={user?.uid || ""} />,
+      value: <ActiveSecretariesCounter count={activeSecretaryCount} />,
     },
     {
       label: "SESSIONS",

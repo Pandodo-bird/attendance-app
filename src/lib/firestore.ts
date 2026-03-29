@@ -7,13 +7,10 @@ import {
   query,
   where,
   getDocs,
-  onSnapshot,
   Timestamp,
   deleteDoc,
   writeBatch,
-  FirestoreError,
   updateDoc,
-  Unsubscribe,
   increment,
   deleteField,
   orderBy,
@@ -164,42 +161,24 @@ export interface StudentSummary {
   trend: Record<string, { present: number; late: number; absent: number; excused?: number }>;
 }
 
-// ==================== Cache Implementation ====================
-// In-memory cache to reduce Firestore reads for frequently accessed data
-interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-}
-
-const queryCache = new Map<string, CacheEntry<unknown>>();
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes cache TTL for queries
-
-export function getCachedData<T>(key: string): T | null {
-  const entry = queryCache.get(key);
-  if (entry && Date.now() - entry.timestamp < CACHE_TTL) {
-    return entry.data as T;
-  }
-  queryCache.delete(key);
+// ==================== Legacy Cache Shims ====================
+// TanStack Query now owns caching. These shims intentionally disable the
+// deprecated in-memory cache while preserving existing call signatures.
+export function getCachedData<T>(_key: string): T | null {
+  void _key;
   return null;
 }
 
-export function setCachedData<T>(key: string, data: T): void {
-  queryCache.set(key, { data, timestamp: Date.now() });
+export function setCachedData<T>(_key: string, _data: T): void {
+  void _key;
+  void _data;
 }
 
-export function invalidateCache(pattern: string): void {
-  for (const key of queryCache.keys()) {
-    if (key.includes(pattern)) {
-      queryCache.delete(key);
-    }
-  }
+export function invalidateCache(_pattern: string): void {
+  void _pattern;
 }
 
-/**
- * Export function to clear all caches (useful for testing or manual refresh)
- */
 export function clearAllCaches(): void {
-  queryCache.clear();
 }
 
 // ==================== User Profile Functions ====================
@@ -304,32 +283,6 @@ export async function getTeacherSections(
 }
 
 /**
- * Get count of active sections for a teacher (lightweight query)
- */
-export async function getTeacherSectionCount(
-  teacherId: string,
-  useCache = true
-): Promise<number> {
-  const cacheKey = `sections_count_${teacherId}`;
-
-  if (useCache) {
-    const cached = getCachedData<number>(cacheKey);
-    if (cached !== null) return cached;
-  }
-
-  const sectionsRef = collection(db, "sections");
-  const q = query(sectionsRef, where("teacherId", "==", teacherId), where("status", "==", "active"));
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [sections] (teacherId + status filter)");
-  const snapshot = await getDocs(q);
-
-  if (useCache) {
-    setCachedData(cacheKey, snapshot.size);
-  }
-
-  return snapshot.size;
-}
-
-/**
  * Get total student count across all active sections for a teacher (lightweight query)
  */
 export async function getTeacherStudentCount(
@@ -361,37 +314,6 @@ export async function getTeacherStudentCount(
   }
 
   return totalCount;
-}
-
-/**
- * Subscribe to real-time updates for teacher's sections
- */
-export function subscribeToSections(
-  teacherId: string,
-  callback: (sections: Section[]) => void,
-  errorCallback?: (error: FirestoreError) => void
-): Unsubscribe {
-  const sectionsRef = collection(db, "sections");
-  const q = query(sectionsRef, where("teacherId", "==", teacherId));
-
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [sections] (teacherId filter)");
-      const sections = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Section));
-
-      setCachedData(`sections_${teacherId}`, sections);
-      callback(sections);
-    },
-    (error) => {
-      errorCallback?.(error as FirestoreError);
-    }
-  );
-
-  return unsubscribe;
 }
 
 /**
@@ -507,23 +429,23 @@ export async function getAllTeacherStudents(
   }
 
   const sections = await getTeacherSections(teacherId, useCache);
-  const allStudents: { sectionId: string; sectionName: string; gradeLevel: string; student: Student }[] = [];
-
-  for (const section of sections) {
-    if (section.status === 'active') {
-      const students = await getSectionStudents(section.id, useCache);
-      for (const student of students) {
-        if (student.studentStatus === 'active') {
-          allStudents.push({
+  const sectionStudentGroups = await Promise.all(
+    sections
+      .filter((section) => section.status === "active")
+      .map(async (section) => {
+        const students = await getSectionStudents(section.id, useCache);
+        return students
+          .filter((student) => student.studentStatus === "active")
+          .map((student) => ({
             sectionId: section.id,
             sectionName: section.sectionName,
             gradeLevel: section.gradeLevel,
-            student
-          });
-        }
-      }
-    }
-  }
+            student,
+          }));
+      })
+  );
+
+  const allStudents = sectionStudentGroups.flat();
 
   if (useCache) {
     setCachedData(cacheKey, allStudents);
@@ -555,22 +477,6 @@ export async function checkStudentHasActiveSecretaryAppointment(lrn: string): Pr
 }
 
 /**
- * Get user by email
- */
-export async function getUserByEmail(email: string): Promise<UserData | null> {
-  const usersRef = collection(db, "users");
-  const q = query(usersRef, where("email", "==", email));
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [users] (email filter)");
-  const snapshot = await getDocs(q);
-
-  if (!snapshot.empty) {
-    return snapshot.docs[0].data() as UserData;
-  }
-
-  return null;
-}
-
-/**
  * Get all students in a section
  */
 export async function getSectionStudents(
@@ -598,36 +504,6 @@ export async function getSectionStudents(
   }
 
   return students;
-}
-
-/**
- * Subscribe to real-time updates for students in a section
- */
-export function subscribeToSectionStudents(
-  sectionId: string,
-  callback: (students: Student[]) => void,
-  errorCallback?: (error: FirestoreError) => void
-): Unsubscribe {
-  const studentsRef = collection(db, `sections/${sectionId}/students`);
-
-  const unsubscribe = onSnapshot(
-    studentsRef,
-    (snapshot) => {
-      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [sections/{sectionId}/students]");
-      const students = snapshot.docs.map(doc => ({
-        lrn: doc.id,
-        ...doc.data()
-      } as Student));
-
-      setCachedData(`students_${sectionId}`, students);
-      callback(students);
-    },
-    (error) => {
-      errorCallback?.(error as FirestoreError);
-    }
-  );
-
-  return unsubscribe;
 }
 
 /**
@@ -791,68 +667,6 @@ export async function getSecretaryAppointments(
 /**
  * Subscribe to real-time updates for teacher's appointments
  */
-export function subscribeToTeacherAppointments(
-  teacherId: string,
-  callback: (appointments: Appointment[]) => void,
-  errorCallback?: (error: FirestoreError) => void
-): Unsubscribe {
-  const appointmentsRef = collection(db, "appointments");
-  const q = query(appointmentsRef, where("teacherId", "==", teacherId));
-
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [appointments] (teacherId filter)");
-      const appointments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Appointment));
-
-      setCachedData(`appointments_teacher_${teacherId}`, appointments);
-      callback(appointments);
-    },
-    (error) => {
-      errorCallback?.(error as FirestoreError);
-    }
-  );
-
-  return unsubscribe;
-}
-
-/**
- * Subscribe to real-time updates for secretary's active appointments
- */
-export function subscribeToSecretaryAppointments(
-  secretaryUid: string,
-  callback: (appointments: Appointment[]) => void,
-  errorCallback?: (error: FirestoreError) => void
-): Unsubscribe {
-  const appointmentsRef = collection(db, "appointments");
-  const q = query(
-    appointmentsRef,
-    where("secretaryUid", "==", secretaryUid),
-    where("status", "==", "active")
-  );
-
-  const unsubscribe = onSnapshot(
-    q,
-    (snapshot) => {
-      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [appointments] (secretaryUid + status filter)");
-      const appointments = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Appointment));
-
-      setCachedData(`appointments_secretary_${secretaryUid}`, appointments);
-      callback(appointments);
-    },
-    (error) => {
-      errorCallback?.(error as FirestoreError);
-    }
-  );
-
-  return unsubscribe;
-}
 
 /**
  * Create a new appointment (appoint a secretary)
@@ -987,6 +801,109 @@ export async function getSecretaryAttendance(
 }
 
 /**
+ * Get attendance records for a secretary on a specific date
+ */
+export async function getSecretaryAttendanceForDate(
+  secretaryUid: string,
+  date: string,
+  useCache = true
+): Promise<Attendance[]> {
+  const cacheKey = `attendance_secretary_${secretaryUid}_${date}`;
+
+  if (useCache) {
+    const cached = getCachedData<Attendance[]>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const attendanceRef = collection(db, "attendance");
+  const q = query(
+    attendanceRef,
+    where("secretaryUid", "==", secretaryUid),
+    where("date", "==", date)
+  );
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid + date filter)");
+  const snapshot = await getDocs(q);
+
+  const attendance = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Attendance));
+
+  if (useCache) {
+    setCachedData(cacheKey, attendance);
+  }
+
+  return attendance;
+}
+
+/**
+ * Get attendance sessions for a teacher with optional date range filtering
+ */
+export async function getTeacherAttendanceSessions(
+  teacherId: string,
+  startDate?: string,
+  endDate?: string,
+  useCache = true
+): Promise<Attendance[]> {
+  const cacheKey = `attendance_teacher_sessions_${teacherId}_${startDate ?? "all"}_${endDate ?? "all"}`;
+
+  if (useCache) {
+    const cached = getCachedData<Attendance[]>(cacheKey);
+    if (cached) return cached;
+  }
+
+  const attendanceRef = collection(db, "attendance");
+  let q;
+
+  if (startDate && endDate) {
+    q = query(
+      attendanceRef,
+      where("teacherId", "==", teacherId),
+      where("date", ">=", startDate),
+      where("date", "<=", endDate)
+    );
+  } else if (startDate) {
+    q = query(
+      attendanceRef,
+      where("teacherId", "==", teacherId),
+      where("date", ">=", startDate)
+    );
+  } else if (endDate) {
+    q = query(
+      attendanceRef,
+      where("teacherId", "==", teacherId),
+      where("date", "<=", endDate)
+    );
+  } else {
+    q = query(attendanceRef, where("teacherId", "==", teacherId));
+  }
+
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (teacherId sessions query)", {
+    teacherId,
+    startDate: startDate ?? null,
+    endDate: endDate ?? null,
+  });
+  const snapshot = await getDocs(q);
+
+  const sessions = snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Attendance));
+
+  sessions.sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date);
+    if (dateCompare !== 0) return dateCompare;
+    return b.id.localeCompare(a.id);
+  });
+
+  if (useCache) {
+    setCachedData(cacheKey, sessions);
+  }
+
+  return sessions;
+}
+
+/**
  * Submit attendance for a class session
  * Creates attendance document with records subcollection
  * @deprecated Use submitFullAttendance instead for the new attendance layer structure
@@ -1051,45 +968,6 @@ export async function submitAttendance(
 /**
  * Get attendance records for a specific date and appointment
  */
-export async function getAttendanceByAppointment(
-  appointmentId: string,
-  date: string
-): Promise<Attendance | null> {
-  const attendanceRef = collection(db, "attendance");
-  const q = query(
-    attendanceRef,
-    where("appointmentId", "==", appointmentId),
-    where("date", "==", date)
-  );
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (appointmentId + date filter)");
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) return null;
-
-  const doc = snapshot.docs[0];
-  return {
-    id: doc.id,
-    ...doc.data()
-  } as Attendance;
-}
-
-/**
- * Get student attendance records from attendance/{id}/records subcollection
- */
-export async function getAttendanceRecords(
-  attendanceId: string
-): Promise<Record<string, AttendanceRecord>> {
-  const recordsRef = collection(db, `attendance/${attendanceId}/records`);
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance/{attendanceId}/records]");
-  const snapshot = await getDocs(recordsRef);
-
-  const records: Record<string, AttendanceRecord> = {};
-  snapshot.docs.forEach((doc) => {
-    records[doc.id] = doc.data() as AttendanceRecord;
-  });
-
-  return records;
-}
 
 /**
  * Get attendance session by ID
@@ -1399,34 +1277,6 @@ export async function overrideAttendanceRecord(
  * Subscribe to real-time updates for an attendance session
  * Use this ONLY on the active attendance page
  */
-export function subscribeToAttendanceSession(
-  attendanceId: string,
-  callback: (attendance: Attendance | null) => void,
-  errorCallback?: (error: FirestoreError) => void
-): Unsubscribe {
-  const attendanceRef = doc(db, "attendance", attendanceId);
-
-  const unsubscribe = onSnapshot(
-    attendanceRef,
-    (doc) => {
-      console.log("🔥 FIRESTORE | [firestore.ts] | [onSnapshot] | [attendance/{attendanceId}]");
-      if (doc.exists()) {
-        callback({
-          id: doc.id,
-          ...doc.data()
-        } as Attendance);
-      } else {
-        callback(null);
-      }
-    },
-    (error) => {
-      errorCallback?.(error as FirestoreError);
-    }
-  );
-
-  return unsubscribe;
-}
-
 /**
  * Get section slug from section ID
  * Helper function to construct the sectionSlug: {gradeLevel}-{sectionName}
@@ -1446,47 +1296,6 @@ export async function getSectionSlug(sectionId: string): Promise<string | null> 
 
   console.error("❌ Section not found:", sectionId);
   return null;
-}
-
-/**
- * Get all attendance sessions for a secretary (for history page)
- * Returns sessions sorted by date (descending - most recent first)
- * 
- * @deprecated Use getSecretaryAttendanceHistoryPaginated instead for better performance
- */
-export async function getSecretaryAttendanceHistory(
-  secretaryUid: string,
-  useCache = true
-): Promise<Attendance[]> {
-  const cacheKey = `attendance_history_${secretaryUid}`;
-
-  if (useCache) {
-    const cached = getCachedData<Attendance[]>(cacheKey);
-    if (cached) return cached;
-  }
-
-  const attendanceRef = collection(db, "attendance");
-  const q = query(attendanceRef, where("secretaryUid", "==", secretaryUid));
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid filter - history)");
-  const snapshot = await getDocs(q);
-
-  const sessions = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Attendance));
-
-  // Sort by date descending (most recent first)
-  sessions.sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return dateB - dateA;
-  });
-
-  if (useCache) {
-    setCachedData(cacheKey, sessions);
-  }
-
-  return sessions;
 }
 
 /**
@@ -1567,56 +1376,6 @@ export function calculateAttendanceStats(
 }
 
 // ==================== Student Summary Functions ====================
-
-/**
- * Get all student summaries for a section and school year
- * Uses deterministic document ID pattern for direct lookups
- * Document ID: {sectionSlug}_{lastName}_{lrn}_{schoolYear}
- */
-export async function getSectionStudentSummaries(
-  sectionSlug: string,
-  schoolYear: string,
-  studentLrns: string[],
-  useCache = true
-): Promise<StudentSummary[]> {
-  const cacheKey = `summaries_${sectionSlug}_${schoolYear}`;
-
-  if (useCache) {
-    const cached = getCachedData<StudentSummary[]>(cacheKey);
-    if (cached) return cached;
-  }
-
-  const summariesRef = collection(db, "studentSummaries");
-  const summaries: StudentSummary[] = [];
-
-  // Fetch each student's summary using deterministic ID
-  for (const lrn of studentLrns) {
-    // We need the lastName to construct the ID - this should be passed in
-    // For now, we'll query by sectionId and schoolYear, then filter by lrn
-    const q = query(
-      summariesRef,
-      where("sectionId", "==", sectionSlug),
-      where("schoolYear", "==", schoolYear),
-      where("lrn", "==", lrn)
-    );
-    console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [studentSummaries] (section + schoolYear + lrn filter)");
-    const snapshot = await getDocs(q);
-
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
-      summaries.push({
-        id: doc.id,
-        ...doc.data()
-      } as StudentSummary);
-    }
-  }
-
-  if (useCache) {
-    setCachedData(cacheKey, summaries);
-  }
-
-  return summaries;
-}
 
 /**
  * Get all student summaries for a section by querying sectionId and schoolYear

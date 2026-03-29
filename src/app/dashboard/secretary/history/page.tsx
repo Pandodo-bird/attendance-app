@@ -49,6 +49,7 @@ export default function HistoryPage() {
       
       return result;
     },
+    enabled: !!user?.uid,
     initialPageParam: null as DocumentSnapshot | null,
     getNextPageParam: (lastPage) => {
       return lastPage.hasMore ? lastPage.lastVisible : undefined;

@@ -11,7 +11,6 @@ import {
   getSectionStudents,
   startAttendanceSession,
   submitFullAttendance,
-  getSectionSlug,
   getAttendanceSession,
 } from "@/lib/firestore";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
@@ -100,15 +99,6 @@ export default function SecretaryAttendancePage() {
   const selectedAppointment = appointments.length > 0 ? appointments[0] : null;
   const sectionId = selectedAppointment?.sectionId;
 
-  // TanStack Query: Fetch section details for slug
-  const { data: sectionSlug } = useQuery({
-    queryKey: ["sectionSlug", sectionId],
-    queryFn: () => getSectionSlug(sectionId!),
-    enabled: !!sectionId,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-  });
-
   // TanStack Query: Fetch section details for display
   const { data: section } = useQuery({
     queryKey: ["section", sectionId],
@@ -117,6 +107,10 @@ export default function SecretaryAttendancePage() {
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
+
+  const sectionSlug = section
+    ? `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, "-")}`
+    : null;
 
   // Construct attendance ID for TanStack Query (depends on sectionSlug)
   const attendanceId = selectedAppointment && sectionSlug

@@ -20,7 +20,7 @@ import {
   calculateAttendanceStats,
   getSectionById,
   getSecretaryAppointments,
-  getSecretaryAttendance,
+  getSecretaryAttendanceForDate,
   getSecretaryAttendanceHistoryPaginated,
 } from "@/lib/firestore";
 
@@ -57,10 +57,7 @@ function SecretaryDashboardContent() {
 
   const { data: todaySessions = [], isLoading: todaySessionsLoading } = useQuery({
     queryKey: ["secretaryAttendanceToday", user?.uid, todayDateKey],
-    queryFn: async () => {
-      const sessions = await getSecretaryAttendance(user?.uid || "");
-      return sessions.filter((session) => session.date === todayDateKey);
-    },
+    queryFn: () => getSecretaryAttendanceForDate(user?.uid || "", todayDateKey),
     enabled: !!user?.uid,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
