@@ -11,6 +11,7 @@ import { ActiveSecretariesCounter, SecretaryCard, SecretaryCreationForm } from "
 import { useAuth } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import {
+  Attendance,
   AttendanceStatus,
   Appointment,
   calculateAttendanceStats,
@@ -122,6 +123,10 @@ function SecretariesContent() {
   const attendanceWindowStart = recentWindowStart.toISOString().split("T")[0];
   const teacherName = user?.displayName?.trim() || "Teacher";
 
+  const filterByDateWindow = (sessions: Attendance[]): Attendance[] => {
+    return sessions.filter((session) => session.date >= attendanceWindowStart && session.date <= today);
+  };
+
   const { data: sections = [] } = useQuery({
     queryKey: ["sections", user?.uid],
     queryFn: () => getTeacherSections(user?.uid || ""),
@@ -139,16 +144,23 @@ function SecretariesContent() {
   });
 
   const {
-    data: attendanceSessions = [],
+    data: rawAttendanceSessions = [],
     isLoading: isLoadingAttendance,
     error: attendanceError,
   } = useQuery({
     queryKey: ["teacherAttendanceSessions", user?.uid, attendanceWindowStart, today],
-    queryFn: () => getTeacherAttendanceSessions(user?.uid || "", attendanceWindowStart, today),
+    queryFn: () =>
+      getTeacherAttendanceSessions(
+        user?.uid || "",
+        attendanceWindowStart,
+        today
+      ),
     enabled: !!user?.uid,
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
   });
+
+  const attendanceSessions = filterByDateWindow(rawAttendanceSessions);
 
   const activeAppointments = appointments.filter((appointment) => appointment.status === "active");
   const activeSecretaryCount = activeAppointments.length;
