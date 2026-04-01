@@ -31,9 +31,7 @@ service cloud.firestore {
     
     // ==================== Users Collection ====================
     match /users/{userId} {
-      // Allow authenticated users to read any user profile (needed for checking secretary existence)
       allow read: if isAuthenticated();
-      // TEMPORARILY OPEN: Allow authenticated users to create secretary profiles for testing
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && getUid() == userId;
       allow delete: if false;
@@ -41,7 +39,6 @@ service cloud.firestore {
     
     // ==================== Sections Collection ====================
     match /sections/{sectionId} {
-      // Teachers can read their own sections, secretaries can read any section (app logic filters to their appointment)
       allow read: if isAuthenticated() &&
                      (resource.data.teacherId == getUid() || isSecretary());
       allow create: if isAuthenticated() &&
@@ -51,7 +48,6 @@ service cloud.firestore {
       allow delete: if isAuthenticated() &&
                        resource.data.teacherId == getUid();
 
-      // Students subcollection
       match /students/{studentLrn} {
         allow read: if isAuthenticated();
         allow create, update, delete: if isAuthenticated() &&
@@ -75,13 +71,10 @@ service cloud.firestore {
     
     // ==================== Attendance Collection ====================
     match /attendance/{attendanceId} {
-      // Secretaries can read/write their own attendance, teachers can read attendance for their sections
-      // Note: resource is null for non-existent documents, so allow read when checking existence
       allow read: if isAuthenticated() &&
                      (resource == null ||
                       resource.data.teacherId == getUid() ||
                       resource.data.secretaryUid == getUid());
-      // Teachers and secretaries can create sessions with ownership checks
       allow create: if isAuthenticated() &&
                        (
                          request.resource.data.secretaryUid == getUid() ||
@@ -101,7 +94,6 @@ service cloud.firestore {
 
     // ==================== AttendanceRecords Collection ====================
     match /attendanceRecords/{recordId} {
-      // Teachers can read records for their sections, secretaries can read their own records
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
                        (isSecretary() || request.resource.data.teacherId == getUid());
@@ -112,7 +104,6 @@ service cloud.firestore {
 
     // ==================== StudentSummaries Collection ====================
     match /studentSummaries/{summaryId} {
-      // Teachers can read summaries for their sections, secretaries can read their section's summaries
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
                        (
