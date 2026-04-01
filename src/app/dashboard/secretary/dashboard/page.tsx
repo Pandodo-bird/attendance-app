@@ -65,7 +65,7 @@ function SecretaryDashboardContent() {
 
   const { data: recentHistoryData, isLoading: recentHistoryLoading } = useQuery({
     queryKey: ["attendanceHistoryRecent", user?.uid],
-    queryFn: () => getSecretaryAttendanceHistoryPaginated(user?.uid || "", 5, null),
+    queryFn: () => getSecretaryAttendanceHistoryPaginated(user?.uid || "", 5, 0),
     enabled: !!user?.uid,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -100,7 +100,7 @@ function SecretaryDashboardContent() {
   });
 
   const assignedSectionsCount = uniqueSectionIds.length;
-  const expectedSessions = appointments.length;
+  const expectedSessions = assignedSectionsCount;
   const submittedSessions = todaySessions.length;
   const pendingSessions = Math.max(0, expectedSessions - submittedSessions);
   const dailyCoverage =
@@ -132,11 +132,11 @@ function SecretaryDashboardContent() {
       <SecretaryHeader
         title="Dashboard Overview"
         stats={[
-          { label: "ACTIVE APPOINTMENTS", value: expectedSessions },
+          { label: "ACTIVE APPOINTMENTS", value: appointments.length },
           { label: "ASSIGNED SECTIONS", value: assignedSectionsCount },
           { label: "TODAY'S SUBMISSIONS", value: submittedSessions },
         ]}
-        searchPlaceholder="Search sections, subjects..."
+        searchPlaceholder="Search sections..."
       />
 
       {/* Content Canvas */}
@@ -286,7 +286,7 @@ function SecretaryDashboardContent() {
           <div className="flex items-center gap-2 mb-3">
             <School size={18} style={{ color: "#1E3A5F" }} />
             <h5 className="font-semibold" style={{ color: "#1F1F1F" }}>
-              Assigned Sections & Subjects
+              Assigned Sections
             </h5>
           </div>
 
@@ -306,9 +306,7 @@ function SecretaryDashboardContent() {
                   ? `${section.gradeLevel} - ${section.sectionName}`
                   : "Section loading...";
                 const hasSubmittedToday = todaySessions.some(
-                  (session) =>
-                    session.sectionId === appointment.sectionId &&
-                    session.subject === appointment.subject
+                  (session) => session.sectionId === appointment.sectionId
                 );
 
                 return (
@@ -322,7 +320,7 @@ function SecretaryDashboardContent() {
                         {sectionName}
                       </p>
                       <p className="text-xs" style={{ color: "#6B7280" }}>
-                        Subject: {appointment.subject}
+                        Shared section attendance access
                       </p>
                     </div>
                     <span
@@ -351,8 +349,8 @@ function SecretaryDashboardContent() {
             </h5>
             <p className="text-sm" style={{ color: "#374151" }}>
               {pendingSessions > 0
-                ? `${pendingSessions} appointment(s) still need attendance submission today.`
-                : "All your assigned appointments already have attendance submitted today."}
+                  ? `${pendingSessions} section(s) still need attendance submission today.`
+                  : "All your assigned sections already have attendance submitted today."}
             </p>
           </div>
         )}

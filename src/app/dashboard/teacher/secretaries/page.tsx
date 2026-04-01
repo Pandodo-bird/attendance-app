@@ -16,13 +16,14 @@ import {
   Attendance,
   AttendanceStatus,
   Appointment,
+  buildSectionAttendanceId,
+  buildSectionSlug,
   calculateAttendanceStats,
   getAttendanceSession,
   getTeacherAppointments,
   getTeacherAttendanceSessions,
   getTeacherSections,
   getUserProfilesBatch,
-  getSectionById,
   getSectionStudents,
   overrideAttendanceRecord,
   startAttendanceSessionAsTeacher,
@@ -44,7 +45,6 @@ interface SecretaryCardItem {
   sectionId: string;
   sectionName: string;
   gradeLevel: string;
-  subject: string;
   schoolYear: string;
   appointedAt: Date | string | { toDate: () => Date };
 }
@@ -172,7 +172,7 @@ function SecretariesContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
-  const [selectedTeacherAttendanceAppointment, setSelectedTeacherAttendanceAppointment] = useState<Appointment | null>(null);
+  const [selectedTeacherAttendanceSectionId, setSelectedTeacherAttendanceSectionId] = useState<string | null>(null);
   const [teacherSelectedDate, setTeacherSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [teacherAttendanceRecords, setTeacherAttendanceRecords] = useState<StudentAttendance[]>([]);
   const [teacherHasSessionForDate, setTeacherHasSessionForDate] = useState(false);
@@ -226,12 +226,13 @@ function SecretariesContent() {
   });
 
   const attendanceSessions = filterByDateWindow(rawAttendanceSessions);
+  const activeSections = sections.filter((section) => section.status === "active");
 
   const activeAppointments = appointments.filter((appointment) => appointment.status === "active");
   const activeSecretaryCount = activeAppointments.length;
   const secretaryUids = Array.from(
     new Set([
-      ...attendanceSessions.map((session) => session.secretaryUid),
+      ...attendanceSessions.map((session) => session.secretaryUid).filter((uid): uid is string => Boolean(uid)),
       ...activeAppointments.map((appointment) => appointment.secretaryUid),
     ])
   ).sort();
@@ -285,7 +286,6 @@ function SecretariesContent() {
         sectionId: appointment.sectionId,
         sectionName: sectionParts.slice(1).join(" - ") || sectionLabel,
         gradeLevel: sectionParts[0] ?? "",
-        subject: appointment.subject,
         schoolYear: appointment.schoolYear,
         appointedAt: appointment.appointedAt,
       } satisfies SecretaryCardItem;
@@ -298,20 +298,15 @@ function SecretariesContent() {
       return (
         card.secretaryName.toLowerCase().includes(normalizedSearch) ||
         card.secretaryLrn.toLowerCase().includes(normalizedSearch) ||
-        card.subject.toLowerCase().includes(normalizedSearch) ||
         sectionLabel.toLowerCase().includes(normalizedSearch)
       );
     })
     .sort((a, b) => getSortableTime(b.appointedAt) - getSortableTime(a.appointedAt));
 
-  const teacherAttendanceSectionId = selectedTeacherAttendanceAppointment?.sectionId;
-  const { data: teacherAttendanceSection } = useQuery({
-    queryKey: ["section", teacherAttendanceSectionId],
-    queryFn: () => getSectionById(teacherAttendanceSectionId!),
-    enabled: !!teacherAttendanceSectionId,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
-  });
+  const teacherAttendanceSectionId = selectedTeacherAttendanceSectionId;
+  const teacherAttendanceSection = teacherAttendanceSectionId
+    ? sections.find((section) => section.id === teacherAttendanceSectionId) ?? null
+    : null;
 
   const { data: teacherSectionStudentsData, isLoading: teacherStudentsLoading } = useQuery({
     queryKey: ["sectionStudents", teacherAttendanceSectionId],
@@ -323,11 +318,11 @@ function SecretariesContent() {
   const teacherSectionStudents = teacherSectionStudentsData ?? EMPTY_TEACHER_STUDENTS;
 
   const teacherSectionSlug = teacherAttendanceSection
-    ? `${teacherAttendanceSection.gradeLevel}-${teacherAttendanceSection.sectionName.replace(/\s+/g, "-")}`
+    ? buildSectionSlug(teacherAttendanceSection.gradeLevel, teacherAttendanceSection.sectionName)
     : null;
 
-  const teacherAttendanceId = selectedTeacherAttendanceAppointment && teacherSectionSlug
-    ? `${teacherSelectedDate}_${teacherSectionSlug}_${selectedTeacherAttendanceAppointment.subject.replace(/\s+/g, '-')}_${selectedTeacherAttendanceAppointment.secretaryLrn}`
+  const teacherAttendanceId = teacherSectionSlug
+    ? buildSectionAttendanceId(teacherSelectedDate, teacherSectionSlug)
     : null;
 
   const { data: teacherExistingSession } = useQuery({
@@ -343,26 +338,26 @@ function SecretariesContent() {
   const filteredSessions = attendanceSessions.filter((session) => {
     if (!searchQuery.trim()) return true;
     const normalizedSearch = searchQuery.toLowerCase();
-    const profile = secretaryProfiles.get(session.secretaryUid);
+    const profile = session.secretaryUid ? secretaryProfiles.get(session.secretaryUid) : undefined;
     const secretaryName = profile?.displayName ?? "";
     const sectionLabel = sectionLabelById.get(session.sectionId) ?? "";
-    const appointmentSubject =
-      appointments.find((appointment) => appointment.id === session.appointmentId)?.subject ??
-      session.subject ??
-      "";
+    const recorderLabel = session.submittedByRole ?? session.createdByRole ?? "";
 
     return (
       secretaryName.toLowerCase().includes(normalizedSearch) ||
-      session.secretaryLrn.toLowerCase().includes(normalizedSearch) ||
+      (session.secretaryLrn ?? "").toLowerCase().includes(normalizedSearch) ||
       session.date.toLowerCase().includes(normalizedSearch) ||
       sectionLabel.toLowerCase().includes(normalizedSearch) ||
-      appointmentSubject.toLowerCase().includes(normalizedSearch)
+      recorderLabel.toLowerCase().includes(normalizedSearch)
     );
   });
 
   const groupedBySecretaryMap = new Map<string, SecretaryGroupedRecords>();
+  const sessionsWithStats: SessionWithStats[] = [];
   filteredSessions.forEach((session) => {
-    const recorderName = secretaryProfiles.get(session.secretaryUid)?.displayName ?? `Secretary ${session.secretaryLrn}`;
+    const recorderName = session.createdByRole === "teacher"
+      ? teacherName
+      : secretaryProfiles.get(session.createdByUid ?? session.secretaryUid ?? "")?.displayName ?? `Secretary ${session.secretaryLrn ?? ""}`;
     const sectionLabel = sectionLabelById.get(session.sectionId) ?? session.sectionId;
     const sectionSlug = sectionSlugById.get(session.sectionId) ?? "";
     const stats = calculateAttendanceStats(session.records);
@@ -377,16 +372,18 @@ function SecretariesContent() {
       sectionLabel,
       sectionSlug,
     };
+    sessionsWithStats.push(sessionWithStats);
 
-    const existingGroup = groupedBySecretaryMap.get(session.secretaryUid);
+    const groupKey = session.secretaryUid ?? `teacher-${session.sectionId}`;
+    const existingGroup = groupedBySecretaryMap.get(groupKey);
     if (existingGroup) {
       existingGroup.sessions.push(sessionWithStats);
       return;
     }
 
-    groupedBySecretaryMap.set(session.secretaryUid, {
-      secretaryUid: session.secretaryUid,
-      secretaryLrn: session.secretaryLrn,
+    groupedBySecretaryMap.set(groupKey, {
+      secretaryUid: groupKey,
+      secretaryLrn: session.secretaryLrn ?? "Teacher",
       secretaryName: recorderName,
       sessions: [sessionWithStats],
     });
@@ -402,21 +399,39 @@ function SecretariesContent() {
     group.sessions.sort((a, b) => b.date.localeCompare(a.date));
   });
 
+  const sharedSectionGroups = activeSections
+    .map((section) => {
+      const sectionSessions = sessionsWithStats.filter((session) => session.sectionId === section.id);
+
+      return {
+        secretaryUid: `section-${section.id}`,
+        secretaryLrn: "Shared",
+        secretaryName: `${section.gradeLevel} - ${section.sectionName}`,
+        sessions: [...sectionSessions].sort((a, b) => b.date.localeCompare(a.date)),
+      } satisfies SecretaryGroupedRecords;
+    })
+    .filter((group) => group.sessions.length > 0);
+
   useEffect(() => {
     if (!selectedSecretaryUid) {
       setSelectedSessionId(null);
       return;
     }
 
-    const secretaryStillVisible = secretaryCards.some((card) => card.secretaryUid === selectedSecretaryUid);
-    if (!secretaryStillVisible) {
+    const selectionStillVisible =
+      secretaryCards.some((card) => card.secretaryUid === selectedSecretaryUid) ||
+      groupedRecords.some((group) => group.secretaryUid === selectedSecretaryUid) ||
+      sharedSectionGroups.some((group) => group.secretaryUid === selectedSecretaryUid);
+
+    if (!selectionStillVisible) {
       setSelectedSecretaryUid(null);
       setSelectedSessionId(null);
     }
-  }, [secretaryCards, selectedSecretaryUid]);
+  }, [groupedRecords, secretaryCards, selectedSecretaryUid, sharedSectionGroups]);
 
   const selectedSecretaryGroup = selectedSecretaryUid
     ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ??
+      sharedSectionGroups.find((group) => group.secretaryUid === selectedSecretaryUid) ??
       (() => {
         const appointment = activeAppointmentBySecretary.get(selectedSecretaryUid);
         if (!appointment) return null;
@@ -436,7 +451,7 @@ function SecretariesContent() {
     setTeacherCurrentPage(1);
     setTeacherAttendanceError(null);
     setTeacherSubmitError(null);
-  }, [selectedTeacherAttendanceAppointment, today]);
+  }, [selectedTeacherAttendanceSectionId, today]);
 
   useEffect(() => {
     setTeacherCurrentPage(1);
@@ -547,15 +562,15 @@ function SecretariesContent() {
     setShowRegisterModal(false);
   };
 
-  const openTeacherAttendance = (appointment: Appointment): void => {
-    setSelectedTeacherAttendanceAppointment(appointment);
+  const openTeacherAttendance = (sectionId: string): void => {
+    setSelectedTeacherAttendanceSectionId(sectionId);
     setSelectedSecretaryUid(null);
     setSelectedSessionId(null);
   };
 
-  const getTodaySessionStatusForSecretary = (secretaryUid: string): "none" | "open" | "locked" => {
+  const getTodaySessionStatusForSection = (sectionId: string): "none" | "open" | "locked" => {
     const session = attendanceSessions.find(
-      (item) => item.secretaryUid === secretaryUid && item.date === today
+      (item) => item.sectionId === sectionId && item.date === today
     );
 
     if (!session) {
@@ -594,8 +609,8 @@ function SecretariesContent() {
   };
 
   const handleTeacherStartAttendanceSession = async (): Promise<void> => {
-    if (!selectedTeacherAttendanceAppointment || !teacherSectionSlug || !user?.uid) {
-      setTeacherAttendanceError("Missing section or appointment information.");
+    if (!teacherAttendanceSection || !teacherSectionSlug || !user?.uid) {
+      setTeacherAttendanceError("Missing section information.");
       return;
     }
 
@@ -604,10 +619,11 @@ function SecretariesContent() {
       setTeacherSubmitError(null);
 
       const newAttendanceId = await startAttendanceSessionAsTeacher(
-        selectedTeacherAttendanceAppointment,
+        teacherAttendanceSection.id,
+        user.uid,
         teacherSectionSlug,
         teacherSelectedDate,
-        selectedTeacherAttendanceAppointment.schoolYear,
+        teacherAttendanceSection.schoolYear,
         user.uid
       );
 
@@ -623,7 +639,7 @@ function SecretariesContent() {
   };
 
   const handleTeacherSubmitAttendance = async (): Promise<void> => {
-    if (!selectedTeacherAttendanceAppointment || !teacherSectionSlug || !teacherAttendanceId || !user?.uid) {
+    if (!teacherAttendanceSection || !teacherSectionSlug || !teacherAttendanceId || !user?.uid) {
       setTeacherAttendanceError("Missing required information to submit attendance.");
       return;
     }
@@ -647,10 +663,12 @@ function SecretariesContent() {
 
       await submitFullAttendance(
         teacherAttendanceId,
-        selectedTeacherAttendanceAppointment,
+        teacherAttendanceSection.id,
+        user.uid,
+        user.uid,
         teacherSectionSlug,
         teacherSelectedDate,
-        selectedTeacherAttendanceAppointment.schoolYear,
+        teacherAttendanceSection.schoolYear,
         studentsData,
         {
           uid: user.uid,
@@ -689,8 +707,25 @@ function SecretariesContent() {
     }
 
     const { session, lrn, nextStatus } = pendingOverride;
+    const resolvedSectionSlug =
+      session.sectionSlug ||
+      (session.sectionId ? sectionSlugById.get(session.sectionId) ?? "" : "") ||
+      (() => {
+        if (!session.sectionLabel) {
+          return "";
+        }
 
-    if (!session.sectionSlug) {
+        const [gradeLevel, ...sectionNameParts] = session.sectionLabel.split(" - ");
+        const sectionName = sectionNameParts.join(" - ").trim();
+
+        if (!gradeLevel || !sectionName) {
+          return "";
+        }
+
+        return buildSectionSlug(gradeLevel.trim(), sectionName);
+      })();
+
+    if (!resolvedSectionSlug) {
       setSaveError("Section information is missing for this record.");
       return;
     }
@@ -708,7 +743,7 @@ function SecretariesContent() {
 
       await overrideAttendanceRecord(
         session.id,
-        session.sectionSlug,
+        resolvedSectionSlug,
         lrn,
         nextStatus,
         user.uid,
@@ -736,7 +771,7 @@ function SecretariesContent() {
         stats={teacherStats}
         searchPlaceholder={
           selectedSecretaryGroup
-            ? "Search records by date, section, or subject..."
+            ? "Search records by date or section..."
             : "Search secretary by name or LRN..."
         }
         onSearch={(query) => setSearchQuery(query)}
@@ -771,6 +806,49 @@ function SecretariesContent() {
           )}
         </div>
 
+        <div className="rounded-2xl border p-4 lg:p-5" style={{ backgroundColor: "#FFFFFF", borderColor: "#D7E2EF" }}>
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#1E3A5F" }}>
+                Teacher section attendance
+              </p>
+              <p className="text-sm" style={{ color: "#475569" }}>
+                Select a section below to take attendance for today. If no session exists yet, the teacher can create it. If one already exists, the teacher can continue or review the shared session.
+              </p>
+            </div>
+            <div className="text-xs font-semibold" style={{ color: "#64748B" }}>
+              {activeSections.length} active section{activeSections.length === 1 ? "" : "s"}
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {activeSections.map((section) => {
+              const hasTodaySession = attendanceSessions.some(
+                (session) => session.sectionId === section.id && session.date === today
+              );
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => openTeacherAttendance(section.id)}
+                  className="rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+                  style={{
+                    backgroundColor: selectedTeacherAttendanceSectionId === section.id ? "#1E3A5F" : "#F8FBFF",
+                    borderColor: selectedTeacherAttendanceSectionId === section.id ? "#1E3A5F" : "#C9D9EA",
+                    color: selectedTeacherAttendanceSectionId === section.id ? "#FFFFFF" : "#1E3A5F",
+                  }}
+                >
+                  {section.gradeLevel} - {section.sectionName}
+                  <span className="ml-2 text-[11px]" style={{ color: selectedTeacherAttendanceSectionId === section.id ? "#DBEAFE" : "#64748B" }}>
+                    {hasTodaySession ? "session ready" : "no session"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {isLoadingAttendance ? (
           <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
             <p style={{ color: "#6B7280" }}>Loading attendance records...</p>
@@ -781,17 +859,17 @@ function SecretariesContent() {
               Failed to load attendance records. Please refresh and try again.
             </p>
           </div>
-        ) : secretaryCards.length === 0 ? (
+        ) : secretaryCards.length === 0 && activeSections.length === 0 ? (
           <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
             <p style={{ color: "#9CA3AF" }}>
-              No active secretaries found for this teacher yet.
+              No active sections or secretary appointments found for this teacher yet.
             </p>
           </div>
-        ) : selectedTeacherAttendanceAppointment ? (
+        ) : selectedTeacherAttendanceSectionId ? (
           <div className="space-y-4">
             <button
               type="button"
-              onClick={() => setSelectedTeacherAttendanceAppointment(null)}
+              onClick={() => setSelectedTeacherAttendanceSectionId(null)}
               className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
               style={{ backgroundColor: "#F8FBFF", borderColor: "#C9D9EA", color: "#1E3A5F" }}
             >
@@ -814,7 +892,7 @@ function SecretariesContent() {
                     Teacher attendance for {teacherAttendanceSection ? `${teacherAttendanceSection.gradeLevel} - ${teacherAttendanceSection.sectionName}` : "selected section"}
                   </p>
                   <p className="text-sm" style={{ color: "#475569" }}>
-                    {selectedTeacherAttendanceAppointment.subject} • Secretary LRN {selectedTeacherAttendanceAppointment.secretaryLrn}
+                    Shared section attendance session
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}>
@@ -860,7 +938,7 @@ function SecretariesContent() {
                           Teacher-submitted session completed
                         </p>
                         <p className="text-sm" style={{ color: "#047857" }}>
-                          Attendance successfully submitted for {selectedTeacherAttendanceAppointment.subject}
+                          Attendance successfully submitted for {teacherAttendanceSection?.sectionName ?? "this section"}
                         </p>
                       </div>
                     </div>
@@ -1091,7 +1169,7 @@ function SecretariesContent() {
                               className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
                               style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
                             >
-                              Subject: {session.subject}
+                              {session.submittedByRole === "teacher" ? "Recorded by Teacher" : session.submittedByRole === "secretary" ? "Recorded by Secretary" : "Shared Attendance"}
                             </span>
                             <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ backgroundColor: isEditingEnabled ? "#E0E7FF" : "#F1F5F9", color: isEditingEnabled ? "#1E3A8A" : "#64748B" }}>
                               {isEditingEnabled ? "Editing Enabled" : "Editing Locked"}
@@ -1163,33 +1241,100 @@ function SecretariesContent() {
             </motion.div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {secretaryCards.map((card, groupIndex) => {
-              const appointment = activeAppointmentBySecretary.get(card.secretaryUid);
-              const todaySessionStatus = getTodaySessionStatusForSecretary(card.secretaryUid);
+          <div className="space-y-6">
+            {secretaryCards.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {secretaryCards.map((card, groupIndex) => {
+                  const todaySessionStatus = getTodaySessionStatusForSection(card.sectionId);
 
-              return (
-                <SecretaryCard
-                  key={card.secretaryUid}
-                  secretaryUid={card.secretaryUid}
-                  secretaryLrn={card.secretaryLrn}
-                  secretaryName={card.secretaryName}
-                  secretaryEmail=""
-                  sectionId={card.sectionId}
-                  sectionName={card.sectionName}
-                  gradeLevel={card.gradeLevel}
-                  subject={card.subject}
-                  schoolYear={card.schoolYear}
-                  status="active"
-                  appointedAt={card.appointedAt}
-                  onViewRecords={() => setSelectedSecretaryUid(card.secretaryUid)}
-                  onTakeAttendance={appointment ? () => openTeacherAttendance(appointment) : undefined}
-                  todaySessionStatus={todaySessionStatus}
-                  index={groupIndex}
-                  viewRecordsOnly={false}
-                />
-              );
-            })}
+                  return (
+                    <SecretaryCard
+                      key={card.secretaryUid}
+                      secretaryUid={card.secretaryUid}
+                      secretaryLrn={card.secretaryLrn}
+                      secretaryName={card.secretaryName}
+                      secretaryEmail=""
+                      sectionId={card.sectionId}
+                      sectionName={card.sectionName}
+                      gradeLevel={card.gradeLevel}
+                      schoolYear={card.schoolYear}
+                      status="active"
+                      appointedAt={card.appointedAt}
+                      onViewRecords={() => setSelectedSecretaryUid(card.secretaryUid)}
+                      todaySessionStatus={todaySessionStatus}
+                      index={groupIndex}
+                      viewRecordsOnly={false}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-xl p-6 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
+                <p style={{ color: "#6B7280" }}>
+                  No active secretary appointments yet. Teacher section attendance is still available above.
+                </p>
+              </div>
+            )}
+
+            {sharedSectionGroups.length > 0 && (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "#1E3A5F" }}>
+                    Shared section session history
+                  </p>
+                  <p className="text-sm" style={{ color: "#64748B" }}>
+                    Open a section to view all recorded days for that section, including both teacher-recorded and secretary-recorded sessions for override review.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {sharedSectionGroups.map((group) => {
+                    const latestSession = group.sessions[0];
+                    const teacherRecordedCount = group.sessions.filter(
+                      (session) => session.submittedByRole === "teacher" || session.createdByRole === "teacher"
+                    ).length;
+                    const secretaryRecordedCount = group.sessions.filter(
+                      (session) => session.submittedByRole === "secretary" || session.createdByRole === "secretary"
+                    ).length;
+
+                    return (
+                      <button
+                        key={group.secretaryUid}
+                        type="button"
+                        onClick={() => setSelectedSecretaryUid(group.secretaryUid)}
+                        className="rounded-2xl border p-5 text-left transition-colors"
+                        style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-base font-semibold" style={{ color: "#0F172A" }}>
+                              {latestSession?.sectionLabel ?? group.secretaryName}
+                            </p>
+                            <p className="mt-1 text-sm" style={{ color: "#64748B" }}>
+                              {group.sessions.length} session{group.sessions.length === 1 ? "" : "s"} in shared history
+                            </p>
+                          </div>
+                          <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}>
+                            Section History
+                          </span>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                          <span className="rounded-full px-2.5 py-1" style={{ backgroundColor: "#DBEAFE", color: "#1D4ED8" }}>
+                            Teacher: {teacherRecordedCount}
+                          </span>
+                          <span className="rounded-full px-2.5 py-1" style={{ backgroundColor: "#EDE9FE", color: "#6D28D9" }}>
+                            Secretary: {secretaryRecordedCount}
+                          </span>
+                        </div>
+                        <p className="mt-4 text-xs font-semibold uppercase tracking-wide" style={{ color: "#6B7280" }}>
+                          Latest session: {latestSession ? formatDate(latestSession.date) : "Unavailable"}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1226,7 +1371,7 @@ function SecretariesContent() {
                 {pendingOverride.studentName}
               </p>
               <p className="mt-1.5 text-sm" style={{ color: "#475569" }}>
-                {pendingOverride.lrn} • {pendingOverride.session.subject} • {pendingOverride.session.sectionLabel}
+                {pendingOverride.lrn} • {pendingOverride.session.sectionLabel}
               </p>
 
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-stretch">

@@ -253,11 +253,11 @@ Note: The old `getCachedData`/`setCachedData` functions in `firestore.ts` are no
 ### Security Rules
 
 - Teachers can only access their own sections (filtered by `teacherId`)
-- Secretaries can only read/write attendance for their appointments
+- Secretaries can only open shared attendance for sections they are appointed to
 - Users can only access their own profile in `/users/{uid}`
 - Secretaries can create `attendance`, `attendanceRecords`, and `studentSummaries` documents
 - Teachers can update `studentSummaries` (for override corrections)
-- Teachers and secretaries can both update `attendance` documents
+- Teachers and secretaries can both update `attendance` while the session is open; only teachers can override after lock
 - Never expose Firebase Admin SDK to client code
 
 ## Routes
@@ -297,7 +297,7 @@ All human-readable document IDs follow these construction rules:
 | ID Type | Pattern | Example |
 |---------|---------|---------|
 | `sectionSlug` | `{gradeLevel}-{sectionName}` | `"G10-Rizal"`, `"G10-Jose-Rizal"` |
-| `attendanceId` | `{date}_{sectionSlug}_{subject}_{secretaryLrn}` | `"2026-03-26_G10-Rizal_Science_129584150009"` |
+| `attendanceId` | `{date}_{sectionSlug}` | `"2026-04-01_G10-Rizal"` |
 | `attendanceRecordId` | `{date}_{sectionSlug}_{studentLrn}` | `"2026-03-26_G10-Rizal_129584150009"` |
 | `studentSummaryId` | `{sectionSlug}_{lastName}_{lrn}_{schoolYear}` | `"G10-Rizal_ALBANI_129584150009_2025-2026"` |
 
@@ -305,13 +305,13 @@ All human-readable document IDs follow these construction rules:
 
 ```typescript
 const sectionSlug  = `${gradeLevel}-${sectionName.replace(/\s+/g, '-')}`
-const attendanceId = `${date}_${sectionSlug}_${subject.replace(/\s+/g, '-')}_${secretaryLrn}`
+const attendanceId = `${date}_${sectionSlug}`
 const recordId     = `${date}_${sectionSlug}_${studentLrn}`
 const summaryId    = `${sectionSlug}_${lastName.toUpperCase().replace(/\s+/g, '-')}_${lrn}_${schoolYear}`
 ```
 
 **Uniqueness guarantees:**
-- **attendance**: `secretaryLrn` scopes the session to the correct teacher — two teachers with the same section name and subject will always have different secretaries, so no collision is possible
+- **attendance**: `date + sectionSlug` guarantees one shared session per section per day
 - **attendanceRecords**: `date + sectionSlug + studentLrn` is unique per student per day
 - **studentSummaries**: `sectionSlug + lastName + lrn + schoolYear` is unique per student per year
 
@@ -361,7 +361,6 @@ appointments/{id}                      # id is Firestore auto-generated
   secretaryLrn: string                 # → sections/{id}/students/{lrn}
   teacherId: string                    # → users/{uid}
   sectionId: string                    # → sections/{id}
-  subject: string
   schoolYear: string
   status: "active" | "removed"
   appointedAt: Timestamp
@@ -371,19 +370,17 @@ appointments/{id}                      # id is Firestore auto-generated
 
 ### Attendance Layer (3 Collections)
 
-**1. attendance/{date}_{sectionSlug}_{subject}_{secretaryLrn}**
+**1. attendance/{date}_{sectionSlug}**
 
 ```typescript
-// e.g. attendance/2026-03-26_G10-Rizal_Science_129584150009
-// 1 document per session — session header
+// e.g. attendance/2026-04-01_G10-Rizal
+// 1 shared document per section per day — session header
 
 {
-  appointmentId: string                // → appointments/{id}
   sectionId: string                    // → sections/{id}
   teacherId: string                    # → users/{uid}
-  secretaryUid: string                 # → users/{uid}
-  secretaryLrn: string
-  subject: string
+  secretaryUid?: string                # optional metadata for secretary-started sessions
+  secretaryLrn?: string                # optional metadata for secretary-started sessions
   date: string                         // "YYYY-MM-DD"
   schoolYear: string
   status: "open" | "locked"            // locked = no more edits allowed
@@ -400,10 +397,15 @@ appointments/{id}                      # id is Firestore auto-generated
     }
   }
   createdAt: Timestamp
+  lockedAt?: Timestamp
+  createdByUid: string
+  createdByRole: "teacher" | "secretary"
+  submittedByUid?: string
+  submittedByRole?: "teacher" | "secretary"
 }
 ```
 
-**PURPOSE:** 1 read loads the full class list for the secretary's active view and for the teacher viewing a specific day's attendance. `records` map is for display only — never use for analytics or reports. Check `status` field before allowing edits — locked sessions are read-only.
+**PURPOSE:** 1 read loads the full class list for the secretary's active view and for the teacher viewing a specific day's attendance. `records` map is for display only — never use for analytics or reports. Check `status` field before allowing edits — locked sessions are read-only. Teachers may create the session before any secretary is appointed; secretaries later join the same section-day document.
 
 ---
 
@@ -418,7 +420,6 @@ appointments/{id}                      # id is Firestore auto-generated
   teacherId: string                    // denormalized — self-contained for audit queries
   lrn: string
   sectionId: string
-  subject: string
   date: string                         // "YYYY-MM-DD"
   schoolYear: string
   status: "present" | "late" | "absent" | "excused"
@@ -465,7 +466,7 @@ appointments/{id}                      # id is Firestore auto-generated
 
 | Use Case | Collection | Reads |
 |----------|------------|-------|
-| "Show today's attendance" | `attendance/{id}` | 1 read |
+| "Show today's attendance" | `attendance/{date}_{sectionSlug}` | 1 read |
 | "Show student X's attendance rate" | `studentSummaries/{id}` | 1 read |
 | "Show all absences in March" | `attendanceRecords` | query |
 | "Export full semester attendance" | `attendanceRecords` | query |
@@ -506,7 +507,6 @@ students.forEach(student => {
     teacherId,                                 // denormalized
     lrn: student.lrn,
     sectionId,
-    subject,
     date,
     schoolYear,
     status: student.status,
@@ -538,12 +538,12 @@ await batch.commit()
 
 | Page | Collection | Method | Reads |
 |------|------------|--------|-------|
-| Secretary attendance view | `attendance/{id}` | `onSnapshot` (scoped) | 1 read |
-| Teacher view specific day | `attendance/{id}` | `getDocs` | 1 read |
+| Secretary attendance view | `attendance/{date}_{sectionSlug}` | `onSnapshot`/`getDoc` (scoped) | 1 read |
+| Teacher view specific day | `attendance/{date}_{sectionSlug}` | `getDoc` | 1 read |
 | Teacher analytics 1 student | `studentSummaries` | `getDocs` | 1 read |
 | Teacher analytics full class | `studentSummaries` | `getDocs` | 50 reads |
 | Teacher reports / audit | `attendanceRecords` | `getDocs` | raw query |
-| Secretary history (paginated) | `attendance` | `getDocs` + `orderBy` + `limit` + `startAfter` | 10/page |
+| Secretary history (paginated) | `attendance` | section-access query batches + client pagination | 10/page |
 | Sections, Students, Settings | various | `getDocs` | stable |
 
 **Use `onSnapshot` ONLY on the active attendance page** — scope it tightly. Use `getDocs` everywhere else. TanStack Query `staleTime: 30 minutes` for analytics pages.
@@ -552,7 +552,7 @@ await batch.commit()
 
 ### Scaling Estimates
 
-**50 students, 1 subject, 110 school days (1 semester):**
+**50 students, 1 section session per day, 110 school days (1 semester):**
 - **Writes:** 101 × 110 = 11,110/semester (~101/day)
 - **Documents:** 5,500 flat records + 110 headers + 50 summaries = 5,660 total
 
@@ -575,7 +575,7 @@ Free tier (Spark plan) is safe up to ~10 active sections simultaneously.
 7. **Check `attendance.status` before allowing edits** — locked sessions are read-only
 8. **`sectionSlug` is always `{gradeLevel}-{sectionName}`** with spaces replaced by hyphens
 9. **`lastName` in `studentSummaries` ID is always UPPERCASED** with spaces replaced by hyphens
-10. **`secretaryLrn` in attendance ID is what guarantees uniqueness across teachers** — never remove it from the ID construction
+10. **`attendanceId` is always `{date}_{sectionSlug}`** — never reintroduce subject-based or secretary-based identity
 11. **`teacherId` is denormalized on `attendanceRecords`** — always include it on write so audit and export queries are self-contained without joining back to attendance
 12. **`submitAttendance` is deprecated** — always use `submitFullAttendance` for new attendance submissions
 
@@ -594,9 +594,9 @@ Free tier (Spark plan) is safe up to ~10 active sections simultaneously.
 - Old manual cache functions (`getCachedData`, `setCachedData`) are deprecated no-op shims in `firestore.ts`
 
 ### Secretary Creation Flow
-1. Teacher selects section and student, enters subject (required)
+1. Teacher selects section and student
 2. `SecretaryCreationForm` calls `/api/create-secretary` which creates user in `users/{uid}` with `role: "secretary"`
-3. Creates `appointments/{id}` linking secretary to section + subject
+3. Creates `appointments/{id}` linking secretary to section access
 4. Secretary sees all active appointments on their dashboard
 
 ### Teacher Attendance Override

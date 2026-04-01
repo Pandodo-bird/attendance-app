@@ -10,7 +10,6 @@ interface SecretaryCardProps {
   sectionId: string;
   sectionName: string;
   gradeLevel: string;
-  subject: string;
   schoolYear: string;
   status: "active" | "removed";
   appointedAt: Date | string | { toDate: () => Date };
@@ -79,7 +78,6 @@ export default function SecretaryCard({
   secretaryLrn,
   secretaryName,
   sectionName,
-  subject,
   schoolYear,
   status,
   appointedAt,
@@ -160,14 +158,14 @@ export default function SecretaryCard({
           </div>
           <div className="flex items-start gap-2">
             <span className="material-symbols-outlined text-sm mt-0.5" style={{ color: "#9CA3AF" }}>
-              menu_book
+              badge
             </span>
             <div>
               <span className="text-[10px] uppercase tracking-wide font-medium block" style={{ color: "#9CA3AF" }}>
-                Subject
+                Access
               </span>
               <span className="text-sm font-medium" style={{ color: "#374151" }}>
-                {subject}
+                Section Attendance
               </span>
             </div>
           </div>
@@ -276,7 +274,7 @@ export default function SecretaryCard({
               onMouseLeave={(e) => {
                 e.currentTarget.style.color = "#374151";
               }}
-              title="Remove secretary from this subject"
+              title="Remove secretary from this section"
             >
               <span className="material-symbols-outlined text-sm">delete</span>
             </button>

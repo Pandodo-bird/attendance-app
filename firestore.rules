@@ -1,6 +1,5 @@
-// CHANGE: attendance/{attendanceId} create — teachers AND secretaries can now create sessions.
-// Removed isTeacher()/isSecretary() role lookups that caused "missing permission" errors.
-// Ownership alone prevents impersonation: secretaryUid == uid OR teacherId == uid.
+// Shared section-day attendance rules.
+// Sessions are now identified by section + date, while appointments remain section-based access metadata.
 
 rules_version = '2';
 
@@ -27,6 +26,42 @@ service cloud.firestore {
     function isSecretary() {
       return isAuthenticated() && 
              get(/databases/$(database)/documents/users/$(getUid())).data.role == 'secretary';
+    }
+
+    function isSectionTeacher(sectionId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/sections/$(sectionId)).data.teacherId == getUid();
+    }
+
+    function isAttendanceTeacher() {
+      return isAuthenticated() &&
+             resource.data.teacherId == getUid();
+    }
+
+    function isRequestAttendanceTeacher() {
+      return isAuthenticated() &&
+             request.resource.data.teacherId == getUid();
+    }
+
+    function isAttendanceSecretary() {
+      return isAuthenticated() &&
+             resource.data.secretaryUid != null &&
+             resource.data.secretaryUid == getUid();
+    }
+
+    function isRequestAttendanceSecretary() {
+      return isAuthenticated() &&
+             request.resource.data.secretaryUid != null &&
+             request.resource.data.secretaryUid == getUid();
+    }
+
+    function isSecretarySubmittingOpenAttendance() {
+      return isAuthenticated() &&
+             isSecretary() &&
+             resource.data.status == 'open' &&
+             request.resource.data.status == 'locked' &&
+             request.resource.data.submittedByUid == getUid() &&
+             request.resource.data.submittedByRole == 'secretary';
     }
     
     // ==================== Users Collection ====================
@@ -72,16 +107,27 @@ service cloud.firestore {
     // ==================== Attendance Collection ====================
     match /attendance/{attendanceId} {
       allow read: if isAuthenticated() &&
-                     (resource == null ||
-                      resource.data.teacherId == getUid() ||
-                      resource.data.secretaryUid == getUid());
+                     (
+                       resource == null ||
+                       isAttendanceTeacher() ||
+                       isAttendanceSecretary() ||
+                       isSecretary()
+                     );
       allow create: if isAuthenticated() &&
-                       (
-                         request.resource.data.secretaryUid == getUid() ||
-                         request.resource.data.teacherId == getUid()
-                       );
+                        (
+                          (isTeacher() && isRequestAttendanceTeacher() && isSectionTeacher(request.resource.data.sectionId)) ||
+                          (isSecretary() && isRequestAttendanceSecretary())
+                        );
       allow update: if isAuthenticated() &&
-                       (resource.data.secretaryUid == getUid() || resource.data.teacherId == getUid());
+                       (
+                         isAttendanceTeacher() ||
+                         isSecretarySubmittingOpenAttendance() ||
+                         (
+                           isAttendanceSecretary() &&
+                           resource.data.status != 'locked' &&
+                           request.resource.data.status != 'locked'
+                         )
+                       );
       allow delete: if false;
 
       match /records/{recordId} {
@@ -94,27 +140,34 @@ service cloud.firestore {
 
     // ==================== AttendanceRecords Collection ====================
     match /attendanceRecords/{recordId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+                     (isSectionTeacher(resource.data.sectionId) ||
+                      (isSecretary() && resource.data.recordedByUid == getUid()));
       allow create: if isAuthenticated() &&
-                       (isSecretary() || request.resource.data.teacherId == getUid());
+                       (
+                         (isTeacher() && request.resource.data.teacherId == getUid() && isSectionTeacher(request.resource.data.sectionId)) ||
+                         (isSecretary() && request.resource.data.recordedByUid == getUid())
+                       );
       allow update: if isAuthenticated() &&
-                       resource.data.teacherId == getUid();
+                       resource.data.teacherId == getUid() &&
+                       isSectionTeacher(resource.data.sectionId);
       allow delete: if false;
     }
 
     // ==================== StudentSummaries Collection ====================
     match /studentSummaries/{summaryId} {
-      allow read: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+                     (isSectionTeacher(resource.data.sectionId) || isSecretary());
       allow create: if isAuthenticated() &&
-                       (
-                         isSecretary() ||
-                         get(/databases/$(database)/documents/sections/$(request.resource.data.sectionId)).data.teacherId == getUid()
-                       );
+                        (
+                          (isSecretary()) ||
+                          isSectionTeacher(request.resource.data.sectionId)
+                        );
       allow update: if isAuthenticated() &&
-                       (
-                         isSecretary() ||
-                         get(/databases/$(database)/documents/sections/$(resource.data.sectionId)).data.teacherId == getUid()
-                       );
+                        (
+                          (isSecretary()) ||
+                          isSectionTeacher(resource.data.sectionId)
+                        );
       allow delete: if false;
     }
   }

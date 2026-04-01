@@ -108,7 +108,7 @@ function TeacherDashboardContent() {
     [activeSections, coveredSectionIdsToday]
   );
 
-  const expectedSessions = activeAppointments.length;
+  const expectedSessions = activeSections.length;
   const submittedSessions = todaySessions.length;
   const dailyCoverage =
     expectedSessions > 0 ? Math.round((submittedSessions / expectedSessions) * 100) : 0;

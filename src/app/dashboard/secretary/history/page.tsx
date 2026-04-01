@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
 import { PopupAlert } from "@/components/ui";
-import { DocumentSnapshot } from "firebase/firestore";
 
 interface AttendanceSessionCardProps {
   session: Attendance;
@@ -30,7 +29,7 @@ export default function HistoryPage() {
     error: fetchError,
   } = useInfiniteQuery({
     queryKey: ["attendanceHistory", user?.uid],
-    queryFn: async ({ pageParam }: { pageParam: DocumentSnapshot | null }) => {
+    queryFn: async ({ pageParam }: { pageParam: number }) => {
       console.log("📄 FETCHING PAGE:", {
         pageParam: pageParam ? "cursor exists" : "first page",
         uid: user?.uid,
@@ -50,9 +49,9 @@ export default function HistoryPage() {
       return result;
     },
     enabled: !!user?.uid,
-    initialPageParam: null as DocumentSnapshot | null,
+    initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      return lastPage.hasMore ? lastPage.lastVisible : undefined;
+      return lastPage.hasMore ? lastPage.nextOffset ?? undefined : undefined;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - sessions don't change
     gcTime: 30 * 60 * 1000, // 30 minutes
@@ -365,7 +364,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
       }}
     >
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        {/* Left Side - Date, Section & Subject */}
+          {/* Left Side - Date and Section */}
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <div
@@ -382,7 +381,7 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
             {sectionDisplayName}
           </h3>
           <p className="text-sm font-medium" style={{ color: "#6C5CE7" }}>
-            {session.subject}
+            {session.submittedByRole === "teacher" ? "Recorded by Teacher" : session.submittedByRole === "secretary" ? "Recorded by Secretary" : "Shared Attendance Session"}
           </p>
           <p className="text-sm" style={{ color: "#6B7280" }}>
             {stats.total} students marked
@@ -485,9 +484,9 @@ function SessionDetailModal({
         >
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold mb-1" style={{ color: "#1F1F1F" }}>
-                {session.subject}
-              </h2>
+                <h2 className="text-lg sm:text-xl font-bold mb-1" style={{ color: "#1F1F1F" }}>
+                  Shared Attendance Session
+                </h2>
               <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
                 {formattedDate}
               </p>

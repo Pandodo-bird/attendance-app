@@ -116,7 +116,7 @@ export default function DailyRecordDetailsModal({
                 className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
                 style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
               >
-                Subject: {session.subject}
+                {session.submittedByRole === "teacher" ? "Recorded by Teacher" : session.submittedByRole === "secretary" ? "Recorded by Secretary" : "Shared Attendance"}
               </span>
             </div>
 

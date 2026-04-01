@@ -6,6 +6,7 @@ import { ClipboardCheck, Calendar, Edit2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  buildSectionAttendanceId,
   getSecretaryAppointments,
   getSectionById,
   getSectionStudents,
@@ -114,8 +115,8 @@ export default function SecretaryAttendancePage() {
     : null;
 
   // Construct attendance ID for TanStack Query (depends on sectionSlug)
-  const attendanceId = selectedAppointment && sectionSlug
-    ? `${selectedDate}_${sectionSlug}_${selectedAppointment.subject.replace(/\s+/g, '-')}_${selectedAppointment.secretaryLrn}`
+  const attendanceId = sectionSlug
+    ? buildSectionAttendanceId(selectedDate, sectionSlug)
     : null;
 
   // TanStack Query: Fetch attendance session (cached - no refetch on navigation or window focus)
@@ -294,7 +295,9 @@ export default function SecretaryAttendancePage() {
       // Submit full attendance (batch write to 3 collections)
       await submitFullAttendance(
         attendanceId,
-        selectedAppointment,
+        selectedAppointment.sectionId,
+        selectedAppointment.teacherId,
+        selectedAppointment.secretaryUid,
         sectionSlug,
         selectedDate,
         selectedAppointment.schoolYear,
@@ -403,8 +406,8 @@ export default function SecretaryAttendancePage() {
                 Attendance
               </h1>
             </div>
-            <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
-              {selectedAppointment.subject} • {sectionDisplayName} • {sectionStudents.length} students
+              <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
+              {sectionDisplayName} • {sectionStudents.length} students
             </p>
           </div>
 
@@ -480,7 +483,7 @@ export default function SecretaryAttendancePage() {
                           Session Completed
                         </p>
                         <p className="text-xs sm:text-sm" style={{ color: "#047857" }}>
-                          Attendance successfully submitted for {selectedAppointment.subject}
+                          Attendance successfully submitted for {sectionDisplayName}
                         </p>
                       </div>
                     </div>

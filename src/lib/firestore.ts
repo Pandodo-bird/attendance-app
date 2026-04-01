@@ -13,10 +13,6 @@ import {
   updateDoc,
   increment,
   deleteField,
-  orderBy,
-  limit,
-  startAfter,
-  DocumentSnapshot,
 } from "firebase/firestore";
 
 // ==================== User Profile Types ====================
@@ -90,7 +86,6 @@ export interface Appointment {
   secretaryLrn: string;      // links to sections/{id}/students/{lrn}
   teacherId: string;         // which teacher appointed them
   sectionId: string;         // which section
-  subject: string;           // e.g. "Math", "Science"
   schoolYear: string;
   status: "active" | "removed";
   appointedAt: Date | Timestamp;
@@ -114,12 +109,12 @@ export interface AttendanceRecord {
 
 export interface Attendance {
   id: string;
-  appointmentId: string;
+  appointmentId?: string;
   sectionId: string;
   teacherId: string;
-  secretaryUid: string;
-  secretaryLrn: string;
-  subject: string;
+  secretaryUid?: string;
+  secretaryLrn?: string;
+  subject?: string;
   date: string;
   schoolYear: string;
   status: "open" | "locked";
@@ -127,7 +122,6 @@ export interface Attendance {
   createdAt: Date | Timestamp;
   createdByUid?: string;
   createdByRole?: "teacher" | "secretary";
-  startedAt?: Date | Timestamp;
   lockedAt?: Date | Timestamp;
   submittedByUid?: string;
   submittedByRole?: "teacher" | "secretary";
@@ -144,7 +138,7 @@ export interface AttendanceFlatRecord {
   teacherId: string;
   lrn: string;
   sectionId: string;
-  subject: string;
+  subject?: string;
   date: string;
   schoolYear: string;
   status: AttendanceStatus;
@@ -190,6 +184,105 @@ export function invalidateCache(_pattern: string): void {
 }
 
 export function clearAllCaches(): void {
+}
+
+function normalizeSectionSlugPart(value: string): string {
+  return value.replace(/\s+/g, "-");
+}
+
+export function buildSectionSlug(gradeLevel: string, sectionName: string): string {
+  return `${gradeLevel}-${normalizeSectionSlugPart(sectionName)}`;
+}
+
+export function buildSectionAttendanceId(date: string, sectionSlug: string): string {
+  return `${date}_${sectionSlug}`;
+}
+
+async function getAccessibleSectionIdsForSecretary(
+  secretaryUid: string,
+  activeOnly = false
+): Promise<string[]> {
+  const appointmentsRef = collection(db, "appointments");
+  const constraints = [where("secretaryUid", "==", secretaryUid)];
+
+  if (activeOnly) {
+    constraints.push(where("status", "==", "active"));
+  }
+
+  const q = query(appointmentsRef, ...constraints);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [appointments] (secretary section access)", {
+    secretaryUid,
+    activeOnly,
+  });
+  const snapshot = await getDocs(q);
+
+  return Array.from(
+    new Set(snapshot.docs.map((appointmentDoc) => appointmentDoc.data().sectionId as string))
+  );
+}
+
+async function getAttendanceBySectionIds(
+  sectionIds: string[],
+  filters?: {
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+  }
+): Promise<Attendance[]> {
+  if (sectionIds.length === 0) {
+    return [];
+  }
+
+  const attendanceRef = collection(db, "attendance");
+  const sessions: Attendance[] = [];
+
+  for (let index = 0; index < sectionIds.length; index += 10) {
+    const chunk = sectionIds.slice(index, index + 10);
+    const constraints = [where("sectionId", "in", chunk)];
+
+    if (filters?.date) {
+      constraints.push(where("date", "==", filters.date));
+    }
+
+    if (filters?.startDate) {
+      constraints.push(where("date", ">=", filters.startDate));
+    }
+
+    if (filters?.endDate) {
+      constraints.push(where("date", "<=", filters.endDate));
+    }
+
+    const q = query(attendanceRef, ...constraints);
+    console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (sectionId access query)", {
+      sectionIds: chunk,
+      filters: filters ?? null,
+    });
+    const snapshot = await getDocs(q);
+
+    snapshot.docs.forEach((attendanceDoc) => {
+      sessions.push({
+        id: attendanceDoc.id,
+        ...attendanceDoc.data(),
+      } as Attendance);
+    });
+  }
+
+  sessions.sort((a, b) => {
+    const dateCompare = b.date.localeCompare(a.date);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+
+    const aLockedAt = a.lockedAt instanceof Timestamp ? a.lockedAt.toMillis() : 0;
+    const bLockedAt = b.lockedAt instanceof Timestamp ? b.lockedAt.toMillis() : 0;
+    if (aLockedAt !== bLockedAt) {
+      return bLockedAt - aLockedAt;
+    }
+
+    return b.id.localeCompare(a.id);
+  });
+
+  return sessions;
 }
 
 // ==================== User Profile Functions ====================
@@ -687,7 +780,6 @@ export async function createAppointment(
   secretaryUid: string,
   secretaryLrn: string,
   sectionId: string,
-  subject: string,
   schoolYear: string
 ): Promise<string> {
   const appointmentRef = doc(collection(db, "appointments"));
@@ -698,7 +790,6 @@ export async function createAppointment(
     secretaryLrn,
     teacherId,
     sectionId,
-    subject,
     schoolYear,
     status: "active",
     appointedAt: new Date(),
@@ -794,15 +885,8 @@ export async function getSecretaryAttendance(
     if (cached) return cached;
   }
 
-  const attendanceRef = collection(db, "attendance");
-  const q = query(attendanceRef, where("secretaryUid", "==", secretaryUid));
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid filter)");
-  const snapshot = await getDocs(q);
-
-  const attendance = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Attendance));
+  const accessibleSectionIds = await getAccessibleSectionIdsForSecretary(secretaryUid);
+  const attendance = await getAttendanceBySectionIds(accessibleSectionIds);
 
   if (useCache) {
     setCachedData(cacheKey, attendance);
@@ -826,19 +910,8 @@ export async function getSecretaryAttendanceForDate(
     if (cached) return cached;
   }
 
-  const attendanceRef = collection(db, "attendance");
-  const q = query(
-    attendanceRef,
-    where("secretaryUid", "==", secretaryUid),
-    where("date", "==", date)
-  );
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid + date filter)");
-  const snapshot = await getDocs(q);
-
-  const attendance = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Attendance));
+  const accessibleSectionIds = await getAccessibleSectionIdsForSecretary(secretaryUid, true);
+  const attendance = await getAttendanceBySectionIds(accessibleSectionIds, { date });
 
   if (useCache) {
     setCachedData(cacheKey, attendance);
@@ -1001,24 +1074,19 @@ export async function getAttendanceSession(
 // ==================== Attendance Session Functions (Secretary) ====================
 
 /**
- * Check if an attendance session already exists for the given appointment and date
- * Uses the deterministic document ID pattern: {date}_{sectionSlug}_{subject}_{secretaryLrn}
+ * Check if an attendance session already exists for the given section and date
+ * Uses the deterministic document ID pattern: {date}_{sectionSlug}
  */
 export async function checkExistingSession(
-  appointment: Appointment,
   sectionSlug: string,
   date: string
 ): Promise<Attendance | null> {
-  const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
+  const attendanceId = buildSectionAttendanceId(date, sectionSlug);
   const attendanceRef = doc(db, "attendance", attendanceId);
 
   console.log("🔍 checkExistingSession | Input params:", {
     date,
     sectionSlug,
-    subject: appointment.subject,
-    secretaryLrn: appointment.secretaryLrn,
-    secretaryUid: appointment.secretaryUid,
-    teacherId: appointment.teacherId,
     constructedAttendanceId: attendanceId
   });
 
@@ -1067,7 +1135,7 @@ export async function startAttendanceSession(
   date: string,
   schoolYear: string
 ): Promise<string> {
-  const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
+  const attendanceId = buildSectionAttendanceId(date, sectionSlug);
   const attendanceRef = doc(db, "attendance", attendanceId);
 
   const existingSnap = await getDoc(attendanceRef);
@@ -1082,14 +1150,12 @@ export async function startAttendanceSession(
     teacherId: appointment.teacherId,
     secretaryUid: appointment.secretaryUid,
     secretaryLrn: appointment.secretaryLrn,
-    subject: appointment.subject,
     date,
     schoolYear,
     status: "open",
     records: {},
     createdByUid: appointment.secretaryUid,
     createdByRole: "secretary",
-    startedAt: new Date(),
   };
 
   await setDoc(attendanceRef, {
@@ -1107,13 +1173,14 @@ export async function startAttendanceSession(
  * Idempotent: returns existing session ID if already exists
  */
 export async function startAttendanceSessionAsTeacher(
-  appointment: Appointment,
+  sectionId: string,
+  teacherId: string,
   sectionSlug: string,
   date: string,
   schoolYear: string,
   teacherUid: string
 ): Promise<string> {
-  const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
+  const attendanceId = buildSectionAttendanceId(date, sectionSlug);
   const attendanceRef = doc(db, "attendance", attendanceId);
 
   const existingSnap = await getDoc(attendanceRef);
@@ -1123,19 +1190,14 @@ export async function startAttendanceSessionAsTeacher(
   }
 
   const attendanceData: Omit<Attendance, "id" | "createdAt"> = {
-    appointmentId: appointment.id,
-    sectionId: appointment.sectionId,
-    teacherId: appointment.teacherId,
-    secretaryUid: appointment.secretaryUid,
-    secretaryLrn: appointment.secretaryLrn,
-    subject: appointment.subject,
+    sectionId,
+    teacherId,
     date,
     schoolYear,
     status: "open",
     records: {},
     createdByUid: teacherUid,
     createdByRole: "teacher",
-    startedAt: new Date(),
   };
 
   await setDoc(attendanceRef, {
@@ -1169,7 +1231,9 @@ function extractLastNameFromStudentName(studentName: string): string {
  */
 export async function submitFullAttendance(
   attendanceId: string,
-  appointment: Appointment,
+  sectionId: string,
+  teacherId: string,
+  defaultSubmittedByUid: string,
   sectionSlug: string,
   date: string,
   schoolYear: string,
@@ -1194,7 +1258,7 @@ export async function submitFullAttendance(
     throw new Error("Session already submitted and locked.");
   }
 
-  const submittedByUid = actor?.uid ?? appointment.secretaryUid;
+  const submittedByUid = actor?.uid ?? defaultSubmittedByUid;
   const submittedByRole = actor?.role ?? "secretary";
 
   const batch = writeBatch(db);
@@ -1225,10 +1289,9 @@ export async function submitFullAttendance(
     
     batch.set(recordRef, {
       attendanceId,
-      teacherId: appointment.teacherId,
+      teacherId,
       lrn: student.lrn,
-      sectionId: appointment.sectionId,
-      subject: appointment.subject,
+      sectionId,
       date,
       schoolYear,
       status: student.status,
@@ -1247,7 +1310,7 @@ export async function submitFullAttendance(
 
     batch.set(summaryRef, {
       lrn: student.lrn,
-      sectionId: appointment.sectionId,
+      sectionId,
       schoolYear,
       totalDays: increment(1),
       [student.status]: increment(1),
@@ -1259,8 +1322,8 @@ export async function submitFullAttendance(
   console.log("✅ Full attendance submitted:", attendanceId);
   
   // Invalidate caches
-  invalidateCache(`attendance_secretary_${appointment.secretaryUid}`);
-  invalidateCache(`attendance_teacher_${appointment.teacherId}_${date}`);
+  invalidateCache(`attendance_secretary_${defaultSubmittedByUid}`);
+  invalidateCache(`attendance_teacher_${teacherId}_${date}`);
 }
 
 /**
@@ -1373,7 +1436,7 @@ export async function getSectionSlug(sectionId: string): Promise<string | null> 
   if (sectionSnap.exists()) {
     const section = sectionSnap.data() as Section;
     console.log("✅ Section found:", { id: sectionId, gradeLevel: section.gradeLevel, sectionName: section.sectionName });
-    const slug = `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, '-')}`;
+    const slug = buildSectionSlug(section.gradeLevel, section.sectionName);
     console.log("📋 Generated slug:", slug);
     return slug;
   }
@@ -1387,47 +1450,25 @@ export async function getSectionSlug(sectionId: string): Promise<string | null> 
  * Loads sessions in chunks to reduce initial read cost
  * 
  * @param secretaryUid - The secretary's UID
- * @param limit - Number of sessions to fetch (default: 10)
+ * @param limitCount - Number of sessions to fetch (default: 10)
  * @param lastVisibleDoc - Last document from previous page (for pagination)
  * @returns Object with sessions, lastVisible document, and hasMore flag
  */
 export async function getSecretaryAttendanceHistoryPaginated(
   secretaryUid: string,
   limitCount: number = 10,
-  lastVisibleDoc?: DocumentSnapshot | null
-): Promise<{ sessions: Attendance[]; lastVisible: DocumentSnapshot | null; hasMore: boolean }> {
-  const attendanceRef = collection(db, "attendance");
-  
-  // Query with orderBy for pagination (requires composite index)
-  const baseQuery = query(
-    attendanceRef,
-    where("secretaryUid", "==", secretaryUid),
-    orderBy("date", "desc"),
-    limit(limitCount)
-  );
-  
-  // Add startAfter for pagination
-  const paginatedQuery = lastVisibleDoc 
-    ? query(baseQuery, startAfter(lastVisibleDoc))
-    : baseQuery;
-  
-  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (paginated history)", {
-    secretaryUid,
-    limit,
-    hasLastVisible: !!lastVisibleDoc,
-  });
-  
-  const snapshot = await getDocs(paginatedQuery);
-  
-  const sessions = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Attendance));
-  
-  const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
-  const hasMore = sessions.length === limitCount;
-  
-  return { sessions, lastVisible, hasMore };
+  offset: number = 0
+): Promise<{ sessions: Attendance[]; nextOffset: number | null; hasMore: boolean }> {
+  const accessibleSectionIds = await getAccessibleSectionIdsForSecretary(secretaryUid);
+  const allSessions = await getAttendanceBySectionIds(accessibleSectionIds);
+  const sessions = allSessions.slice(offset, offset + limitCount);
+  const nextOffset = offset + limitCount < allSessions.length ? offset + limitCount : null;
+
+  return {
+    sessions,
+    nextOffset,
+    hasMore: nextOffset !== null,
+  };
 }
 
 /**
