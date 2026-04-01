@@ -32,6 +32,14 @@ interface StudentAttendance {
 const STUDENTS_PER_PAGE = 10;
 const getDisplayEndIndex = (end: number, total: number): number => Math.min(end, total);
 
+function formatLocalDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function formatSessionTimestamp(
   value: Date | string | { toDate?: () => Date } | undefined
 ): string {
@@ -68,7 +76,7 @@ export default function SecretaryAttendancePage() {
 
   // State for session management
   const [selectedDate, setSelectedDate] = useState<string>(() => {
-    return new Date().toISOString().split("T")[0];
+    return formatLocalDateInputValue(new Date());
   });
   const [hasSessionToday, setHasSessionToday] = useState<boolean>(false);
   const [sessionSubmitted, setSessionSubmitted] = useState<boolean>(false);
@@ -506,7 +514,7 @@ export default function SecretaryAttendancePage() {
                   </div>
 
                   {/* Attendance Summary */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
                     <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
                       <p className="text-2xl font-bold" style={{ color: "#10B981" }}>
                         {attendanceRecords.filter(r => r.status === "present").length}
@@ -529,6 +537,14 @@ export default function SecretaryAttendancePage() {
                       </p>
                       <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
                         Absent
+                      </p>
+                    </div>
+                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-2xl font-bold" style={{ color: "#2563EB" }}>
+                        {attendanceRecords.filter(r => r.status === "excused").length}
+                      </p>
+                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                        Excused
                       </p>
                     </div>
                     <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>

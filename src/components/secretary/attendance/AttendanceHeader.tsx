@@ -13,6 +13,14 @@ interface AttendanceHeaderProps {
   onEnableEditing: () => void;
 }
 
+function formatLocalDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function AttendanceHeader({
   selectedDate,
   onDateChange,
@@ -24,7 +32,7 @@ export default function AttendanceHeader({
   onEnableEditing,
 }: AttendanceHeaderProps) {
   const isToday = (date: string) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = formatLocalDateInputValue(new Date());
     return date === today;
   };
 

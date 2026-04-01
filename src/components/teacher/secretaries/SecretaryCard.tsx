@@ -93,6 +93,7 @@ export default function SecretaryCard({
   const initials = getInitials(secretaryName);
   const avatarBg = getAvatarColor(secretaryLrn);
   const avatarText = getAvatarTextColor(secretaryLrn);
+  const isCardClickable = status === "active" && Boolean(onViewRecords);
 
   return (
     <motion.div
@@ -110,8 +111,17 @@ export default function SecretaryCard({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: status === "removed" ? 0.7 : 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
+      onClick={isCardClickable ? onViewRecords : undefined}
+      role={isCardClickable ? "button" : undefined}
+      tabIndex={isCardClickable ? 0 : undefined}
+      onKeyDown={isCardClickable ? (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onViewRecords?.();
+        }
+      } : undefined}
     >
-      <div className="p-5">
+      <div className="p-5" style={{ cursor: isCardClickable ? "pointer" : "default" }}>
         {/* Header: Avatar + Status */}
         <div className="flex justify-between items-start mb-4">
           <div
@@ -226,7 +236,10 @@ export default function SecretaryCard({
                 <button
                   className="flex-1 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ color: todaySessionStatus === "locked" ? "#065F46" : "#374151" }}
-                  onClick={onTakeAttendance}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onTakeAttendance();
+                  }}
                   disabled={todaySessionStatus === "locked"}
                   onMouseEnter={(e) => {
                     if (todaySessionStatus !== "locked") {
@@ -249,25 +262,19 @@ export default function SecretaryCard({
                 <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
               </>
             )}
-            <button
-              className="flex-1 py-2.5 text-sm font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onClick={onViewRecords}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#6C5CE7";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#374151";
-              }}
-              title="View attendance records for this secretary"
-            >
-              View Records
-            </button>
+            {!onTakeAttendance && (
+              <div className="flex-1 py-2.5 text-sm font-medium" style={{ color: "#1E3A5F" }}>
+                Open records from this card
+              </div>
+            )}
             <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
             <button
               className="flex-1 py-2.5 text-sm font-medium transition-colors"
               style={{ color: "#374151" }}
-              onClick={onRemove}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRemove?.();
+              }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = "#DC2626";
               }}
@@ -284,7 +291,10 @@ export default function SecretaryCard({
             <button
               className="flex-1 py-2.5 text-sm font-medium transition-colors"
               style={{ color: "#374151" }}
-              onClick={onRestore}
+              onClick={(event) => {
+                event.stopPropagation();
+                onRestore?.();
+              }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = "#6C5CE7";
               }}
@@ -299,7 +309,10 @@ export default function SecretaryCard({
             <button
               className="flex-1 py-2.5 text-sm font-medium transition-colors"
               style={{ color: "#374151" }}
-              onClick={onDelete}
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete?.();
+              }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = "#DC2626";
               }}
