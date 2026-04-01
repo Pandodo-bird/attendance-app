@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowLeft, ShieldCheck, UserPlus } from "lucide-react";
+import { ArrowLeft, Calendar, ClipboardCheck, ShieldCheck, UserPlus } from "lucide-react";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { DailyRecordDetailsModal, type PendingOverridePayload, type SessionWithStats } from "@/components/teacher/secretary-records";
 import { ActiveSecretariesCounter, SecretaryCard, SecretaryCreationForm } from "@/components/teacher/secretaries";
+import { AttendanceHeader, BulkAttendanceActions, StudentAttendanceRow } from "@/components/secretary/attendance";
+import { PopupAlert } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import {
@@ -15,11 +17,16 @@ import {
   AttendanceStatus,
   Appointment,
   calculateAttendanceStats,
+  getAttendanceSession,
   getTeacherAppointments,
   getTeacherAttendanceSessions,
   getTeacherSections,
   getUserProfilesBatch,
+  getSectionById,
+  getSectionStudents,
   overrideAttendanceRecord,
+  startAttendanceSessionAsTeacher,
+  submitFullAttendance,
   UserData,
 } from "@/lib/firestore";
 
@@ -40,6 +47,55 @@ interface SecretaryCardItem {
   subject: string;
   schoolYear: string;
   appointedAt: Date | string | { toDate: () => Date };
+}
+
+interface StudentAttendance {
+  lrn: string;
+  studentName: string;
+  lastName: string;
+  firstName: string;
+  status: AttendanceStatus | null;
+}
+
+const EMPTY_TEACHER_STUDENTS: Array<{
+  lrn: string;
+  lastName: string;
+  firstName: string;
+  middleName: string;
+}> = [];
+
+const STUDENTS_PER_PAGE = 10;
+
+function getDisplayEndIndex(end: number, total: number): number {
+  return Math.min(end, total);
+}
+
+function formatSessionTimestamp(value: Date | string | { toDate?: () => Date } | undefined): string {
+  let parsedDate: Date | null = null;
+
+  if (!value) {
+    parsedDate = new Date();
+  } else if (value instanceof Date) {
+    parsedDate = value;
+  } else if (typeof value === "string") {
+    const fromString = new Date(value);
+    parsedDate = Number.isNaN(fromString.getTime()) ? new Date() : fromString;
+  } else if (typeof value === "object" && typeof value.toDate === "function") {
+    const fromTimestamp = value.toDate();
+    parsedDate = fromTimestamp instanceof Date && !Number.isNaN(fromTimestamp.getTime())
+      ? fromTimestamp
+      : new Date();
+  } else {
+    parsedDate = new Date();
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(dateString: string): string {
@@ -116,6 +172,15 @@ function SecretariesContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
+  const [selectedTeacherAttendanceAppointment, setSelectedTeacherAttendanceAppointment] = useState<Appointment | null>(null);
+  const [teacherSelectedDate, setTeacherSelectedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [teacherAttendanceRecords, setTeacherAttendanceRecords] = useState<StudentAttendance[]>([]);
+  const [teacherHasSessionForDate, setTeacherHasSessionForDate] = useState(false);
+  const [teacherSessionSubmitted, setTeacherSessionSubmitted] = useState(false);
+  const [teacherIsEditing, setTeacherIsEditing] = useState(false);
+  const [teacherAttendanceError, setTeacherAttendanceError] = useState<string | null>(null);
+  const [teacherSubmitError, setTeacherSubmitError] = useState<string | null>(null);
+  const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
 
   const today = new Date().toISOString().split("T")[0];
   const recentWindowStart = new Date();
@@ -239,6 +304,42 @@ function SecretariesContent() {
     })
     .sort((a, b) => getSortableTime(b.appointedAt) - getSortableTime(a.appointedAt));
 
+  const teacherAttendanceSectionId = selectedTeacherAttendanceAppointment?.sectionId;
+  const { data: teacherAttendanceSection } = useQuery({
+    queryKey: ["section", teacherAttendanceSectionId],
+    queryFn: () => getSectionById(teacherAttendanceSectionId!),
+    enabled: !!teacherAttendanceSectionId,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+
+  const { data: teacherSectionStudentsData, isLoading: teacherStudentsLoading } = useQuery({
+    queryKey: ["sectionStudents", teacherAttendanceSectionId],
+    queryFn: () => getSectionStudents(teacherAttendanceSectionId!),
+    enabled: !!teacherAttendanceSectionId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+  });
+  const teacherSectionStudents = teacherSectionStudentsData ?? EMPTY_TEACHER_STUDENTS;
+
+  const teacherSectionSlug = teacherAttendanceSection
+    ? `${teacherAttendanceSection.gradeLevel}-${teacherAttendanceSection.sectionName.replace(/\s+/g, "-")}`
+    : null;
+
+  const teacherAttendanceId = selectedTeacherAttendanceAppointment && teacherSectionSlug
+    ? `${teacherSelectedDate}_${teacherSectionSlug}_${selectedTeacherAttendanceAppointment.subject.replace(/\s+/g, '-')}_${selectedTeacherAttendanceAppointment.secretaryLrn}`
+    : null;
+
+  const { data: teacherExistingSession } = useQuery({
+    queryKey: ["attendanceSession", teacherAttendanceId],
+    queryFn: () => getAttendanceSession(teacherAttendanceId!),
+    enabled: !!teacherAttendanceId,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
   const filteredSessions = attendanceSessions.filter((session) => {
     if (!searchQuery.trim()) return true;
     const normalizedSearch = searchQuery.toLowerCase();
@@ -330,6 +431,72 @@ function SecretariesContent() {
     : null;
   const selectedSession = selectedSecretaryGroup?.sessions.find((session) => session.id === selectedSessionId) ?? null;
 
+  useEffect(() => {
+    setTeacherSelectedDate(today);
+    setTeacherCurrentPage(1);
+    setTeacherAttendanceError(null);
+    setTeacherSubmitError(null);
+  }, [selectedTeacherAttendanceAppointment, today]);
+
+  useEffect(() => {
+    setTeacherCurrentPage(1);
+  }, [teacherHasSessionForDate, teacherSessionSubmitted, teacherSelectedDate]);
+
+  useEffect(() => {
+    if (teacherSectionStudents.length > 0) {
+      const sortedStudents = [...teacherSectionStudents].sort((a, b) => {
+        const lastNameCompare = a.lastName.localeCompare(b.lastName);
+        if (lastNameCompare !== 0) return lastNameCompare;
+        return a.firstName.localeCompare(b.firstName);
+      });
+
+      setTeacherAttendanceRecords(
+        sortedStudents.map((student) => ({
+          lrn: student.lrn,
+          studentName: `${student.lastName}, ${student.firstName} ${student.middleName}`,
+          lastName: student.lastName,
+          firstName: student.firstName,
+          status: null,
+        }))
+      );
+    } else {
+      setTeacherAttendanceRecords((prev) => (prev.length === 0 ? prev : []));
+    }
+  }, [teacherSectionStudents]);
+
+  useEffect(() => {
+    if (teacherExistingSession) {
+      setTeacherHasSessionForDate(true);
+
+      if (teacherExistingSession.status === "locked" || (teacherExistingSession.records && Object.keys(teacherExistingSession.records).length > 0)) {
+        setTeacherSessionSubmitted(true);
+        setTeacherIsEditing(false);
+
+        if (teacherExistingSession.records) {
+          setTeacherAttendanceRecords((prev) =>
+            prev.map((record) => {
+              const existingRecord = teacherExistingSession.records![record.lrn];
+              if (existingRecord) {
+                return {
+                  ...record,
+                  status: existingRecord.status as AttendanceStatus,
+                };
+              }
+              return record;
+            })
+          );
+        }
+      } else {
+        setTeacherIsEditing(true);
+        setTeacherSessionSubmitted(false);
+      }
+    } else {
+      setTeacherHasSessionForDate(false);
+      setTeacherSessionSubmitted(false);
+      setTeacherIsEditing(false);
+    }
+  }, [teacherExistingSession]);
+
   const teacherStats = [
     {
       label: "ACTIVE SECRETARIES",
@@ -378,6 +545,135 @@ function SecretariesContent() {
       setShouldRefreshAfterClose(false);
     }
     setShowRegisterModal(false);
+  };
+
+  const openTeacherAttendance = (appointment: Appointment): void => {
+    setSelectedTeacherAttendanceAppointment(appointment);
+    setSelectedSecretaryUid(null);
+    setSelectedSessionId(null);
+  };
+
+  const getTodaySessionStatusForSecretary = (secretaryUid: string): "none" | "open" | "locked" => {
+    const session = attendanceSessions.find(
+      (item) => item.secretaryUid === secretaryUid && item.date === today
+    );
+
+    if (!session) {
+      return "none";
+    }
+
+    return session.status;
+  };
+
+  const handleTeacherStatusChange = (lrn: string, status: AttendanceStatus): void => {
+    setTeacherAttendanceRecords((prev) =>
+      prev.map((record) =>
+        record.lrn === lrn
+          ? { ...record, status }
+          : record
+      )
+    );
+  };
+
+  const handleTeacherMarkAllPresent = (): void => {
+    setTeacherAttendanceRecords((prev) =>
+      prev.map((record) => ({
+        ...record,
+        status: "present",
+      }))
+    );
+  };
+
+  const handleTeacherClearAll = (): void => {
+    setTeacherAttendanceRecords((prev) =>
+      prev.map((record) => ({
+        ...record,
+        status: null,
+      }))
+    );
+  };
+
+  const handleTeacherStartAttendanceSession = async (): Promise<void> => {
+    if (!selectedTeacherAttendanceAppointment || !teacherSectionSlug || !user?.uid) {
+      setTeacherAttendanceError("Missing section or appointment information.");
+      return;
+    }
+
+    try {
+      setTeacherAttendanceError(null);
+      setTeacherSubmitError(null);
+
+      const newAttendanceId = await startAttendanceSessionAsTeacher(
+        selectedTeacherAttendanceAppointment,
+        teacherSectionSlug,
+        teacherSelectedDate,
+        selectedTeacherAttendanceAppointment.schoolYear,
+        user.uid
+      );
+
+      await queryClient.invalidateQueries({ queryKey: ["attendanceSession", newAttendanceId] });
+
+      setTeacherHasSessionForDate(true);
+      setTeacherIsEditing(true);
+      setTeacherSessionSubmitted(false);
+    } catch (error) {
+      console.error("Error starting teacher attendance session:", error);
+      setTeacherAttendanceError(error instanceof Error ? error.message : "Failed to start attendance session.");
+    }
+  };
+
+  const handleTeacherSubmitAttendance = async (): Promise<void> => {
+    if (!selectedTeacherAttendanceAppointment || !teacherSectionSlug || !teacherAttendanceId || !user?.uid) {
+      setTeacherAttendanceError("Missing required information to submit attendance.");
+      return;
+    }
+
+    const allMarked = teacherAttendanceRecords.every((record) => record.status !== null);
+    if (!allMarked) {
+      setTeacherAttendanceError("Please mark attendance for all students.");
+      return;
+    }
+
+    try {
+      setTeacherAttendanceError(null);
+      setTeacherSubmitError(null);
+
+      const studentsData = teacherAttendanceRecords.map((record) => ({
+        lrn: record.lrn,
+        studentName: record.studentName,
+        lastName: record.lastName,
+        status: record.status as AttendanceStatus,
+      }));
+
+      await submitFullAttendance(
+        teacherAttendanceId,
+        selectedTeacherAttendanceAppointment,
+        teacherSectionSlug,
+        teacherSelectedDate,
+        selectedTeacherAttendanceAppointment.schoolYear,
+        studentsData,
+        {
+          uid: user.uid,
+          role: "teacher",
+        }
+      );
+
+      setTeacherHasSessionForDate(true);
+      setTeacherSessionSubmitted(true);
+      setTeacherIsEditing(false);
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["attendanceSession", teacherAttendanceId] }),
+        queryClient.invalidateQueries({ queryKey: ["teacherAttendanceSessions", user.uid] }),
+        queryClient.invalidateQueries({ queryKey: ["teacherAttendanceToday", user.uid, teacherSelectedDate] }),
+        queryClient.invalidateQueries({ queryKey: ["studentSummaries"] }),
+      ]);
+    } catch (error) {
+      console.error("Error submitting teacher attendance:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit attendance.";
+      setTeacherSubmitError(errorMessage.includes("locked") ? "This session is already submitted and locked." : errorMessage);
+      await queryClient.invalidateQueries({ queryKey: ["attendanceSession", teacherAttendanceId] });
+    }
   };
 
   const toggleSessionEditing = (sessionId: string): void => {
@@ -490,6 +786,231 @@ function SecretariesContent() {
             <p style={{ color: "#9CA3AF" }}>
               No active secretaries found for this teacher yet.
             </p>
+          </div>
+        ) : selectedTeacherAttendanceAppointment ? (
+          <div className="space-y-4">
+            <button
+              type="button"
+              onClick={() => setSelectedTeacherAttendanceAppointment(null)}
+              className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+              style={{ backgroundColor: "#F8FBFF", borderColor: "#C9D9EA", color: "#1E3A5F" }}
+            >
+              <ArrowLeft size={16} />
+              Back to Secretaries
+            </button>
+
+            {teacherAttendanceError && (
+              <PopupAlert
+                message={teacherAttendanceError}
+                type="error"
+                onClose={() => setTeacherAttendanceError(null)}
+              />
+            )}
+
+            <div className="rounded-2xl border p-5" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-lg font-semibold" style={{ color: "#0F172A" }}>
+                    Teacher attendance for {teacherAttendanceSection ? `${teacherAttendanceSection.gradeLevel} - ${teacherAttendanceSection.sectionName}` : "selected section"}
+                  </p>
+                  <p className="text-sm" style={{ color: "#475569" }}>
+                    {selectedTeacherAttendanceAppointment.subject} • Secretary LRN {selectedTeacherAttendanceAppointment.secretaryLrn}
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold" style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}>
+                  <ClipboardCheck size={14} />
+                  Teacher recording mode
+                </div>
+              </div>
+            </div>
+
+            <AttendanceHeader
+              selectedDate={teacherSelectedDate}
+              onDateChange={setTeacherSelectedDate}
+              hasSessionToday={teacherHasSessionForDate}
+              sessionSubmitted={teacherSessionSubmitted}
+              isEditing={teacherIsEditing}
+              allowCorrections={false}
+              onStartSession={handleTeacherStartAttendanceSession}
+              onEnableEditing={() => undefined}
+            />
+
+            {teacherStudentsLoading ? (
+              <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
+                <p style={{ color: "#6B7280" }}>Loading students...</p>
+              </div>
+            ) : teacherHasSessionForDate || teacherSessionSubmitted ? (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                {teacherSubmitError && (
+                  <PopupAlert
+                    message={teacherSubmitError}
+                    type="error"
+                    onClose={() => setTeacherSubmitError(null)}
+                  />
+                )}
+
+                {teacherSessionSubmitted && !teacherIsEditing && (
+                  <div className="rounded-xl p-6 mb-6" style={{ backgroundColor: "#D1FAE5", border: "1px solid #A7F3D0" }}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: "#10B981" }}>
+                        <ClipboardCheck className="w-5 h-5" style={{ color: "#FFFFFF" }} />
+                      </div>
+                      <div>
+                        <p className="text-base font-bold" style={{ color: "#065F46" }}>
+                          Teacher-submitted session completed
+                        </p>
+                        <p className="text-sm" style={{ color: "#047857" }}>
+                          Attendance successfully submitted for {selectedTeacherAttendanceAppointment.subject}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                        <p className="text-2xl font-bold" style={{ color: "#10B981" }}>
+                          {teacherAttendanceRecords.filter((record) => record.status === "present").length}
+                        </p>
+                        <p className="text-xs font-medium" style={{ color: "#6B7280" }}>Present</p>
+                      </div>
+                      <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                        <p className="text-2xl font-bold" style={{ color: "#F59E0B" }}>
+                          {teacherAttendanceRecords.filter((record) => record.status === "late").length}
+                        </p>
+                        <p className="text-xs font-medium" style={{ color: "#6B7280" }}>Late</p>
+                      </div>
+                      <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                        <p className="text-2xl font-bold" style={{ color: "#EF4444" }}>
+                          {teacherAttendanceRecords.filter((record) => record.status === "absent").length}
+                        </p>
+                        <p className="text-xs font-medium" style={{ color: "#6B7280" }}>Absent</p>
+                      </div>
+                      <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                        <p className="text-2xl font-bold" style={{ color: "#1E3A5F" }}>
+                          {teacherAttendanceRecords.length}
+                        </p>
+                        <p className="text-xs font-medium" style={{ color: "#6B7280" }}>Total Students</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>
+                        Submitted on {formatSessionTimestamp(teacherExistingSession?.lockedAt as Date | string | { toDate?: () => Date } | undefined)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {(teacherIsEditing || !teacherSessionSubmitted) && (
+                  <BulkAttendanceActions
+                    onMarkAllPresent={handleTeacherMarkAllPresent}
+                    onClearAll={handleTeacherClearAll}
+                    allPresent={teacherAttendanceRecords.every((record) => record.status === "present")}
+                    allMarked={teacherAttendanceRecords.every((record) => record.status !== null)}
+                    disabled={!teacherIsEditing && !teacherHasSessionForDate}
+                  />
+                )}
+
+                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}>
+                  <div className="hidden md:block">
+                    <div className="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold uppercase tracking-wide" style={{ backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                      <div className="col-span-5" style={{ color: "#6B7280" }}>Student Name</div>
+                      <div className="col-span-3 text-center" style={{ color: "#6B7280" }}>LRN</div>
+                      <div className="col-span-4 text-center" style={{ color: "#6B7280" }}>Attendance Status</div>
+                    </div>
+                    <div className="divide-y divide-[#E5E7EB]">
+                      {teacherAttendanceRecords.slice((teacherCurrentPage - 1) * STUDENTS_PER_PAGE, teacherCurrentPage * STUDENTS_PER_PAGE).map((record, index) => (
+                        <StudentAttendanceRow
+                          key={record.lrn}
+                          lrn={record.lrn}
+                          studentName={record.studentName}
+                          status={record.status}
+                          index={index}
+                          isEditable={teacherIsEditing || !teacherSessionSubmitted}
+                          onStatusChange={handleTeacherStatusChange}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="md:hidden divide-y divide-[#E5E7EB]">
+                    {teacherAttendanceRecords.slice((teacherCurrentPage - 1) * STUDENTS_PER_PAGE, teacherCurrentPage * STUDENTS_PER_PAGE).map((record, index) => (
+                      <MobileStudentAttendanceCard
+                        key={record.lrn}
+                        lrn={record.lrn}
+                        studentName={record.studentName}
+                        status={record.status}
+                        isEditable={teacherIsEditing || !teacherSessionSubmitted}
+                        onStatusChange={handleTeacherStatusChange}
+                        index={index}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {Math.ceil(teacherAttendanceRecords.length / STUDENTS_PER_PAGE) > 1 && (
+                  <motion.div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                    <p className="text-sm" style={{ color: "#6B7280" }}>
+                      Showing <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{(teacherCurrentPage - 1) * STUDENTS_PER_PAGE + 1}</span> to{" "}
+                      <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{getDisplayEndIndex(teacherCurrentPage * STUDENTS_PER_PAGE, teacherAttendanceRecords.length)}</span> of{" "}
+                      <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{teacherAttendanceRecords.length}</span> students
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setTeacherCurrentPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={teacherCurrentPage === 1}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: teacherCurrentPage === 1 ? "#F3F4F6" : "#FFFFFF", color: teacherCurrentPage === 1 ? "#9CA3AF" : "#374151", border: "1px solid #E5E7EB" }}
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.ceil(teacherAttendanceRecords.length / STUDENTS_PER_PAGE) }, (_, index) => index + 1).map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => setTeacherCurrentPage(page)}
+                            className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+                            style={{ backgroundColor: teacherCurrentPage === page ? "#1E3A5F" : "#FFFFFF", color: teacherCurrentPage === page ? "#FFFFFF" : "#374151", border: "1px solid #E5E7EB" }}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setTeacherCurrentPage((prev) => Math.min(prev + 1, Math.ceil(teacherAttendanceRecords.length / STUDENTS_PER_PAGE)))}
+                        disabled={teacherCurrentPage === Math.ceil(teacherAttendanceRecords.length / STUDENTS_PER_PAGE)}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{ backgroundColor: teacherCurrentPage === Math.ceil(teacherAttendanceRecords.length / STUDENTS_PER_PAGE) ? "#F3F4F6" : "#FFFFFF", color: teacherCurrentPage === Math.ceil(teacherAttendanceRecords.length / STUDENTS_PER_PAGE) ? "#9CA3AF" : "#374151", border: "1px solid #E5E7EB" }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {(teacherIsEditing || !teacherSessionSubmitted) && (
+                  <motion.div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.2 }}>
+                    {!teacherAttendanceRecords.every((record) => record.status !== null) && (
+                      <p className="text-sm sm:self-center sm:mr-auto" style={{ color: "#F59E0B" }}>
+                        Please mark attendance for all students.
+                      </p>
+                    )}
+                    <button
+                      onClick={handleTeacherSubmitAttendance}
+                      disabled={!teacherAttendanceRecords.every((record) => record.status !== null) || !teacherHasSessionForDate}
+                      className="w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
+                    >
+                      Submit Attendance
+                    </button>
+                  </motion.div>
+                )}
+              </motion.div>
+            ) : (
+              <div className="rounded-xl p-8 text-center border" style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}>
+                <p style={{ color: "#6B7280" }}>Start a session to begin marking attendance for this section.</p>
+              </div>
+            )}
           </div>
         ) : selectedSecretaryGroup ? (
           <div className="space-y-4">
@@ -644,6 +1165,9 @@ function SecretariesContent() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {secretaryCards.map((card, groupIndex) => {
+              const appointment = activeAppointmentBySecretary.get(card.secretaryUid);
+              const todaySessionStatus = getTodaySessionStatusForSecretary(card.secretaryUid);
+
               return (
                 <SecretaryCard
                   key={card.secretaryUid}
@@ -659,8 +1183,10 @@ function SecretariesContent() {
                   status="active"
                   appointedAt={card.appointedAt}
                   onViewRecords={() => setSelectedSecretaryUid(card.secretaryUid)}
+                  onTakeAttendance={appointment ? () => openTeacherAttendance(appointment) : undefined}
+                  todaySessionStatus={todaySessionStatus}
                   index={groupIndex}
-                  viewRecordsOnly={true}
+                  viewRecordsOnly={false}
                 />
               );
             })}
@@ -825,5 +1351,98 @@ function SecretariesContent() {
         </div>
       )}
     </>
+  );
+}
+
+interface MobileStudentAttendanceCardProps {
+  lrn: string;
+  studentName: string;
+  status: AttendanceStatus | null;
+  isEditable: boolean;
+  onStatusChange: (lrn: string, status: AttendanceStatus) => void;
+  index: number;
+}
+
+function MobileStudentAttendanceCard({
+  lrn,
+  studentName,
+  status,
+  isEditable,
+  onStatusChange,
+  index,
+}: MobileStudentAttendanceCardProps) {
+  return (
+    <motion.div
+      className="p-4"
+      style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F9FAFB" }}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.03, duration: 0.2 }}
+    >
+      <div className="mb-3">
+        <p className="text-sm font-semibold" style={{ color: "#1F1F1F" }}>
+          {studentName}
+        </p>
+        <p className="text-xs font-mono mt-1" style={{ color: "#6B7280" }}>
+          LRN: {lrn}
+        </p>
+      </div>
+
+      {isEditable ? (
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => onStatusChange(lrn, "present")}
+            className="px-2.5 py-2 rounded-lg text-xs font-semibold"
+            style={{
+              backgroundColor: status === "present" ? "#10B981" : "#F3F4F6",
+              color: status === "present" ? "#FFFFFF" : "#6B7280",
+            }}
+          >
+            Present
+          </button>
+          <button
+            onClick={() => onStatusChange(lrn, "late")}
+            className="px-2.5 py-2 rounded-lg text-xs font-semibold"
+            style={{
+              backgroundColor: status === "late" ? "#F59E0B" : "#F3F4F6",
+              color: status === "late" ? "#FFFFFF" : "#6B7280",
+            }}
+          >
+            Late
+          </button>
+          <button
+            onClick={() => onStatusChange(lrn, "absent")}
+            className="px-2.5 py-2 rounded-lg text-xs font-semibold"
+            style={{
+              backgroundColor: status === "absent" ? "#EF4444" : "#F3F4F6",
+              color: status === "absent" ? "#FFFFFF" : "#6B7280",
+            }}
+          >
+            Absent
+          </button>
+        </div>
+      ) : (
+        <div className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wide" style={{
+          backgroundColor:
+            status === "present"
+              ? "#D1FAE5"
+              : status === "late"
+              ? "#FEF3C7"
+              : status === "absent"
+              ? "#FEE2E2"
+              : "#F3F4F6",
+          color:
+            status === "present"
+              ? "#065F46"
+              : status === "late"
+              ? "#92400E"
+              : status === "absent"
+              ? "#991B1B"
+              : "#6B7280",
+        }}>
+          {status || "Unmarked"}
+        </div>
+      )}
+    </motion.div>
   );
 }

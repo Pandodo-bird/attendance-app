@@ -1,3 +1,7 @@
+// CHANGE: attendance/{attendanceId} create — teachers AND secretaries can now create sessions.
+// Removed isTeacher()/isSecretary() role lookups that caused "missing permission" errors.
+// Ownership alone prevents impersonation: secretaryUid == uid OR teacherId == uid.
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -72,14 +76,17 @@ service cloud.firestore {
     // ==================== Attendance Collection ====================
     match /attendance/{attendanceId} {
       // Secretaries can read/write their own attendance, teachers can read attendance for their sections
-      // Note: resource.data is null for non-existent documents, so allow read when checking existence
+      // Note: resource is null for non-existent documents, so allow read when checking existence
       allow read: if isAuthenticated() &&
-                     (resource.data == null ||
+                     (resource == null ||
                       resource.data.teacherId == getUid() ||
                       resource.data.secretaryUid == getUid());
+      // Teachers and secretaries can create sessions with ownership checks
       allow create: if isAuthenticated() &&
-                       isSecretary() &&
-                       request.resource.data.secretaryUid == getUid();
+                       (
+                         request.resource.data.secretaryUid == getUid() ||
+                         request.resource.data.teacherId == getUid()
+                       );
       allow update: if isAuthenticated() &&
                        (resource.data.secretaryUid == getUid() || resource.data.teacherId == getUid());
       allow delete: if false;
@@ -97,7 +104,7 @@ service cloud.firestore {
       // Teachers can read records for their sections, secretaries can read their own records
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
-                       isSecretary();
+                       (isSecretary() || request.resource.data.teacherId == getUid());
       allow update: if isAuthenticated() &&
                        resource.data.teacherId == getUid();
       allow delete: if false;
@@ -108,7 +115,10 @@ service cloud.firestore {
       // Teachers can read summaries for their sections, secretaries can read their section's summaries
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() &&
-                       isSecretary();
+                       (
+                         isSecretary() ||
+                         get(/databases/$(database)/documents/sections/$(request.resource.data.sectionId)).data.teacherId == getUid()
+                       );
       allow update: if isAuthenticated() &&
                        (
                          isSecretary() ||

@@ -79,6 +79,7 @@ export default function SecretaryAttendancePage() {
 
   // Error state
   const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Reset page when editing session state changes
   useEffect(() => {
@@ -168,12 +169,10 @@ export default function SecretaryAttendancePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasSessionToday(true);
 
-      // Check if session is already submitted (locked)
       if (existingSession.status === "locked" || (existingSession.records && Object.keys(existingSession.records).length > 0)) {
         setSessionSubmitted(true);
         setIsEditing(false);
 
-        // Load existing records for display
         if (existingSession.records) {
           setAttendanceRecords((prev) =>
             prev.map((record) => {
@@ -189,17 +188,17 @@ export default function SecretaryAttendancePage() {
           );
         }
       } else {
-        // Session started but not submitted - allow editing
         setIsEditing(true);
         setSessionSubmitted(false);
       }
     } else {
-      // No session for this date
       setHasSessionToday(false);
       setSessionSubmitted(false);
       setIsEditing(false);
     }
   }, [existingSession]);
+
+  const teacherStartedSession = existingSession?.createdByRole === "teacher";
 
   // Handle individual student status change
   const handleStatusChange = (lrn: string, status: AttendanceStatus) => {
@@ -246,6 +245,7 @@ export default function SecretaryAttendancePage() {
 
     try {
       setError(null);
+      setSubmitError(null);
 
       // Create the attendance session document
       const newAttendanceId = await startAttendanceSession(
@@ -255,15 +255,14 @@ export default function SecretaryAttendancePage() {
         selectedAppointment.schoolYear
       );
 
-      // Invalidate the TanStack Query cache with the new attendance ID
-      queryClient.setQueryData(["attendanceSession", newAttendanceId], { id: newAttendanceId });
+      await queryClient.invalidateQueries({ queryKey: ["attendanceSession", newAttendanceId] });
       
       setHasSessionToday(true);
       setIsEditing(true);
       setSessionSubmitted(false);
     } catch (err) {
       console.error("Error starting session:", err);
-      setError("Failed to start attendance session");
+      setError(err instanceof Error ? err.message : "Failed to start attendance session");
     }
   };
 
@@ -304,14 +303,20 @@ export default function SecretaryAttendancePage() {
 
       setSessionSubmitted(true);
       setIsEditing(false);
+      setSubmitError(null);
 
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
       queryClient.invalidateQueries({ queryKey: ["attendanceSession", attendanceId] });
       queryClient.invalidateQueries({ queryKey: ["attendanceHistory", user?.uid] });
     } catch (err) {
       console.error("Error submitting attendance:", err);
-      setError("Failed to submit attendance. Please try again.");
+      const errorMessage = err instanceof Error ? err.message : "Failed to submit attendance. Please try again.";
+      if (errorMessage.includes("locked")) {
+        setSubmitError("This session is already submitted and locked.");
+      } else {
+        setSubmitError(errorMessage);
+      }
+      queryClient.invalidateQueries({ queryKey: ["attendanceSession", attendanceId] });
     }
   };
 
@@ -422,6 +427,40 @@ export default function SecretaryAttendancePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
             >
+              {/* Teacher-Started Session Banner */}
+              {teacherStartedSession && !sessionSubmitted && (
+                <div
+                  className="rounded-xl p-4 mb-4"
+                  style={{ backgroundColor: "#EEF2FF", border: "1px solid #C7D2FE" }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{ backgroundColor: "#6366F1" }}
+                    >
+                      <ClipboardCheck className="w-4 h-4" style={{ color: "#FFFFFF" }} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: "#3730A3" }}>
+                        Your teacher started this session
+                      </p>
+                      <p className="text-xs mt-0.5" style={{ color: "#4F46E5" }}>
+                        Continue recording attendance and submit when done.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Error Alert */}
+              {submitError && (
+                <PopupAlert 
+                  message={submitError} 
+                  type="error" 
+                  onClose={() => setSubmitError(null)} 
+                />
+              )}
+
               {/* Status Banner */}
               {sessionSubmitted && !isEditing && (
                 <div

@@ -114,17 +114,28 @@ export interface AttendanceRecord {
 
 export interface Attendance {
   id: string;
-  appointmentId: string;     // links to appointments/{appointmentId}
+  appointmentId: string;
   sectionId: string;
   teacherId: string;
   secretaryUid: string;
   secretaryLrn: string;
   subject: string;
-  date: string;              // "2025-03-17"
+  date: string;
   schoolYear: string;
   status: "open" | "locked";
-  records?: Record<string, AttendanceRecord>;  // Map for live view only
+  records?: Record<string, AttendanceRecord>;
   createdAt: Date | Timestamp;
+  createdByUid?: string;
+  createdByRole?: "teacher" | "secretary";
+  startedAt?: Date | Timestamp;
+  lockedAt?: Date | Timestamp;
+  submittedByUid?: string;
+  submittedByRole?: "teacher" | "secretary";
+}
+
+interface AttendanceSubmitActor {
+  uid: string;
+  role: "teacher" | "secretary";
 }
 
 export interface AttendanceFlatRecord {
@@ -1048,6 +1059,7 @@ export async function checkExistingSession(
 /**
  * Start an attendance session by creating the attendance/{id} document
  * This marks the commencement of attendance record for the day
+ * Idempotent: returns existing session ID if already exists
  */
 export async function startAttendanceSession(
   appointment: Appointment,
@@ -1057,6 +1069,12 @@ export async function startAttendanceSession(
 ): Promise<string> {
   const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
   const attendanceRef = doc(db, "attendance", attendanceId);
+
+  const existingSnap = await getDoc(attendanceRef);
+  if (existingSnap.exists()) {
+    console.log("⚠️ Session already exists, returning existing ID:", attendanceId);
+    return attendanceId;
+  }
 
   const attendanceData: Omit<Attendance, "id" | "createdAt"> = {
     appointmentId: appointment.id,
@@ -1069,6 +1087,9 @@ export async function startAttendanceSession(
     schoolYear,
     status: "open",
     records: {},
+    createdByUid: appointment.secretaryUid,
+    createdByRole: "secretary",
+    startedAt: new Date(),
   };
 
   await setDoc(attendanceRef, {
@@ -1077,6 +1098,52 @@ export async function startAttendanceSession(
   });
 
   console.log("✅ Attendance session started:", attendanceId);
+  return attendanceId;
+}
+
+/**
+ * Start an attendance session as a teacher
+ * Creates the attendance/{id} document with teacher as creator
+ * Idempotent: returns existing session ID if already exists
+ */
+export async function startAttendanceSessionAsTeacher(
+  appointment: Appointment,
+  sectionSlug: string,
+  date: string,
+  schoolYear: string,
+  teacherUid: string
+): Promise<string> {
+  const attendanceId = `${date}_${sectionSlug}_${appointment.subject.replace(/\s+/g, '-')}_${appointment.secretaryLrn}`;
+  const attendanceRef = doc(db, "attendance", attendanceId);
+
+  const existingSnap = await getDoc(attendanceRef);
+  if (existingSnap.exists()) {
+    console.log("⚠️ Session already exists (teacher start), returning existing ID:", attendanceId);
+    return attendanceId;
+  }
+
+  const attendanceData: Omit<Attendance, "id" | "createdAt"> = {
+    appointmentId: appointment.id,
+    sectionId: appointment.sectionId,
+    teacherId: appointment.teacherId,
+    secretaryUid: appointment.secretaryUid,
+    secretaryLrn: appointment.secretaryLrn,
+    subject: appointment.subject,
+    date,
+    schoolYear,
+    status: "open",
+    records: {},
+    createdByUid: teacherUid,
+    createdByRole: "teacher",
+    startedAt: new Date(),
+  };
+
+  await setDoc(attendanceRef, {
+    ...attendanceData,
+    createdAt: new Date(),
+  });
+
+  console.log("✅ Attendance session started by teacher:", attendanceId);
   return attendanceId;
 }
 
@@ -1111,13 +1178,27 @@ export async function submitFullAttendance(
     studentName: string;
     lastName: string;
     status: AttendanceStatus;
-  }>
+  }>,
+  actor?: AttendanceSubmitActor
 ): Promise<void> {
-  const batch = writeBatch(db);
-  const monthKey = date.slice(0, 7); // "YYYY-MM"
-
-  // 1. Update attendance session header with records map and lock it
   const attendanceRef = doc(db, "attendance", attendanceId);
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDoc] | [attendance/{attendanceId}] (submit lock check)", { attendanceId });
+  const attendanceSnap = await getDoc(attendanceRef);
+
+  if (!attendanceSnap.exists()) {
+    throw new Error("Session not found.");
+  }
+
+  const existingSession = attendanceSnap.data();
+  if (existingSession.status === "locked") {
+    throw new Error("Session already submitted and locked.");
+  }
+
+  const submittedByUid = actor?.uid ?? appointment.secretaryUid;
+  const submittedByRole = actor?.role ?? "secretary";
+
+  const batch = writeBatch(db);
+  const monthKey = date.slice(0, 7);
   const recordsMap: Record<string, AttendanceRecord> = {};
   
   students.forEach((student) => {
@@ -1125,13 +1206,16 @@ export async function submitFullAttendance(
       studentName: student.studentName,
       status: student.status,
       timeRecorded: new Date(),
-      recordedByUid: appointment.secretaryUid,
+      recordedByUid: submittedByUid,
     };
   });
 
   batch.update(attendanceRef, {
     records: recordsMap,
     status: "locked",
+    lockedAt: new Date(),
+    submittedByUid,
+    submittedByRole,
   });
 
   // 2. Create flat attendance records (audit log)
@@ -1149,7 +1233,7 @@ export async function submitFullAttendance(
       schoolYear,
       status: student.status,
       timeRecorded: new Date(),
-      recordedByUid: appointment.secretaryUid,
+      recordedByUid: submittedByUid,
     });
   });
 

@@ -16,6 +16,8 @@ interface SecretaryCardProps {
   appointedAt: Date | string | { toDate: () => Date };
   lastActive?: string;
   onViewRecords?: () => void;
+  onTakeAttendance?: () => void;
+  todaySessionStatus?: "none" | "open" | "locked";
   onRemove?: () => void;
   onRestore?: () => void;
   onDelete?: () => void;
@@ -82,6 +84,8 @@ export default function SecretaryCard({
   status,
   appointedAt,
   onViewRecords,
+  onTakeAttendance,
+  todaySessionStatus = "none",
   onRemove,
   onRestore,
   onDelete,
@@ -219,6 +223,34 @@ export default function SecretaryCard({
           </button>
         ) : status === "active" ? (
           <>
+            {onTakeAttendance && (
+              <>
+                <button
+                  className="flex-1 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ color: todaySessionStatus === "locked" ? "#065F46" : "#374151" }}
+                  onClick={onTakeAttendance}
+                  disabled={todaySessionStatus === "locked"}
+                  onMouseEnter={(e) => {
+                    if (todaySessionStatus !== "locked") {
+                      e.currentTarget.style.color = "#6C5CE7";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (todaySessionStatus !== "locked") {
+                      e.currentTarget.style.color = "#374151";
+                    }
+                  }}
+                  title={todaySessionStatus === "locked" ? "Session already submitted for today" : "Open teacher attendance for today"}
+                >
+                  {todaySessionStatus === "open"
+                    ? "Continue Session"
+                    : todaySessionStatus === "locked"
+                    ? "Session Submitted"
+                    : "Take Attendance"}
+                </button>
+                <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
+              </>
+            )}
             <button
               className="flex-1 py-2.5 text-sm font-medium transition-colors"
               style={{ color: "#374151" }}
