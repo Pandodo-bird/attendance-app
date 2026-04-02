@@ -9,6 +9,7 @@ interface AttendanceHeaderProps {
   sessionSubmitted: boolean;
   isEditing: boolean;
   onStartSession: () => void;
+  completedLabel?: string;
   syncLabel?: string;
   canSync?: boolean;
   onSyncNow?: () => void;
@@ -31,6 +32,7 @@ export default function AttendanceHeader({
   sessionSubmitted,
   isEditing,
   onStartSession,
+  completedLabel = "Saved",
   syncLabel,
   canSync = false,
   onSyncNow,
@@ -126,7 +128,7 @@ export default function AttendanceHeader({
           ) : sessionSubmitted && !isEditing ? (
             <div className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: "#D1FAE5" }}>
               <span className="text-sm font-semibold" style={{ color: "#065F46" }}>
-                Completed
+                {completedLabel}
               </span>
             </div>
           ) : isEditing ? (

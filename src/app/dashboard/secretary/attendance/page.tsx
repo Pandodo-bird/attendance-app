@@ -505,7 +505,7 @@ export default function SecretaryAttendancePage() {
         setHasSessionToday(true);
         setIsEditing(true);
         setSessionSubmitted(false);
-        setInfoMessage("Connection dropped. Session was kept locally and will sync after submit.");
+        setInfoMessage("Connection dropped. Attendance is being kept locally until you save it.");
         return;
       }
 
@@ -515,8 +515,8 @@ export default function SecretaryAttendancePage() {
   };
 
   const handleSubmitAttendance = async () => {
-    if (!selectedAppointment || !sectionSlug || !attendanceId) {
-      setError("Missing required information to submit attendance");
+      if (!selectedAppointment || !sectionSlug || !attendanceId) {
+      setError("Missing required information to save attendance");
       return;
     }
 
@@ -583,7 +583,7 @@ export default function SecretaryAttendancePage() {
         setSessionSubmitted(true);
         setIsEditing(false);
         setSubmitError(null);
-        setInfoMessage("Attendance saved offline. It will sync automatically when you reconnect.");
+        setInfoMessage("Attendance saved locally. It will sync into the open session when you reconnect.");
         return;
       }
 
@@ -603,7 +603,7 @@ export default function SecretaryAttendancePage() {
       setQueuedSubmission(null);
       setLocalDraft(null);
       setSubmitError(null);
-      setInfoMessage("Attendance synced successfully.");
+      setInfoMessage("Attendance saved and synced to the session.");
 
       if (user?.uid) {
         await deleteAttendanceDraft(user.uid, attendanceId);
@@ -667,12 +667,12 @@ export default function SecretaryAttendancePage() {
         setSessionSubmitted(true);
         setIsEditing(false);
         setSubmitError(null);
-        setInfoMessage("Attendance was queued after a connection problem. It will retry automatically.");
+        setInfoMessage("Attendance was saved locally after a connection problem. It will retry automatically.");
         return;
       }
 
-      console.error("Error submitting attendance:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to submit attendance. Please try again.";
+      console.error("Error saving attendance:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to save attendance. Please try again.";
       if (errorMessage.includes("locked")) {
         setSubmitError("This session is already submitted and locked.");
       } else {
@@ -706,12 +706,34 @@ export default function SecretaryAttendancePage() {
       : queuedSubmission?.status === "syncing"
         ? "Syncing"
         : queuedSubmission?.status === "pending"
-          ? "Pending sync"
-          : sessionSubmitted
-            ? "Synced"
+          ? "Saved locally"
+          : sessionSubmitted && existingSession?.status === "locked"
+            ? "Locked"
+            : sessionSubmitted
+              ? "Synced to session"
             : isOnline
               ? "Online"
               : "Offline draft";
+
+  const completedLabel = queuedSubmission
+    ? "Saved locally"
+    : existingSession?.status === "locked"
+      ? "Locked"
+      : "Saved";
+
+  const completionTitle = queuedSubmission
+    ? "Attendance Saved Locally"
+    : existingSession?.status === "locked"
+      ? "Session Locked"
+      : "Attendance Saved";
+
+  const completionDescription = queuedSubmission
+    ? "This attendance is stored on the device and will sync into the open session when connectivity returns."
+    : existingSession?.status === "locked"
+      ? "This attendance session has been finalized and locked."
+      : "Attendance is saved in the session and can still be reviewed while the session remains open.";
+
+  const completionTimestampLabel = existingSession?.status === "locked" ? "Locked on" : queuedSubmission ? "Saved locally on" : "Saved on";
 
   const presentCount = attendanceRecords.filter(r => r.status === "present").length;
   const lateCount = attendanceRecords.filter(r => r.status === "late").length;
@@ -802,6 +824,7 @@ export default function SecretaryAttendancePage() {
             sessionSubmitted={sessionSubmitted}
             isEditing={isEditing}
             onStartSession={handleStartSession}
+            completedLabel={completedLabel}
             syncLabel={sessionSyncLabel}
             canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
             onSyncNow={() => void syncStatus.syncNow()}
@@ -862,10 +885,10 @@ export default function SecretaryAttendancePage() {
                       </div>
                       <div>
                         <p className="text-sm sm:text-base font-bold" style={{ color: "#065F46" }}>
-                          Session Completed
+                          {completionTitle}
                         </p>
                         <p className="text-xs sm:text-sm" style={{ color: "#047857" }}>
-                          Attendance successfully submitted
+                          {completionDescription}
                         </p>
                       </div>
                     </div>
@@ -933,8 +956,8 @@ export default function SecretaryAttendancePage() {
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
                     <Calendar className="w-3.5 h-3.5" />
                     <span>
-                      Submitted on {formatSessionTimestamp(
-                        existingSession?.createdAt as Date | string | { toDate?: () => Date } | undefined
+                      {completionTimestampLabel} {formatSessionTimestamp(
+                        (existingSession?.lockedAt ?? existingSession?.createdAt) as Date | string | { toDate?: () => Date } | undefined
                       )}
                     </span>
                   </div>
@@ -1065,7 +1088,7 @@ export default function SecretaryAttendancePage() {
                 >
                   {!allMarked && (
                     <p className="text-sm mb-3" style={{ color: "#F59E0B" }}>
-                      Please mark attendance for all students before submitting.
+                      Please mark attendance for all students before saving.
                     </p>
                   )}
                   <button
@@ -1076,8 +1099,8 @@ export default function SecretaryAttendancePage() {
                       backgroundColor: allMarked ? "#1e3a5f" : "#9CA3AF",
                       color: "#FFFFFF",
                     }}
-                  >
-                    Submit Attendance
+                    >
+                    Save Attendance
                   </button>
                 </motion.div>
               )}
