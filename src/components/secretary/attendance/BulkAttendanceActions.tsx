@@ -19,59 +19,40 @@ export default function BulkAttendanceActions({
 }: BulkAttendanceActionsProps) {
   return (
     <div
-      className="rounded-xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
-      style={{ backgroundColor: "#F8FAFC", border: "0.5px solid #E2E8F0" }}
+      className="rounded-xl p-3 mb-4 border"
+      style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-medium" style={{ color: "#475569" }}>
-          Bulk Actions:
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold" style={{ color: "#475569" }}>
+          Bulk Actions
         </span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
-        <button
-          onClick={onMarkAllPresent}
-          disabled={disabled || allPresent}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            backgroundColor: allPresent ? "#E2E8F0" : "#10B981",
-            color: allPresent ? "#94A3B8" : "#FFFFFF",
-          }}
-          onMouseEnter={(e) => {
-            if (!allPresent && !disabled) {
-              e.currentTarget.style.backgroundColor = "#059669";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!allPresent && !disabled) {
-              e.currentTarget.style.backgroundColor = "#10B981";
-            }
-          }}
-        >
-          <CheckCircle className="w-4 h-4" />
-          Mark All Present
-        </button>
-        <button
-          onClick={onClearAll}
-          disabled={disabled || !allMarked}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            backgroundColor: !allMarked || disabled ? "#E2E8F0" : "#F3F4F6",
-            color: !allMarked || disabled ? "#94A3B8" : "#6B7280",
-          }}
-          onMouseEnter={(e) => {
-            if (allMarked && !disabled) {
-              e.currentTarget.style.backgroundColor = "#E5E7EB";
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (allMarked && !disabled) {
-              e.currentTarget.style.backgroundColor = "#F3F4F6";
-            }
-          }}
-        >
-          <XCircle className="w-4 h-4" />
-          Clear All
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onMarkAllPresent}
+            disabled={disabled || allPresent}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: allPresent ? "#E2E8F0" : "#10B981",
+              color: allPresent ? "#94A3B8" : "#FFFFFF",
+            }}
+          >
+            <CheckCircle className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Mark All Present</span>
+            <span className="sm:hidden">All Present</span>
+          </button>
+          <button
+            onClick={onClearAll}
+            disabled={disabled || !allMarked}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: !allMarked || disabled ? "#E2E8F0" : "#F3F4F6",
+              color: !allMarked || disabled ? "#94A3B8" : "#6B7280",
+            }}
+          >
+            <XCircle className="w-3.5 h-3.5" />
+            Clear
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -15,6 +15,9 @@ import {
   History,
   School,
   User,
+  Users,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 import {
   calculateAttendanceStats,
@@ -128,20 +131,17 @@ function SecretaryDashboardContent() {
 
   return (
     <>
-      {/* Header */}
       <SecretaryHeader
-        title="Dashboard Overview"
+        title="Dashboard"
         stats={[
-          { label: "ACTIVE APPOINTMENTS", value: appointments.length },
-          { label: "ASSIGNED SECTIONS", value: assignedSectionsCount },
-          { label: "TODAY'S SUBMISSIONS", value: submittedSessions },
+          { label: "APPOINTMENTS", value: appointments.length },
+          { label: "SECTIONS", value: assignedSectionsCount },
+          { label: "TODAY", value: submittedSessions },
         ]}
-        searchPlaceholder="Search sections..."
       />
 
-      {/* Content Canvas */}
       <motion.div
-        className="p-4 lg:p-8 space-y-6 lg:space-y-12"
+        className="px-3 sm:px-4 lg:px-8 pb-8 space-y-4 sm:space-y-6"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
@@ -149,210 +149,309 @@ function SecretaryDashboardContent() {
       >
         {/* Quick Actions */}
         <div
-          className="p-4 lg:p-8 rounded-3xl shadow-sm border"
+          className="rounded-2xl p-4 sm:p-6 border"
           style={{ backgroundColor: "#EEF4FB", borderColor: "#CFE0F1" }}
         >
-          <div className="mb-4 lg:mb-6 flex items-center gap-3">
+          <div className="mb-4 flex items-center gap-2">
             <span
-              className="h-7 w-1.5 rounded-full"
+              className="h-6 w-1 rounded-full"
               style={{ backgroundColor: "#1E3A5F" }}
             />
-            <h4 className="text-xl lg:text-2xl font-bold" style={{ color: "#1E3A5F" }}>
+            <h4 className="text-lg font-bold" style={{ color: "#1E3A5F" }}>
               Quick Actions
             </h4>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <motion.button
               onClick={() => router.push("/dashboard/secretary/attendance")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
-              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              className="p-3 sm:p-4 rounded-xl flex flex-col items-center gap-1.5 sm:gap-2 border"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#D7E2EF" }}
               whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <ClipboardCheck size={22} style={{ color: "#1E3A5F" }} />
-              <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
-                Today&apos;s Attendance
+              <div
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "#EEF4FB" }}
+              >
+                <ClipboardCheck size={20} sm={{ size: 22 }} style={{ color: "#1E3A5F" }} />
+              </div>
+              <span className="text-xs font-semibold text-center" style={{ color: "#374151" }}>
+                Attendance
               </span>
             </motion.button>
 
             <motion.button
               onClick={() => router.push("/dashboard/secretary/history")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
-              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              className="p-3 sm:p-4 rounded-xl flex flex-col items-center gap-1.5 sm:gap-2 border"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#D7E2EF" }}
               whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <History size={22} style={{ color: "#1E3A5F" }} />
-              <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
+              <div
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "#EEF4FB" }}
+              >
+                <History size={20} style={{ color: "#1E3A5F" }} />
+              </div>
+              <span className="text-xs font-semibold text-center" style={{ color: "#374151" }}>
                 History
               </span>
             </motion.button>
 
             <motion.button
               onClick={() => router.push("/dashboard/secretary/profile")}
-              className="p-3 lg:p-4 rounded-2xl flex flex-col items-center gap-2 shadow-sm border"
-              style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+              className="p-3 sm:p-4 rounded-xl flex flex-col items-center gap-1.5 sm:gap-2 border"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#D7E2EF" }}
               whileHover={{ backgroundColor: "#F1F7FF", scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <User size={22} style={{ color: "#1E3A5F" }} />
-              <span className="text-xs font-bold text-center" style={{ color: "#6B6B6B" }}>
+              <div
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: "#EEF4FB" }}
+              >
+                <User size={20} style={{ color: "#1E3A5F" }} />
+              </div>
+              <span className="text-xs font-semibold text-center" style={{ color: "#374151" }}>
                 Profile
               </span>
             </motion.button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 lg:gap-6">
-          <div
-            className="xl:col-span-2 rounded-2xl border p-4 lg:p-5"
-            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <motion.div
+            className="rounded-xl p-3 sm:p-4 border"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0, duration: 0.25 }}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <CalendarDays size={18} style={{ color: "#1E3A5F" }} />
-              <h5 className="font-semibold" style={{ color: "#1F1F1F" }}>
-                Today&apos;s Attendance Snapshot
-              </h5>
-            </div>
-
-            {isLoading ? (
-              <p className="text-sm" style={{ color: "#6B7280" }}>
-                Loading dashboard summary...
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF4FB" }}>
-                  <p className="text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                    Expected Sessions
-                  </p>
-                  <p className="text-2xl font-semibold" style={{ color: "#1F1F1F" }}>
-                    {expectedSessions}
-                  </p>
-                </div>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF4FB" }}>
-                  <p className="text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                    Submitted
-                  </p>
-                  <p className="text-2xl font-semibold" style={{ color: "#1F1F1F" }}>
-                    {submittedSessions}
-                  </p>
-                </div>
-                <div className="rounded-xl p-3" style={{ backgroundColor: "#EEF4FB" }}>
-                  <p className="text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                    Coverage
-                  </p>
-                  <p className="text-2xl font-semibold" style={{ color: "#1F1F1F" }}>
-                    {dailyCoverage}%
-                  </p>
-                </div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E6DEFF" }}>
+                <School size={14} style={{ color: "#493598" }} />
               </div>
-            )}
-          </div>
+              <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                Sections
+              </p>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+              {isLoading ? "—" : assignedSectionsCount}
+            </p>
+          </motion.div>
 
-          <div
-            className="rounded-2xl border p-4 lg:p-5"
-            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+          <motion.div
+            className="rounded-xl p-3 sm:p-4 border"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05, duration: 0.25 }}
           >
-            <div className="flex items-center gap-2 mb-4">
-              <FileText size={18} style={{ color: "#1E3A5F" }} />
-              <h5 className="font-semibold" style={{ color: "#1F1F1F" }}>
-                Recent Activity
-              </h5>
-            </div>
-            {isLoading ? (
-              <p className="text-sm" style={{ color: "#6B7280" }}>
-                Loading recent sessions...
-              </p>
-            ) : (
-              <div className="space-y-2 text-sm" style={{ color: "#374151" }}>
-                <p>
-                  <span className="font-semibold">{recentSessions.length}</span> recent session(s) loaded.
-                </p>
-                <p>
-                  <span className="font-semibold">{totalStudentsMarkedRecent}</span> students marked in recent sessions.
-                </p>
-                <p>
-                  Latest submission: <span className="font-semibold">{latestSessionDate}</span>
-                </p>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#D4F0E8" }}>
+                <CheckCircle size={14} style={{ color: "#00695C" }} />
               </div>
-            )}
-          </div>
+              <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                Submitted
+              </p>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+              {isLoading ? "—" : submittedSessions}
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="rounded-xl p-3 sm:p-4 border"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.25 }}
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFE5D0" }}>
+                <AlertCircle size={14} style={{ color: "#C45C00" }} />
+              </div>
+              <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                Pending
+              </p>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+              {isLoading ? "—" : pendingSessions}
+            </p>
+          </motion.div>
+
+          <motion.div
+            className="rounded-xl p-3 sm:p-4 border"
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.25 }}
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#DBEAFE" }}>
+                <Users size={14} style={{ color: "#1E40AF" }} />
+              </div>
+              <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                Coverage
+              </p>
+            </div>
+            <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+              {isLoading ? "—" : `${dailyCoverage}%`}
+            </p>
+          </motion.div>
         </div>
 
+        {/* Assigned Sections */}
         <div
-          className="rounded-2xl border p-4 lg:p-5"
-          style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+          className="rounded-2xl border p-4 sm:p-5"
+          style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
         >
           <div className="flex items-center gap-2 mb-3">
-            <School size={18} style={{ color: "#1E3A5F" }} />
-            <h5 className="font-semibold" style={{ color: "#1F1F1F" }}>
+            <School size={16} style={{ color: "#1E3A5F" }} />
+            <h5 className="text-sm sm:text-base font-bold" style={{ color: "#1F1F1F" }}>
               Assigned Sections
             </h5>
           </div>
 
           {isLoading ? (
-            <p className="text-sm" style={{ color: "#6B7280" }}>
-              Loading appointments...
-            </p>
+            <div className="flex items-center justify-center py-6">
+              <div className="w-6 h-6 border-2 border-[#1e3a5f] border-t-transparent rounded-full animate-spin" />
+            </div>
           ) : appointments.length === 0 ? (
-            <p className="text-sm" style={{ color: "#6B7280" }}>
-              You don&apos;t have active appointments yet. Please wait for your teacher to assign one.
-            </p>
+            <div className="text-center py-6">
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                style={{ backgroundColor: "#F1F5F9" }}
+              >
+                <School size={20} style={{ color: "#9CA3AF" }} />
+              </div>
+              <p className="text-sm font-medium" style={{ color: "#374151" }}>
+                No Active Appointments
+              </p>
+              <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
+                Wait for your teacher to assign you to a section
+              </p>
+            </div>
           ) : (
             <div className="space-y-2">
               {appointments.map((appointment) => {
                 const section = sectionsById[appointment.sectionId];
                 const sectionName = section
                   ? `${section.gradeLevel} - ${section.sectionName}`
-                  : "Section loading...";
+                  : "Loading...";
                 const hasSubmittedToday = todaySessions.some(
                   (session) => session.sectionId === appointment.sectionId
                 );
 
                 return (
-                  <div
+                  <motion.button
                     key={appointment.id}
-                    className="rounded-xl px-3 py-3 border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
-                    style={{ backgroundColor: "#EEF4FB", borderColor: "#D7E2EF" }}
+                    onClick={() => router.push("/dashboard/secretary/attendance")}
+                    className="w-full rounded-xl px-3 py-3 border flex items-center justify-between gap-3 text-left"
+                    style={{
+                      backgroundColor: hasSubmittedToday ? "#F0FDF4" : "#FFFBEB",
+                      borderColor: hasSubmittedToday ? "#BBF7D0" : "#FDE68A",
+                    }}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
                   >
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: "#1F1F1F" }}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate" style={{ color: "#1F1F1F" }}>
                         {sectionName}
                       </p>
                       <p className="text-xs" style={{ color: "#6B7280" }}>
-                        Shared section attendance access
+                        Tap to take attendance
                       </p>
                     </div>
                     <span
-                      className="text-xs font-semibold px-2.5 py-1 rounded-full self-start sm:self-auto"
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
                       style={{
                         backgroundColor: hasSubmittedToday ? "#D1FAE5" : "#FEF3C7",
                         color: hasSubmittedToday ? "#065F46" : "#92400E",
                       }}
                     >
-                      {hasSubmittedToday ? "Submitted Today" : "Pending Today"}
+                      {hasSubmittedToday ? "Done" : "Pending"}
                     </span>
-                  </div>
+                  </motion.button>
                 );
               })}
             </div>
           )}
         </div>
 
-        {!isLoading && expectedSessions > 0 && (
-          <div
-            className="rounded-2xl border p-4 lg:p-5"
-            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
-          >
-            <h5 className="font-semibold mb-2" style={{ color: "#1F1F1F" }}>
-              Attention Needed
+        {/* Recent Activity */}
+        <div
+          className="rounded-2xl border p-4 sm:p-5"
+          style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <FileText size={16} style={{ color: "#1E3A5F" }} />
+            <h5 className="text-sm sm:text-base font-bold" style={{ color: "#1F1F1F" }}>
+              Recent Activity
             </h5>
-            <p className="text-sm" style={{ color: "#374151" }}>
-              {pendingSessions > 0
-                  ? `${pendingSessions} section(s) still need attendance submission today.`
-                  : "All your assigned sections already have attendance submitted today."}
-            </p>
           </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <div className="w-6 h-6 border-2 border-[#1e3a5f] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : recentSessions.length === 0 ? (
+            <div className="text-center py-6">
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
+                style={{ backgroundColor: "#F1F5F9" }}
+              >
+                <CalendarDays size={20} style={{ color: "#9CA3AF" }} />
+              </div>
+              <p className="text-sm font-medium" style={{ color: "#374151" }}>
+                No Activity Yet
+              </p>
+              <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
+                Your attendance submissions will appear here
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs" style={{ color: "#6B7280" }}>
+                <span>{recentSessions.length} recent session(s)</span>
+                <span>{totalStudentsMarkedRecent} students marked</span>
+              </div>
+              <div
+                className="rounded-lg px-3 py-2"
+                style={{ backgroundColor: "#F9FAFB" }}
+              >
+                <p className="text-xs" style={{ color: "#6B7280" }}>
+                  Latest: <span className="font-semibold" style={{ color: "#1F1F1F" }}>{latestSessionDate}</span>
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Attention Needed */}
+        {!isLoading && pendingSessions > 0 && (
+          <motion.div
+            className="rounded-xl p-4 border flex items-start gap-3"
+            style={{ backgroundColor: "#FFFBEB", borderColor: "#FDE68A" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "#F59E0B" }}
+            >
+              <AlertCircle size={16} style={{ color: "#FFFFFF" }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                Attention Needed
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "#A16207" }}>
+                {pendingSessions} section(s) still need attendance today
+              </p>
+            </div>
+          </motion.div>
         )}
       </motion.div>
     </>

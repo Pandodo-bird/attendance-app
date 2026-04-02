@@ -9,7 +9,7 @@ interface SecretaryLayoutProps {
 }
 
 export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -32,13 +32,11 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
       <div className="flex min-h-screen">
-        {/* Secretary Sidebar - Persistent across all secretary pages */}
         <SecretarySidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />
 
-        {/* Main Content Area */}
         <main
           className={`flex-1 min-h-screen flex flex-col transition-all duration-300 ${
             isSidebarOpen ? "lg:ml-64" : "lg:ml-0"
@@ -54,7 +52,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div className="pt-16 lg:pt-4">{children}</div>
+          <div className="pt-0 lg:pt-4 pb-20 lg:pb-4">{children}</div>
         </main>
       </div>
     </div>

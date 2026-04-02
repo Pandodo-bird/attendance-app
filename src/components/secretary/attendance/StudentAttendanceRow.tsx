@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle, Clock, XCircle } from "lucide-react";
+import { CheckCircle, Clock, XCircle, FileBadge } from "lucide-react";
 
 type AttendanceStatus = "present" | "late" | "absent" | "excused";
 
@@ -38,111 +38,69 @@ export default function StudentAttendanceRow({
   const getStatusIcon = (s: AttendanceStatus) => {
     switch (s) {
       case "present":
-        return <CheckCircle className="w-4 h-4" />;
+        return <CheckCircle className="w-3.5 h-3.5" />;
       case "late":
-        return <Clock className="w-4 h-4" />;
+        return <Clock className="w-3.5 h-3.5" />;
       case "absent":
-        return <XCircle className="w-4 h-4" />;
+        return <XCircle className="w-3.5 h-3.5" />;
       case "excused":
-        return <Clock className="w-4 h-4" />;
+        return <FileBadge className="w-3.5 h-3.5" />;
     }
   };
 
   return (
     <motion.div
-      className="grid grid-cols-12 gap-4 px-6 py-4 items-center"
+      className="grid grid-cols-12 gap-4 px-6 py-3 items-center"
       style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F9FAFB" }}
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.03, duration: 0.2 }}
     >
-      {/* Student Name */}
       <div className="col-span-5">
         <p className="text-sm font-medium" style={{ color: "#1F1F1F" }}>
           {studentName}
         </p>
       </div>
 
-      {/* LRN */}
       <div className="col-span-3 text-center">
         <p className="font-mono text-xs" style={{ color: "#6B7280" }}>
           {lrn}
         </p>
       </div>
 
-      {/* Attendance Buttons */}
       <div className="col-span-4 flex items-center justify-center gap-2">
         {isEditable ? (
           <>
-            {/* Present */}
             <button
               onClick={() => onStatusChange(lrn, "present")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                status === "present" ? "shadow-sm" : ""
-              }`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
                 backgroundColor: status === "present" ? "#10B981" : "#F3F4F6",
                 color: status === "present" ? "#FFFFFF" : "#6B7280",
-              }}
-              onMouseEnter={(e) => {
-                if (status !== "present") {
-                  e.currentTarget.style.backgroundColor = "#E5E7EB";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (status !== "present") {
-                  e.currentTarget.style.backgroundColor = "#F3F4F6";
-                }
               }}
             >
               <CheckCircle className="w-3.5 h-3.5" />
               Present
             </button>
 
-            {/* Late */}
             <button
               onClick={() => onStatusChange(lrn, "late")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                status === "late" ? "shadow-sm" : ""
-              }`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
                 backgroundColor: status === "late" ? "#F59E0B" : "#F3F4F6",
                 color: status === "late" ? "#FFFFFF" : "#6B7280",
-              }}
-              onMouseEnter={(e) => {
-                if (status !== "late") {
-                  e.currentTarget.style.backgroundColor = "#E5E7EB";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (status !== "late") {
-                  e.currentTarget.style.backgroundColor = "#F3F4F6";
-                }
               }}
             >
               <Clock className="w-3.5 h-3.5" />
               Late
             </button>
 
-            {/* Absent */}
             <button
               onClick={() => onStatusChange(lrn, "absent")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                status === "absent" ? "shadow-sm" : ""
-              }`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{
                 backgroundColor: status === "absent" ? "#EF4444" : "#F3F4F6",
                 color: status === "absent" ? "#FFFFFF" : "#6B7280",
-              }}
-              onMouseEnter={(e) => {
-                if (status !== "absent") {
-                  e.currentTarget.style.backgroundColor = "#E5E7EB";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (status !== "absent") {
-                  e.currentTarget.style.backgroundColor = "#F3F4F6";
-                }
               }}
             >
               <XCircle className="w-3.5 h-3.5" />
@@ -150,7 +108,6 @@ export default function StudentAttendanceRow({
             </button>
           </>
         ) : (
-          /* Read-only Status Indicator */
           status && (
             <div
               className="flex items-center gap-2 px-4 py-2 rounded-lg border"

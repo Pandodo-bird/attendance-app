@@ -236,6 +236,31 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           </div>
         </div>
       </aside>
+
+      {/* Mobile Bottom Navigation */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-30 lg:hidden border-t"
+        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+      >
+        <div className="flex items-center justify-around h-16">
+          {mainNavItems.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <button
+                key={item.label}
+                onClick={() => handleNavClick(item.href)}
+                className="flex flex-col items-center justify-center gap-0.5 flex-1 h-full"
+                style={{
+                  color: active ? "#1e3a5f" : "#6B7280",
+                }}
+              >
+                <item.icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </>
   );
 }

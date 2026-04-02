@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ClipboardCheck, Calendar, Edit2 } from "lucide-react";
+import { ClipboardCheck, Calendar, Edit2, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -74,42 +74,35 @@ export default function SecretaryAttendancePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // State for session management
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     return formatLocalDateInputValue(new Date());
   });
   const [hasSessionToday, setHasSessionToday] = useState<boolean>(false);
   const [sessionSubmitted, setSessionSubmitted] = useState<boolean>(false);
-  const [allowCorrections] = useState<boolean>(false); // TODO: Will be fetched from appointment settings
+  const [allowCorrections] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Error state
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Reset page when editing session state changes
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
   }, [hasSessionToday, sessionSubmitted]);
 
-  // TanStack Query: Fetch secretary's active appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ["appointments", user?.uid],
     queryFn: () => getSecretaryAppointments(user?.uid || ""),
     enabled: !!user?.uid,
-    staleTime: 30 * 60 * 1000, // 30 minutes - appointments rarely change
-    gcTime: 60 * 60 * 1000, // 1 hour
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 
-  // Get the first active appointment's section ID (secretary may have multiple appointments)
   const selectedAppointment = appointments.length > 0 ? appointments[0] : null;
   const sectionId = selectedAppointment?.sectionId;
 
-  // TanStack Query: Fetch section details for display
   const { data: section } = useQuery({
     queryKey: ["section", sectionId],
     queryFn: () => getSectionById(sectionId!),
@@ -122,35 +115,30 @@ export default function SecretaryAttendancePage() {
     ? `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, "-")}`
     : null;
 
-  // Construct attendance ID for TanStack Query (depends on sectionSlug)
   const attendanceId = sectionSlug
     ? buildSectionAttendanceId(selectedDate, sectionSlug)
     : null;
 
-  // TanStack Query: Fetch attendance session (cached - no refetch on navigation or window focus)
   const { data: existingSession } = useQuery({
     queryKey: ["attendanceSession", attendanceId],
     queryFn: () => getAttendanceSession(attendanceId!),
     enabled: !!attendanceId,
-    staleTime: 30 * 60 * 1000, // 30 minutes - session existence rarely changes
-    gcTime: 60 * 60 * 1000, // 1 hour
-    refetchOnWindowFocus: false, // Don't refetch when alt-tabbing
-    refetchOnMount: false, // Don't refetch when navigating back to this page
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
-  // TanStack Query: Fetch students from the section
   const { data: sectionStudents = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["sectionStudents", sectionId],
     queryFn: () => getSectionStudents(sectionId!),
     enabled: !!sectionId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - student list changes occasionally
-    gcTime: 20 * 60 * 1000, // 20 minutes
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
   });
 
-  // Initialize attendance records from fetched students
   const [attendanceRecords, setAttendanceRecords] = useState<StudentAttendance[]>([]);
 
-  // Update attendance records when students are loaded (sorted alphabetically by last name, then first name)
   useEffect(() => {
     if (sectionStudents.length > 0) {
       const sortedStudents = [...sectionStudents].sort((a, b) => {
@@ -172,7 +160,6 @@ export default function SecretaryAttendancePage() {
     }
   }, [sectionStudents]);
 
-  // Update session state when TanStack Query data changes
   useEffect(() => {
     if (existingSession) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -209,7 +196,6 @@ export default function SecretaryAttendancePage() {
 
   const teacherStartedSession = existingSession?.createdByRole === "teacher";
 
-  // Handle individual student status change
   const handleStatusChange = (lrn: string, status: AttendanceStatus) => {
     setAttendanceRecords((prev) =>
       prev.map((record) =>
@@ -220,7 +206,6 @@ export default function SecretaryAttendancePage() {
     );
   };
 
-  // Handle bulk action - mark all present
   const handleMarkAllPresent = () => {
     setAttendanceRecords((prev) =>
       prev.map((record) => ({
@@ -230,7 +215,6 @@ export default function SecretaryAttendancePage() {
     );
   };
 
-  // Handle bulk action - clear all
   const handleClearAll = () => {
     setAttendanceRecords((prev) =>
       prev.map((record) => ({
@@ -240,7 +224,6 @@ export default function SecretaryAttendancePage() {
     );
   };
 
-  // Handle start session
   const handleStartSession = async () => {
     if (!selectedAppointment) {
       setError("No active appointment found. Please wait for your teacher to appoint you.");
@@ -256,7 +239,6 @@ export default function SecretaryAttendancePage() {
       setError(null);
       setSubmitError(null);
 
-      // Create the attendance session document
       const newAttendanceId = await startAttendanceSession(
         selectedAppointment,
         sectionSlug,
@@ -275,14 +257,12 @@ export default function SecretaryAttendancePage() {
     }
   };
 
-  // Handle submit attendance
   const handleSubmitAttendance = async () => {
     if (!selectedAppointment || !sectionSlug || !attendanceId) {
       setError("Missing required information to submit attendance");
       return;
     }
 
-    // Validate all students are marked
     const allMarked = attendanceRecords.every((r) => r.status !== null);
     if (!allMarked) {
       setError("Please mark attendance for all students");
@@ -292,7 +272,6 @@ export default function SecretaryAttendancePage() {
     try {
       setError(null);
 
-      // Prepare students data for batch write
       const studentsData = attendanceRecords.map((record) => ({
         lrn: record.lrn,
         studentName: record.studentName,
@@ -300,7 +279,6 @@ export default function SecretaryAttendancePage() {
         status: record.status as "present" | "late" | "absent",
       }));
 
-      // Submit full attendance (batch write to 3 collections)
       await submitFullAttendance(
         attendanceId,
         selectedAppointment.sectionId,
@@ -331,7 +309,6 @@ export default function SecretaryAttendancePage() {
     }
   };
 
-  // Handle enable editing (if teacher allows)
   const handleEnableEditing = () => {
     if (allowCorrections) {
       setIsEditing(true);
@@ -341,7 +318,6 @@ export default function SecretaryAttendancePage() {
   const allPresent = attendanceRecords.every((r) => r.status === "present");
   const allMarked = attendanceRecords.every((r) => r.status !== null);
 
-  // Pagination calculations
   const totalPages = Math.ceil(attendanceRecords.length / STUDENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
   const endIndex = startIndex + STUDENTS_PER_PAGE;
@@ -350,8 +326,11 @@ export default function SecretaryAttendancePage() {
     ? `${section.gradeLevel} - ${section.sectionName}`
     : "Section information unavailable";
 
-  // Loading state - only show during initial appointments/students fetch
-  // Don't block UI when checking for existing session (that should be cached)
+  const presentCount = attendanceRecords.filter(r => r.status === "present").length;
+  const lateCount = attendanceRecords.filter(r => r.status === "late").length;
+  const absentCount = attendanceRecords.filter(r => r.status === "absent").length;
+  const excusedCount = attendanceRecords.filter(r => r.status === "excused").length;
+
   if (appointmentsLoading || studentsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F8FAFC" }}>
@@ -363,7 +342,6 @@ export default function SecretaryAttendancePage() {
     );
   }
 
-  // No appointment state
   if (!selectedAppointment) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
@@ -389,7 +367,6 @@ export default function SecretaryAttendancePage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
-      {/* Error Alert */}
       {error && (
         <PopupAlert 
           message={error} 
@@ -398,11 +375,10 @@ export default function SecretaryAttendancePage() {
         />
       )}
 
-      {/* Main Content */}
       <main className="p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Page Header */}
-          <div className="mb-5 sm:mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="flex items-center gap-3 mb-2">
               <div
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
@@ -410,16 +386,17 @@ export default function SecretaryAttendancePage() {
               >
                 <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                Attendance
-              </h1>
+              <div>
+                <h1 className="text-lg sm:text-xl font-bold" style={{ color: "#1F1F1F" }}>
+                  Attendance
+                </h1>
+                <p className="text-xs" style={{ color: "#6B7280" }}>
+                  {sectionDisplayName} • {sectionStudents.length} students
+                </p>
+              </div>
             </div>
-              <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
-              {sectionDisplayName} • {sectionStudents.length} students
-            </p>
           </div>
 
-          {/* Date Selection & Session Info */}
           <AttendanceHeader
             selectedDate={selectedDate}
             onDateChange={setSelectedDate}
@@ -431,17 +408,15 @@ export default function SecretaryAttendancePage() {
             onEnableEditing={handleEnableEditing}
           />
 
-          {/* Attendance Content */}
           {hasSessionToday || sessionSubmitted ? (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
             >
-              {/* Teacher-Started Session Banner */}
               {teacherStartedSession && !sessionSubmitted && (
                 <div
-                  className="rounded-xl p-4 mb-4"
+                  className="rounded-xl p-3 sm:p-4 mb-4"
                   style={{ backgroundColor: "#EEF2FF", border: "1px solid #C7D2FE" }}
                 >
                   <div className="flex items-start gap-3">
@@ -463,7 +438,6 @@ export default function SecretaryAttendancePage() {
                 </div>
               )}
 
-              {/* Submit Error Alert */}
               {submitError && (
                 <PopupAlert 
                   message={submitError} 
@@ -472,10 +446,9 @@ export default function SecretaryAttendancePage() {
                 />
               )}
 
-              {/* Status Banner */}
               {sessionSubmitted && !isEditing && (
                 <div
-                  className="rounded-xl p-6 mb-6"
+                  className="rounded-xl p-4 sm:p-6 mb-4 sm:mb-6"
                   style={{ backgroundColor: "#D1FAE5", border: "1px solid #A7F3D0" }}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
@@ -484,14 +457,14 @@ export default function SecretaryAttendancePage() {
                         className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center"
                         style={{ backgroundColor: "#10B981" }}
                       >
-                        <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#FFFFFF" }} />
+                        <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#FFFFFF" }} />
                       </div>
                       <div>
                         <p className="text-sm sm:text-base font-bold" style={{ color: "#065F46" }}>
                           Session Completed
                         </p>
                         <p className="text-xs sm:text-sm" style={{ color: "#047857" }}>
-                          Attendance successfully submitted for {sectionDisplayName}
+                          Attendance successfully submitted
                         </p>
                       </div>
                     </div>
@@ -513,51 +486,49 @@ export default function SecretaryAttendancePage() {
                     )}
                   </div>
 
-                  {/* Attendance Summary */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-2xl font-bold" style={{ color: "#10B981" }}>
-                        {attendanceRecords.filter(r => r.status === "present").length}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
+                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#10B981" }}>
+                        {presentCount}
                       </p>
                       <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
                         Present
                       </p>
                     </div>
-                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-2xl font-bold" style={{ color: "#F59E0B" }}>
-                        {attendanceRecords.filter(r => r.status === "late").length}
+                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#F59E0B" }}>
+                        {lateCount}
                       </p>
                       <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
                         Late
                       </p>
                     </div>
-                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-2xl font-bold" style={{ color: "#EF4444" }}>
-                        {attendanceRecords.filter(r => r.status === "absent").length}
+                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#EF4444" }}>
+                        {absentCount}
                       </p>
                       <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
                         Absent
                       </p>
                     </div>
-                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-2xl font-bold" style={{ color: "#2563EB" }}>
-                        {attendanceRecords.filter(r => r.status === "excused").length}
+                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#2563EB" }}>
+                        {excusedCount}
                       </p>
                       <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
                         Excused
                       </p>
                     </div>
-                    <div className="rounded-lg p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-2xl font-bold" style={{ color: "#1e3a5f" }}>
+                    <div className="rounded-lg p-2 sm:p-3 text-center col-span-3 sm:col-span-1" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1e3a5f" }}>
                         {attendanceRecords.length}
                       </p>
                       <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
-                        Total Students
+                        Total
                       </p>
                     </div>
                   </div>
 
-                  {/* Submission Time */}
                   <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
                     <Calendar className="w-3.5 h-3.5" />
                     <span>
@@ -569,7 +540,6 @@ export default function SecretaryAttendancePage() {
                 </div>
               )}
 
-              {/* Bulk Actions */}
               {(isEditing || !sessionSubmitted) && (
                 <BulkAttendanceActions
                   onMarkAllPresent={handleMarkAllPresent}
@@ -580,12 +550,10 @@ export default function SecretaryAttendancePage() {
                 />
               )}
 
-              {/* Student List - Table View */}
               <div
-                className="rounded-2xl overflow-hidden"
-                style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
+                className="rounded-2xl overflow-hidden border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               >
-                {/* Desktop Table */}
                 <div className="hidden md:block">
                   <div
                     className="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold uppercase tracking-wide"
@@ -617,7 +585,6 @@ export default function SecretaryAttendancePage() {
                   </div>
                 </div>
 
-                {/* Mobile Cards */}
                 <div className="md:hidden divide-y divide-[#E5E7EB]">
                   {paginatedStudents.map((record, index) => (
                     <MobileStudentAttendanceCard
@@ -633,7 +600,6 @@ export default function SecretaryAttendancePage() {
                 </div>
               </div>
 
-              {/* Pagination Controls */}
               {totalPages > 1 && (
                 <motion.div
                   className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
@@ -644,52 +610,30 @@ export default function SecretaryAttendancePage() {
                   <p className="text-sm" style={{ color: "#6B7280" }}>
                     Showing <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{startIndex + 1}</span> to{" "}
                     <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{getDisplayEndIndex(endIndex, attendanceRecords.length)}</span> of{" "}
-                    <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{attendanceRecords.length}</span> students
+                    <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{attendanceRecords.length}</span>
                   </p>
-                  <div className="w-full sm:w-auto overflow-x-auto">
-                    <div className="flex items-center gap-2 min-w-max">
+                  <div className="flex items-center gap-1">
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
-                        backgroundColor: currentPage === 1 ? "#F3F4F6" : "#FFFFFF",
-                        color: currentPage === 1 ? "#9CA3AF" : "#374151",
+                        backgroundColor: "#FFFFFF",
                         border: "1px solid #E5E7EB",
                       }}
-                      onMouseEnter={(e) => {
-                        if (currentPage !== 1) {
-                          e.currentTarget.style.backgroundColor = "#F9FAFB";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (currentPage !== 1) {
-                          e.currentTarget.style.backgroundColor = "#FFFFFF";
-                        }
-                      }}
                     >
-                      Previous
+                      <ChevronLeft className="w-4 h-4" style={{ color: "#374151" }} />
                     </button>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+                          className="w-8 h-8 rounded-lg text-sm font-medium"
                           style={{
                             backgroundColor: currentPage === page ? "#1e3a5f" : "#FFFFFF",
                             color: currentPage === page ? "#FFFFFF" : "#374151",
                             border: "1px solid #E5E7EB",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (currentPage !== page) {
-                              e.currentTarget.style.backgroundColor = "#F9FAFB";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (currentPage !== page) {
-                              e.currentTarget.style.backgroundColor = "#FFFFFF";
-                            }
                           }}
                         >
                           {page}
@@ -699,60 +643,37 @@ export default function SecretaryAttendancePage() {
                     <button
                       onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
-                        backgroundColor: currentPage === totalPages ? "#F3F4F6" : "#FFFFFF",
-                        color: currentPage === totalPages ? "#9CA3AF" : "#374151",
+                        backgroundColor: "#FFFFFF",
                         border: "1px solid #E5E7EB",
                       }}
-                      onMouseEnter={(e) => {
-                        if (currentPage !== totalPages) {
-                          e.currentTarget.style.backgroundColor = "#F9FAFB";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (currentPage !== totalPages) {
-                          e.currentTarget.style.backgroundColor = "#FFFFFF";
-                        }
-                      }}
                     >
-                      Next
+                      <ChevronRight className="w-4 h-4" style={{ color: "#374151" }} />
                     </button>
-                    </div>
                   </div>
                 </motion.div>
               )}
 
-              {/* Submit Button */}
               {(isEditing || !sessionSubmitted) && (
                 <motion.div
-                  className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 sm:gap-4"
+                  className="mt-4 sm:mt-6"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1, duration: 0.2 }}
                 >
                   {!allMarked && (
-                    <p className="text-sm sm:self-center sm:mr-auto" style={{ color: "#F59E0B" }}>
-                      Please mark attendance for all students.
+                    <p className="text-sm mb-3" style={{ color: "#F59E0B" }}>
+                      Please mark attendance for all students before submitting.
                     </p>
                   )}
                   <button
                     onClick={handleSubmitAttendance}
                     disabled={!allMarked}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
                       backgroundColor: allMarked ? "#1e3a5f" : "#9CA3AF",
                       color: "#FFFFFF",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (allMarked) {
-                        e.currentTarget.style.backgroundColor = "#16304a";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (allMarked) {
-                        e.currentTarget.style.backgroundColor = "#1e3a5f";
-                      }
                     }}
                   >
                     Submit Attendance
@@ -761,10 +682,9 @@ export default function SecretaryAttendancePage() {
               )}
             </motion.div>
           ) : (
-            // No Session Yet State
             <motion.div
-              className="rounded-2xl p-6 sm:p-12 text-center"
-              style={{ backgroundColor: "#FFFFFF", border: "0.5px solid #E5E7EB" }}
+              className="rounded-2xl p-6 sm:p-12 text-center border"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
@@ -824,28 +744,48 @@ function MobileStudentAttendanceCard({
   onStatusChange,
   index,
 }: MobileStudentAttendanceCardProps) {
+  const statusColors: Record<string, { bg: string; text: string }> = {
+    present: { bg: "#D1FAE5", text: "#065F46" },
+    late: { bg: "#FEF3C7", text: "#92400E" },
+    absent: { bg: "#FEE2E2", text: "#991B1B" },
+    excused: { bg: "#DBEAFE", text: "#1E40AF" },
+  };
+
   return (
     <motion.div
-      className="p-4"
+      className="p-3 sm:p-4"
       style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F9FAFB" }}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.03, duration: 0.2 }}
     >
-      <div className="mb-3">
-        <p className="text-sm font-semibold" style={{ color: "#1F1F1F" }}>
-          {studentName}
-        </p>
-        <p className="text-xs font-mono mt-1" style={{ color: "#6B7280" }}>
-          LRN: {lrn}
-        </p>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: "#1F1F1F" }}>
+            {studentName}
+          </p>
+          <p className="text-xs font-mono mt-0.5" style={{ color: "#9CA3AF" }}>
+            {lrn}
+          </p>
+        </div>
+        {!isEditable && status && (
+          <span
+            className="px-2.5 py-1 rounded-full text-xs font-semibold uppercase shrink-0"
+            style={{
+              backgroundColor: statusColors[status]?.bg || "#F3F4F6",
+              color: statusColors[status]?.text || "#6B7280",
+            }}
+          >
+            {status}
+          </span>
+        )}
       </div>
 
-      {isEditable ? (
-        <div className="grid grid-cols-3 gap-2">
+      {isEditable && (
+        <div className="grid grid-cols-4 gap-1.5">
           <button
             onClick={() => onStatusChange(lrn, "present")}
-            className="px-2.5 py-2 rounded-lg text-xs font-semibold"
+            className="py-2 rounded-lg text-xs font-semibold transition-all"
             style={{
               backgroundColor: status === "present" ? "#10B981" : "#F3F4F6",
               color: status === "present" ? "#FFFFFF" : "#6B7280",
@@ -855,7 +795,7 @@ function MobileStudentAttendanceCard({
           </button>
           <button
             onClick={() => onStatusChange(lrn, "late")}
-            className="px-2.5 py-2 rounded-lg text-xs font-semibold"
+            className="py-2 rounded-lg text-xs font-semibold transition-all"
             style={{
               backgroundColor: status === "late" ? "#F59E0B" : "#F3F4F6",
               color: status === "late" ? "#FFFFFF" : "#6B7280",
@@ -865,7 +805,7 @@ function MobileStudentAttendanceCard({
           </button>
           <button
             onClick={() => onStatusChange(lrn, "absent")}
-            className="px-2.5 py-2 rounded-lg text-xs font-semibold"
+            className="py-2 rounded-lg text-xs font-semibold transition-all"
             style={{
               backgroundColor: status === "absent" ? "#EF4444" : "#F3F4F6",
               color: status === "absent" ? "#FFFFFF" : "#6B7280",
@@ -873,27 +813,16 @@ function MobileStudentAttendanceCard({
           >
             Absent
           </button>
-        </div>
-      ) : (
-        <div className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wide" style={{
-          backgroundColor:
-            status === "present"
-              ? "#D1FAE5"
-              : status === "late"
-              ? "#FEF3C7"
-              : status === "absent"
-              ? "#FEE2E2"
-              : "#F3F4F6",
-          color:
-            status === "present"
-              ? "#065F46"
-              : status === "late"
-              ? "#92400E"
-              : status === "absent"
-              ? "#991B1B"
-              : "#6B7280",
-        }}>
-          {status || "Unmarked"}
+          <button
+            onClick={() => onStatusChange(lrn, "excused")}
+            className="py-2 rounded-lg text-xs font-semibold transition-all"
+            style={{
+              backgroundColor: status === "excused" ? "#2563EB" : "#F3F4F6",
+              color: status === "excused" ? "#FFFFFF" : "#6B7280",
+            }}
+          >
+            Excused
+          </button>
         </div>
       )}
     </motion.div>
