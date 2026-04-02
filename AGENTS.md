@@ -757,8 +757,13 @@ src/components/
 │   ├── secretaries/
 │   │   ├── index.ts
 │   │   ├── ActiveSecretariesCounter.tsx
+│   │   ├── OverrideConfirmModal.tsx    # Confirmation modal for attendance overrides
+│   │   ├── SectionHistoryWorkspace.tsx # Workspace for viewing section attendance history
 │   │   ├── SecretaryCard.tsx
-│   │   └── SecretaryCreationForm.tsx
+│   │   ├── SecretaryCreationForm.tsx
+│   │   ├── SecretaryListWorkspace.tsx  # Workspace for listing secretaries
+│   │   ├── TeacherAttendanceWorkspace.tsx # Workspace for teacher attendance management
+│   │   └── WorkspaceSelectorCards.tsx  # Cards for selecting between workspaces
 │   ├── secretary-records/
 │   │   ├── index.ts
 │   │   ├── types.ts                    # Types for secretary daily records
@@ -820,8 +825,9 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 ## Linting
 
-ESLint config uses:
+ESLint config uses flat config format (`eslint.config.mjs`):
 - `eslint-config-next/core-web-vitals` - React/Next.js rules
 - `eslint-config-next/typescript` - TypeScript strict rules
+- Global ignores: `.next/**`, `out/**`, `build/**`, `next-env.d.ts`
 
 Run `npm run lint` before committing. Fix all errors; warnings are acceptable but should be minimized.

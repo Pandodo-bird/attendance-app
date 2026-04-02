@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calendar, UserPlus, Users } from "lucide-react";
 import { SecretaryCard } from "@/components/teacher/secretaries";
 import type { SessionWithStats } from "@/components/teacher/secretary-records";
 
@@ -32,6 +32,7 @@ interface SecretaryListWorkspaceProps {
   onSelectSecretary: (secretaryUid: string) => void;
   onBackToSecretaries: () => void;
   onSelectSession: (sessionId: string) => void;
+  onAppointSecretary?: () => void;
 }
 
 function formatDate(dateString: string): string {
@@ -47,6 +48,20 @@ function formatDate(dateString: string): string {
   });
 }
 
+function formatDateLong(dateString: string): string {
+  const parsedDate = new Date(dateString);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return dateString;
+  }
+
+  return parsedDate.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export function SecretaryListWorkspace({
   secretaryCards,
   selectedSecretaryRecordsGroup,
@@ -56,6 +71,7 @@ export function SecretaryListWorkspace({
   onSelectSecretary,
   onBackToSecretaries,
   onSelectSession,
+  onAppointSecretary,
 }: SecretaryListWorkspaceProps) {
   return (
     <div className="space-y-6">
@@ -96,14 +112,33 @@ export function SecretaryListWorkspace({
                 {selectedSecretaryRecordsGroup?.sessions.length ?? 0}
               </p>
             </div>
-            <div className="col-span-2 rounded-2xl border px-4 py-3" style={{ backgroundColor: "rgba(16,42,67,0.06)", borderColor: "#C9D9EA" }}>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#627D98" }}>
-                Current Selection
-              </p>
-              <p className="mt-2 text-base font-semibold" style={{ color: "#102A43" }}>
-                {selectedSecretaryRecordsGroup?.secretaryName ?? "No secretary selected"}
-              </p>
-            </div>
+            {onAppointSecretary && (
+              <motion.button
+                type="button"
+                onClick={onAppointSecretary}
+                className="col-span-2 border-2 border-dashed rounded-2xl px-4 py-3 flex items-center gap-3"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#C9B8D6", color: "#484553" }}
+                whileHover={{
+                  borderColor: "#6C5CE7",
+                  color: "#6C5CE7",
+                  scale: 1.02,
+                }}
+                transition={{ duration: 0.15 }}
+              >
+                <motion.div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: "#f1ecf7" }}
+                  whileHover={{ backgroundColor: "#D4C4E8", scale: 1.05 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <UserPlus size={20} />
+                </motion.div>
+                <div className="text-left">
+                  <p className="text-sm font-bold">Appoint Secretary</p>
+                  <p className="text-xs" style={{ color: "#829AB1" }}>Create a new secretary account</p>
+                </div>
+              </motion.button>
+            )}
           </div>
         </div>
       </div>
@@ -123,104 +158,176 @@ export function SecretaryListWorkspace({
           <motion.div
             key={selectedSecretaryRecordsGroup.secretaryUid}
             className="rounded-2xl border overflow-hidden"
-            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
+            style={{ backgroundColor: "#FFFFFF", borderColor: "#D7E2EF" }}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
           >
-            <div className="px-5 py-4 border-b flex flex-col gap-3 md:flex-row md:items-center md:justify-between" style={{ borderColor: "#F1F5F9" }}>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-base font-semibold" style={{ color: "#1F2937" }}>
-                  {selectedSecretaryRecordsGroup.secretaryName}
-                </p>
-                <span
-                  className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                  style={{ backgroundColor: "#EEF2FF", color: "#1E3A8A" }}
+            <div
+              className="px-5 py-5 lg:px-6 lg:py-6"
+              style={{
+                background: "linear-gradient(135deg, #102A43 0%, #1E3A5F 60%, #25496E 100%)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: "rgba(255,255,255,0.12)" }}
+                  >
+                    <Users size={22} style={{ color: "#FFFFFF" }} />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold" style={{ color: "#FFFFFF" }}>
+                      {selectedSecretaryRecordsGroup.secretaryName}
+                    </p>
+                    <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>
+                      LRN {selectedSecretaryRecordsGroup.secretaryLrn}
+                    </p>
+                  </div>
+                </div>
+                <div
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0"
+                  style={{ backgroundColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)" }}
                 >
-                  LRN {selectedSecretaryRecordsGroup.secretaryLrn}
-                </span>
+                  {selectedSecretaryRecordsGroup.sessions.length} session{selectedSecretaryRecordsGroup.sessions.length !== 1 ? "s" : ""}
+                </div>
               </div>
-              <div
-                className="px-3 py-1 rounded-full text-xs font-semibold w-fit"
-                style={{ backgroundColor: "#EAF2FF", color: "#1E3A5F" }}
-              >
-                {selectedSecretaryRecordsGroup.sessions.length} session{selectedSecretaryRecordsGroup.sessions.length > 1 ? "s" : ""}
-              </div>
+
+              {selectedSecretaryRecordsGroup.sessions.length > 0 && (() => {
+                const uniqueSections = Array.from(
+                  new Set(selectedSecretaryRecordsGroup.sessions.map((s) => s.sectionLabel))
+                );
+                const uniqueRecorders = Array.from(
+                  new Set(selectedSecretaryRecordsGroup.sessions.map((s) => s.recorderName))
+                );
+
+                return (
+                  <div className="mt-4 pt-4 flex flex-wrap gap-x-6 gap-y-3" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                    <div className="flex items-center gap-2">
+                      <Calendar size={14} style={{ color: "rgba(255,255,255,0.4)" }} />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                          Section{uniqueSections.length > 1 ? "s" : ""}
+                        </p>
+                        <p className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+                          {uniqueSections.length === 1 ? uniqueSections[0] : `${uniqueSections.length} sections`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users size={14} style={{ color: "rgba(255,255,255,0.4)" }} />
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.4)" }}>
+                          Recorder{uniqueRecorders.length > 1 ? "s" : ""}
+                        </p>
+                        <p className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.9)" }}>
+                          {uniqueRecorders.length === 1 ? uniqueRecorders[0] : `${uniqueRecorders.length} recorders`}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {selectedSecretaryRecordsGroup.sessions.length === 0 ? (
-              <div className="px-5 py-8 text-sm text-center" style={{ color: "#94A3B8" }}>
+              <div className="px-5 py-10 text-sm text-center" style={{ color: "#94A3B8" }}>
                 No attendance sessions submitted by this secretary yet.
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: "#F1F5F9" }}>
                 {selectedSecretaryRecordsGroup.sessions.map((session) => {
-                  const isEditingEnabled = Boolean(false);
+                  const isToday = session.date === today;
 
                   return (
                     <button
                       key={session.id}
                       type="button"
                       onClick={() => onSelectSession(session.id)}
-                      className="w-full text-left px-5 py-4 transition-colors"
-                      style={{ backgroundColor: session.date === today ? "#EFF5FD" : "#F8FBFF" }}
+                      className="w-full text-left px-5 py-4 lg:px-6 transition-colors group"
+                      style={{ backgroundColor: isToday ? "#F0F7FF" : "#FFFFFF" }}
                     >
-                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span
-                              className="px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide"
-                              style={{
-                                backgroundColor: session.date === today ? "#DBEAFE" : "#E2E8F0",
-                                color: session.date === today ? "#1D4ED8" : "#475569",
-                              }}
-                            >
-                              {session.date === today ? "Today" : "Recorded"}
-                            </span>
-                            <span className="text-sm font-semibold" style={{ color: "#111827" }}>
-                              {formatDate(session.date)}
-                            </span>
-                            <span
-                              className="px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
-                              style={{ backgroundColor: "#F1F5F9", color: "#475569" }}
-                            >
-                              {session.submittedByRole === "teacher" ? "Recorded by Teacher" : session.submittedByRole === "secretary" ? "Recorded by Secretary" : "Shared Attendance"}
-                            </span>
-                            <span className="rounded-md px-2 py-1 text-xs font-semibold" style={{ backgroundColor: isEditingEnabled ? "#E0E7FF" : "#F1F5F9", color: isEditingEnabled ? "#1E3A8A" : "#64748B" }}>
-                              {isEditingEnabled ? "Editing Enabled" : "Editing Locked"}
-                            </span>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div
+                            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                            style={{
+                              backgroundColor: isToday ? "#DBEAFE" : "#F1F5F9",
+                              color: isToday ? "#1D4ED8" : "#64748B",
+                            }}
+                          >
+                            <Calendar size={18} />
                           </div>
-
-                          <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "#64748B" }}>
-                            <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
-                              <span className="font-semibold" style={{ color: "#334155" }}>Section</span>
-                              <span>{session.sectionLabel}</span>
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
-                              <span className="font-semibold" style={{ color: "#334155" }}>Recorder</span>
-                              <span>{session.recorderName}</span>
-                            </span>
-                            <span className="rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC", color: "#475569" }}>
-                              Session: <span className="font-semibold uppercase">{session.status}</span>
-                            </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold" style={{ color: "#111827" }}>
+                                {formatDateLong(session.date)}
+                              </span>
+                              {isToday && (
+                                <span
+                                  className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+                                  style={{ backgroundColor: "#DBEAFE", color: "#1D4ED8" }}
+                                >
+                                  Today
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs mt-0.5 truncate" style={{ color: "#94A3B8" }}>
+                              {session.submittedByRole === "teacher" ? "Recorded by Teacher" : session.submittedByRole === "secretary" ? "Recorded by Secretary" : "Shared Attendance"}
+                              {" · "}
+                              <span className="uppercase font-semibold">{session.status}</span>
+                            </p>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-start lg:justify-end gap-2 text-xs font-semibold lg:max-w-[360px]">
-                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: session.presentCount === 0 ? "#F1F5F9" : "#DCFCE7", color: session.presentCount === 0 ? "#94A3B8" : "#166534" }}>
-                            Present: {session.presentCount}
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                            style={{
+                              backgroundColor: session.presentCount > 0 ? "#DCFCE7" : "#F1F5F9",
+                              color: session.presentCount > 0 ? "#166534" : "#94A3B8",
+                            }}
+                          >
+                            <span style={{ opacity: 0.7 }}>P</span>
+                            {session.presentCount}
                           </span>
-                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: session.lateCount === 0 ? "#F1F5F9" : "#FEF3C7", color: session.lateCount === 0 ? "#94A3B8" : "#92400E" }}>
-                            Late: {session.lateCount}
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                            style={{
+                              backgroundColor: session.lateCount > 0 ? "#FEF3C7" : "#F1F5F9",
+                              color: session.lateCount > 0 ? "#92400E" : "#94A3B8",
+                            }}
+                          >
+                            <span style={{ opacity: 0.7 }}>L</span>
+                            {session.lateCount}
                           </span>
-                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: session.absentCount === 0 ? "#F1F5F9" : "#FEE2E2", color: session.absentCount === 0 ? "#94A3B8" : "#B91C1C" }}>
-                            Absent: {session.absentCount}
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                            style={{
+                              backgroundColor: session.absentCount > 0 ? "#FEE2E2" : "#F1F5F9",
+                              color: session.absentCount > 0 ? "#B91C1C" : "#94A3B8",
+                            }}
+                          >
+                            <span style={{ opacity: 0.7 }}>A</span>
+                            {session.absentCount}
                           </span>
-                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: session.excusedCount === 0 ? "#F1F5F9" : "#DBEAFE", color: session.excusedCount === 0 ? "#94A3B8" : "#1D4ED8" }}>
-                            Excused: {session.excusedCount}
+                          <span
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1"
+                            style={{
+                              backgroundColor: session.excusedCount > 0 ? "#DBEAFE" : "#F1F5F9",
+                              color: session.excusedCount > 0 ? "#1D4ED8" : "#94A3B8",
+                            }}
+                          >
+                            <span style={{ opacity: 0.7 }}>E</span>
+                            {session.excusedCount}
                           </span>
-                          <span className="px-2.5 py-1 rounded-full" style={{ backgroundColor: "#E2E8F0", color: "#334155" }}>
-                            Total Students: {session.totalStudents}
+                          <div
+                            className="w-px h-5 mx-1"
+                            style={{ backgroundColor: "#E2E8F0" }}
+                          />
+                          <span className="text-[11px] font-semibold" style={{ color: "#64748B" }}>
+                            {session.totalStudents} total
                           </span>
                         </div>
                       </div>

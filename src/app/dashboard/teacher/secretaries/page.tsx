@@ -837,6 +837,7 @@ function SecretariesContent() {
               setSelectedSessionId(null);
             }}
             onSelectSession={setSelectedSessionId}
+            onAppointSecretary={() => setShowRegisterModal(true)}
           />
         )}
       </div>
