@@ -16,6 +16,7 @@ const secretaryDocumentPaths = new Set([
   "/dashboard/secretary/dashboard",
   "/dashboard/secretary/attendance",
   "/dashboard/secretary/history",
+  "/dashboard/secretary/profile",
 ]);
 
 function normalizePathname(pathname: string): string {

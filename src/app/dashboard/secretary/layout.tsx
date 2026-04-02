@@ -1,16 +1,13 @@
 "use client";
 
 import SecretarySidebar from "@/components/SecretarySidebar";
-import { PopupAlert } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSecretaryAppointments, getSectionById, getSectionStudents } from "@/lib/firestore";
 import { mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useSecretarySyncStatus } from "@/lib/syncManager";
-import { Menu, RefreshCw, Wifi, WifiOff, X } from "lucide-react";
+import { AlertCircle, Menu, RefreshCw, Wifi, WifiOff, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
-
-const SECRETARY_BOOTSTRAP_REFRESH_MS = 60 * 1000;
 
 interface SecretaryLayoutProps {
   children: ReactNode;
@@ -91,9 +88,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
     };
 
     void prefetchSecretaryBootstrap();
-    const intervalId = window.setInterval(() => {
-      void prefetchSecretaryBootstrap();
-    }, SECRETARY_BOOTSTRAP_REFRESH_MS);
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -105,7 +99,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
 
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isOnline, user?.uid]);
@@ -141,15 +134,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
-      {syncStatus.lastMessage && dismissedMessage !== syncStatus.lastMessage && (
-        <PopupAlert
-          message={syncStatus.lastMessage}
-          type={hasQueueIssues ? "error" : "info"}
-          onClose={() => setDismissedMessage(syncStatus.lastMessage)}
-          duration={5000}
-        />
-      )}
-
       <div className="flex min-h-screen">
         <SecretarySidebar
           isOpen={isSidebarOpen}
@@ -204,6 +188,49 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
                 Sync now
               </button>
             </div>
+
+            {syncStatus.lastMessage && dismissedMessage !== syncStatus.lastMessage && (
+              <div
+                className="mb-4 rounded-2xl border px-4 py-3 flex items-start gap-3"
+                style={{
+                  backgroundColor: hasQueueIssues ? "#FEF2F2" : "#EFF6FF",
+                  borderColor: hasQueueIssues ? "#FECACA" : "#BFDBFE",
+                }}
+              >
+                <div
+                  className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    color: hasQueueIssues ? "#991B1B" : "#1D4ED8",
+                  }}
+                >
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: hasQueueIssues ? "#991B1B" : "#1D4ED8" }}
+                  >
+                    {hasQueueIssues ? "Sync needs attention" : "Sync update"}
+                  </p>
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: hasQueueIssues ? "#991B1B" : "#1D4ED8" }}
+                  >
+                    {syncStatus.lastMessage}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDismissedMessage(syncStatus.lastMessage)}
+                  className="p-1 rounded-lg"
+                  style={{ color: hasQueueIssues ? "#991B1B" : "#1D4ED8" }}
+                  aria-label="Dismiss sync update"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
 
             <div className="pb-16 lg:pb-4">{children}</div>
           </div>

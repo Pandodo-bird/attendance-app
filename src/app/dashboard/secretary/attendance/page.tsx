@@ -761,6 +761,7 @@ export default function SecretaryAttendancePage() {
   const allMarked = attendanceRecords.every((r) => r.status !== null);
   const canEditAttendance = !sessionSubmitted;
   const hasLoadedStudents = attendanceRecords.length > 0;
+  const hasPendingTodaySession = Boolean(queuedSubmission || localDraft?.hasSessionStarted);
 
   const totalPages = Math.ceil(attendanceRecords.length / STUDENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
@@ -1195,30 +1196,51 @@ export default function SecretaryAttendancePage() {
               >
                 <Calendar className="w-8 h-8" style={{ color: "#6B7280" }} />
               </div>
-              <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
-                No Session Started Yet
-              </h3>
-              <p className="text-xs sm:text-sm mb-6" style={{ color: "#6B7280" }}>
-                Start the attendance session for {new Date(selectedDate).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })}
-              </p>
-              <button
-                onClick={handleStartSession}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors"
-                style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#16304a";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#1e3a5f";
-                }}
-              >
-                Start Session
-              </button>
+              {hasPendingTodaySession ? (
+                <>
+                  <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
+                    Saved Session For Today
+                  </h3>
+                  <p className="text-xs sm:text-sm mb-6" style={{ color: "#6B7280" }}>
+                    This device has attendance saved locally for {new Date(selectedDate).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}. Reconnect and sync that session instead of starting a new one.
+                  </p>
+                  <button
+                    onClick={() => void syncStatus.syncNow()}
+                    disabled={!syncStatus.isOnline || syncStatus.isSyncing}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
+                  >
+                    {syncStatus.isSyncing ? "Syncing..." : "Sync Saved Session"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
+                    No Session Started Yet
+                  </h3>
+                  <p className="text-xs sm:text-sm mb-6" style={{ color: "#6B7280" }}>
+                    Start the attendance session for {new Date(selectedDate).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <button
+                    onClick={handleStartSession}
+                    disabled={!hasLoadedStudents}
+                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
+                  >
+                    Start Session
+                  </button>
+                </>
+              )}
             </motion.div>
           )}
         </div>

@@ -23,6 +23,10 @@ const withSerwist = withSerwistInit({
       url: "/dashboard/secretary/history",
       revision: "secretary-offline-v2",
     },
+    {
+      url: "/dashboard/secretary/profile",
+      revision: "secretary-offline-v2",
+    },
   ],
   cacheOnNavigation: true,
   disable: process.env.NODE_ENV === "development",
