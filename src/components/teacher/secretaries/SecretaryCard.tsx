@@ -17,9 +17,6 @@ interface SecretaryCardProps {
   onViewRecords?: () => void;
   onTakeAttendance?: () => void;
   todaySessionStatus?: "none" | "open" | "locked";
-  onRemove?: () => void;
-  onRestore?: () => void;
-  onDelete?: () => void;
   index?: number;
   viewRecordsOnly?: boolean;
 }
@@ -84,9 +81,6 @@ export default function SecretaryCard({
   onViewRecords,
   onTakeAttendance,
   todaySessionStatus = "none",
-  onRemove,
-  onRestore,
-  onDelete,
   index = 0,
   viewRecordsOnly = false,
 }: SecretaryCardProps) {
@@ -229,7 +223,7 @@ export default function SecretaryCard({
           >
             View Records
           </button>
-        ) : status === "active" ? (
+        ) : (
           <>
             {onTakeAttendance && (
               <button
@@ -264,44 +258,6 @@ export default function SecretaryCard({
                 View Records
               </div>
             )}
-          </>
-        ) : (
-          <>
-            <button
-              className="flex-1 py-2.5 text-sm font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRestore?.();
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#6C5CE7";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#374151";
-              }}
-              title="Restore this appointment"
-            >
-              Restore
-            </button>
-            <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
-            <button
-              className="flex-1 py-2.5 text-sm font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete?.();
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#DC2626";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#374151";
-              }}
-              title="Permanently delete this appointment"
-            >
-              <span className="material-symbols-outlined text-sm">delete</span>
-            </button>
           </>
         )}
       </div>

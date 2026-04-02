@@ -10,7 +10,6 @@ import {
   importStudentsBatch,
   Section,
   Student,
-  deleteSection,
   getSectionById,
   getSectionStudents,
   updateSection,
@@ -235,25 +234,6 @@ function SectionsContent() {
     )
       return "sports";
     return "school";
-  };
-
-  // Handle deleting a section
-  const handleDeleteSection = async (sectionId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this section? This will also remove all student records. This cannot be undone."
-      )
-    )
-      return;
-
-    try {
-      await deleteSection(sectionId, user?.uid || "");
-      // Invalidate queries to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: ["sections", user?.uid] });
-    } catch (error) {
-      console.error("Error deleting section:", error);
-      alert("Failed to delete section. Please try again.");
-    }
   };
 
   // Navigate to section details (open modal)
