@@ -5,6 +5,14 @@ import { useEffect, useState } from "react";
 const NETWORK_PROBE_URL = "/api/network-status";
 const NETWORK_PROBE_TIMEOUT_MS = 4000;
 const NETWORK_RECHECK_INTERVAL_MS = 15000;
+const listeners = new Set<(isOnline: boolean) => void>();
+
+let lastKnownIsOnline = true;
+
+function setLastKnownIsOnline(nextIsOnline: boolean): void {
+  lastKnownIsOnline = nextIsOnline;
+  listeners.forEach((listener) => listener(nextIsOnline));
+}
 
 async function probeNetwork(): Promise<boolean> {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
@@ -34,11 +42,26 @@ async function probeNetwork(): Promise<boolean> {
 }
 
 export function getIsOnline(): boolean {
-  if (typeof navigator === "undefined") {
-    return true;
+  if (typeof window === "undefined") {
+    return lastKnownIsOnline;
   }
 
-  return navigator.onLine;
+  return lastKnownIsOnline;
+}
+
+export async function refreshNetworkStatus(): Promise<boolean> {
+  const nextIsOnline = await probeNetwork();
+  setLastKnownIsOnline(nextIsOnline);
+  return nextIsOnline;
+}
+
+export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void): () => void {
+  listeners.add(listener);
+  listener(lastKnownIsOnline);
+
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 export function useNetworkStatus(): { isOnline: boolean } {
@@ -48,7 +71,7 @@ export function useNetworkStatus(): { isOnline: boolean } {
     let cancelled = false;
 
     const refreshOnlineState = async () => {
-      const nextIsOnline = await probeNetwork();
+      const nextIsOnline = await refreshNetworkStatus();
       if (!cancelled) {
         setIsOnline(nextIsOnline);
       }
@@ -67,6 +90,11 @@ export function useNetworkStatus(): { isOnline: boolean } {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    const unsubscribe = subscribeToNetworkStatus((nextIsOnline) => {
+      if (!cancelled) {
+        setIsOnline(nextIsOnline);
+      }
+    });
 
     void refreshOnlineState();
     const intervalId = window.setInterval(() => {
@@ -79,6 +107,7 @@ export function useNetworkStatus(): { isOnline: boolean } {
       window.removeEventListener("offline", handleOffline);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(intervalId);
+      unsubscribe();
     };
   }, []);
 

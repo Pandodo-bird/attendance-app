@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { replayQueuedAttendanceSubmission } from "@/lib/firestore";
-import { getIsOnline } from "@/lib/networkStatus";
+import { getIsOnline, refreshNetworkStatus, subscribeToNetworkStatus } from "@/lib/networkStatus";
 import {
   acquireSyncLease,
   deleteAttendanceDraft,
@@ -101,22 +101,23 @@ class SecretarySyncController {
     void this.refreshSummary();
 
     const handleOnline = () => {
-      this.setState({ isOnline: true, lastMessage: null });
-      void this.syncNow("online");
+      void this.handleNetworkRefresh("online");
     };
     const handleOffline = () => {
       this.setState({ isOnline: false, isSyncing: false });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        this.setState({ isOnline: getIsOnline() });
-        void this.syncNow("resume");
+        void this.handleNetworkRefresh("resume");
       }
     };
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    const unsubscribeNetwork = subscribeToNetworkStatus((isOnline) => {
+      this.setState({ isOnline });
+    });
 
     this.intervalId = window.setInterval(() => {
       void this.syncNow("interval");
@@ -141,29 +142,32 @@ class SecretarySyncController {
         window.clearInterval(this.intervalId);
         this.intervalId = null;
       }
+      unsubscribeNetwork();
       unsubscribeQueue();
       await releaseSyncLease(this.uid, this.ownerId);
     };
 
-    void this.syncNow("start");
+    void this.handleNetworkRefresh("start");
   }
 
   stop = async (): Promise<void> => undefined;
 
   async refreshSummary(): Promise<void> {
+    const isOnline = await refreshNetworkStatus();
     const summary = await getQueueSummary(this.uid);
     this.setState({
       pendingCount: summary.pending,
       syncingCount: summary.syncing,
       failedCount: summary.failed,
       needsReviewCount: summary.needsReview,
-      isOnline: getIsOnline(),
+      isOnline,
     });
   }
 
   async syncNow(trigger: "manual" | "online" | "resume" | "interval" | "start"): Promise<void> {
-    if (this.running || !getIsOnline()) {
-      this.setState({ isOnline: getIsOnline() });
+    const isOnline = await refreshNetworkStatus();
+    if (this.running || !isOnline) {
+      this.setState({ isOnline });
       return;
     }
 
@@ -217,9 +221,17 @@ class SecretarySyncController {
       }
     } finally {
       this.running = false;
-      this.setState({ isSyncing: false, isOnline: getIsOnline() });
+      this.setState({ isSyncing: false, isOnline: await refreshNetworkStatus() });
       await releaseSyncLease(this.uid, this.ownerId);
       await this.refreshSummary();
+    }
+  }
+
+  private async handleNetworkRefresh(trigger: "online" | "resume" | "start"): Promise<void> {
+    const isOnline = await refreshNetworkStatus();
+    this.setState({ isOnline, lastMessage: trigger === "online" ? null : this.state.lastMessage });
+    if (isOnline) {
+      await this.syncNow(trigger);
     }
   }
 
