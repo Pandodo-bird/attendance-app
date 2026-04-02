@@ -58,17 +58,6 @@ const serwist = new Serwist({
       }),
     },
   ],
-  fallbacks: {
-    entries: [
-      {
-        url: "/~offline",
-        matcher({ request }) {
-          const requestUrl = new URL(request.url);
-          return request.destination === "document" && !isCachedSecretaryDocument(requestUrl.pathname);
-        },
-      },
-    ],
-  },
 });
 
 serwist.addEventListeners();
