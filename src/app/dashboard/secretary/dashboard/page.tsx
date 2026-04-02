@@ -173,7 +173,7 @@ function SecretaryDashboardContent() {
                 className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: "#EEF4FB" }}
               >
-                <ClipboardCheck size={20} sm={{ size: 22 }} style={{ color: "#1E3A5F" }} />
+                <ClipboardCheck size={20} style={{ color: "#1E3A5F" }} />
               </div>
               <span className="text-xs font-semibold text-center" style={{ color: "#374151" }}>
                 Attendance

@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import TanStackQueryProvider from "@/contexts/TanStackQueryProvider";
+import PwaRegistration from "@/components/PwaRegistration";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,8 +17,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Attendance System",
-  description: "Web-based attendance management system",
+  applicationName: "Attendance System",
+  title: {
+    default: "Attendance System",
+    template: "%s | Attendance System",
+  },
+  description: "Web-based attendance management system with offline-capable secretary attendance.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Attendance System",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1e3a5f",
 };
 
 export default function RootLayout({
@@ -36,6 +54,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <PwaRegistration />
         <ThemeProvider>
           <TanStackQueryProvider>
             <AuthProvider>{children}</AuthProvider>

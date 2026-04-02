@@ -1,4 +1,5 @@
 import { db } from "@/lib/firebase";
+import type { OfflineAttendanceQueueItem, OfflineAttendanceStudentPayload } from "@/lib/offlineQueue";
 import {
   doc,
   setDoc,
@@ -132,6 +133,12 @@ interface AttendanceSubmitActor {
   role: "teacher" | "secretary";
 }
 
+export interface OfflineAttendanceReplayResult {
+  outcome: "synced" | "locked" | "needs_review";
+  message: string;
+  latestSession: Attendance | null;
+}
+
 export interface AttendanceFlatRecord {
   id: string;
   attendanceId: string;
@@ -196,6 +203,176 @@ export function buildSectionSlug(gradeLevel: string, sectionName: string): strin
 
 export function buildSectionAttendanceId(date: string, sectionSlug: string): string {
   return `${date}_${sectionSlug}`;
+}
+
+function toMillis(value: Date | Timestamp | string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.getTime();
+  }
+
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+  }
+
+  if (typeof value === "object" && "toMillis" in value && typeof value.toMillis === "function") {
+    return value.toMillis();
+  }
+
+  return null;
+}
+
+function getLatestTeacherOverrideMillis(records?: Record<string, AttendanceRecord>): number | null {
+  if (!records) {
+    return null;
+  }
+
+  let latestOverride: number | null = null;
+
+  Object.values(records).forEach((record) => {
+    if (!record.updatedByTeacherId) {
+      return;
+    }
+
+    const updatedAt = toMillis(record.updatedAt);
+    if (updatedAt !== null && (latestOverride === null || updatedAt > latestOverride)) {
+      latestOverride = updatedAt;
+    }
+  });
+
+  return latestOverride;
+}
+
+function doesSessionMatchQueuedSubmission(
+  session: Attendance,
+  students: OfflineAttendanceStudentPayload[],
+  secretaryUid: string,
+): boolean {
+  if (session.status !== "locked" || !session.records) {
+    return false;
+  }
+
+  const remoteKeys = Object.keys(session.records);
+  if (remoteKeys.length !== students.length) {
+    return false;
+  }
+
+  return students.every((student) => {
+    const remoteRecord = session.records?.[student.lrn];
+    if (!remoteRecord) {
+      return false;
+    }
+
+    return remoteRecord.status === student.status && remoteRecord.recordedByUid === secretaryUid;
+  });
+}
+
+async function ensureSecretaryAttendanceSession(item: OfflineAttendanceQueueItem): Promise<void> {
+  const attendanceRef = doc(db, "attendance", item.attendanceId);
+  const existingSnap = await getDoc(attendanceRef);
+  if (existingSnap.exists()) {
+    return;
+  }
+
+  await setDoc(attendanceRef, {
+    sectionId: item.sectionId,
+    teacherId: item.teacherId,
+    secretaryUid: item.secretaryUid,
+    date: item.date,
+    schoolYear: item.schoolYear,
+    status: "open",
+    records: {},
+    createdAt: new Date(),
+    createdByUid: item.secretaryUid,
+    createdByRole: "secretary",
+  });
+}
+
+export async function replayQueuedAttendanceSubmission(
+  item: OfflineAttendanceQueueItem,
+): Promise<OfflineAttendanceReplayResult> {
+  const attendanceRef = doc(db, "attendance", item.attendanceId);
+  console.log("📶 OFFLINE SYNC | replay start", {
+    operationId: item.operationId,
+    attendanceId: item.attendanceId,
+  });
+
+  const attendanceSnap = await getDoc(attendanceRef);
+  const latestSession = attendanceSnap.exists()
+    ? ({ id: attendanceSnap.id, ...attendanceSnap.data() } as Attendance)
+    : null;
+
+  if (latestSession) {
+    if (doesSessionMatchQueuedSubmission(latestSession, item.students, item.secretaryUid)) {
+      console.log("📶 OFFLINE SYNC | replay matched existing locked session", {
+        operationId: item.operationId,
+      });
+      return {
+        outcome: "synced",
+        message: "Attendance was already synced from this device.",
+        latestSession,
+      };
+    }
+
+    if (latestSession.status === "locked") {
+      return {
+        outcome: "locked",
+        message: "This session was already locked by the teacher. Local attendance needs review.",
+        latestSession,
+      };
+    }
+
+    const latestTeacherOverride = getLatestTeacherOverrideMillis(latestSession.records);
+    if (
+      latestTeacherOverride !== null &&
+      item.lastKnownRemoteChangeAt !== null &&
+      latestTeacherOverride > item.lastKnownRemoteChangeAt
+    ) {
+      return {
+        outcome: "needs_review",
+        message: "Teacher updates were detected while this device was offline.",
+        latestSession,
+      };
+    }
+  } else {
+    await ensureSecretaryAttendanceSession(item);
+  }
+
+  await submitFullAttendance(
+    item.attendanceId,
+    item.sectionId,
+    item.teacherId,
+    item.secretaryUid,
+    item.sectionSlug,
+    item.date,
+    item.schoolYear,
+    item.students,
+    {
+      uid: item.secretaryUid,
+      role: "secretary",
+    },
+  );
+
+  const syncedSnap = await getDoc(attendanceRef);
+  const syncedSession = syncedSnap.exists()
+    ? ({ id: syncedSnap.id, ...syncedSnap.data() } as Attendance)
+    : null;
+
+  console.log("📶 OFFLINE SYNC | replay end", {
+    operationId: item.operationId,
+    attendanceId: item.attendanceId,
+    outcome: "synced",
+  });
+
+  return {
+    outcome: "synced",
+    message: "Offline attendance synced successfully.",
+    latestSession: syncedSession,
+  };
 }
 
 async function getAccessibleSectionIdsForSecretary(

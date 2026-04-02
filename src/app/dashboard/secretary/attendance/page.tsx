@@ -6,6 +6,7 @@ import { ClipboardCheck, Calendar, Edit2, ChevronLeft, ChevronRight, CheckCircle
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type Attendance,
   buildSectionAttendanceId,
   getSecretaryAppointments,
   getSectionById,
@@ -14,6 +15,22 @@ import {
   submitFullAttendance,
   getAttendanceSession,
 } from "@/lib/firestore";
+import {
+  buildOfflineOperationId,
+  cleanupOfflineItemsForSchoolYear,
+  deleteAttendanceDraft,
+  enqueueAttendanceSync,
+  getAttendanceDraft,
+  getLatestQueueItemForSession,
+  OfflineStorageCapError,
+  saveAttendanceDraft,
+  subscribeToOfflineQueueChanges,
+  type OfflineAttendanceDraft,
+  type OfflineAttendanceDraftStudentPayload,
+  type OfflineAttendanceQueueItem,
+} from "@/lib/offlineQueue";
+import { useNetworkStatus } from "@/lib/networkStatus";
+import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
 import { BulkAttendanceActions } from "@/components/secretary/attendance";
 import { AttendanceHeader } from "@/components/secretary/attendance";
@@ -70,9 +87,65 @@ function formatSessionTimestamp(
   });
 }
 
+function getAttendanceLastRemoteChangeAt(session: Attendance | null | undefined): number | null {
+  if (!session?.records) {
+    return null;
+  }
+
+  let latestChangeAt: number | null = null;
+
+  Object.values(session.records).forEach((record) => {
+    const value = record.updatedAt;
+    if (!value) {
+      return;
+    }
+
+    const nextMillis = typeof value === "object" && value && "toMillis" in value && typeof value.toMillis === "function"
+      ? value.toMillis()
+      : value instanceof Date
+        ? value.getTime()
+        : new Date(String(value)).getTime();
+
+    if (!Number.isNaN(nextMillis) && (latestChangeAt === null || nextMillis > latestChangeAt)) {
+      latestChangeAt = nextMillis;
+    }
+  });
+
+  return latestChangeAt;
+}
+
+function mergeStatusesIntoRecords(
+  records: StudentAttendance[],
+  students: Array<{ lrn: string; status: AttendanceStatus | null }>,
+): StudentAttendance[] {
+  const statusMap = new Map(students.map((student) => [student.lrn, student.status]));
+
+  return records.map((record) => ({
+    ...record,
+    status: statusMap.get(record.lrn) ?? null,
+  }));
+}
+
+function isTransientAttendanceError(error: unknown): boolean {
+  const errorCode = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: string }).code)
+    : "";
+  const errorMessage = error instanceof Error ? error.message.toLowerCase() : "";
+
+  return (
+    errorCode.includes("unavailable") ||
+    errorCode.includes("deadline-exceeded") ||
+    errorCode.includes("network") ||
+    errorMessage.includes("offline") ||
+    errorMessage.includes("network")
+  );
+}
+
 export default function SecretaryAttendancePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isOnline } = useNetworkStatus();
+  const syncStatus = useSecretarySyncStatus(user?.uid);
 
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     return formatLocalDateInputValue(new Date());
@@ -86,9 +159,12 @@ export default function SecretaryAttendancePage() {
 
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [localDraft, setLocalDraft] = useState<OfflineAttendanceDraft | null>(null);
+  const [queuedSubmission, setQueuedSubmission] = useState<OfflineAttendanceQueueItem | null>(null);
+  const [localSessionLoaded, setLocalSessionLoaded] = useState<boolean>(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
   }, [hasSessionToday, sessionSubmitted]);
 
@@ -139,6 +215,62 @@ export default function SecretaryAttendancePage() {
 
   const [attendanceRecords, setAttendanceRecords] = useState<StudentAttendance[]>([]);
 
+  const operationId = user?.uid && attendanceId
+    ? buildOfflineOperationId(user.uid, attendanceId)
+    : null;
+
+  useEffect(() => {
+    if (!user?.uid || !attendanceId) {
+      setLocalDraft(null);
+      setQueuedSubmission(null);
+      setLocalSessionLoaded(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadLocalSessionState = async () => {
+      const [draft, queueItem] = await Promise.all([
+        getAttendanceDraft(user.uid, attendanceId),
+        getLatestQueueItemForSession(user.uid, attendanceId),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      setLocalDraft(draft);
+      setQueuedSubmission(
+        queueItem &&
+        queueItem.status !== "synced" &&
+        queueItem.failureCode !== "locked" &&
+        queueItem.status !== "needs_review"
+          ? queueItem
+          : null,
+      );
+      setLocalSessionLoaded(true);
+    };
+
+    void loadLocalSessionState();
+
+    const unsubscribe = subscribeToOfflineQueueChanges((changedUid) => {
+      if (!changedUid || changedUid === user.uid) {
+        void loadLocalSessionState();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [attendanceId, user?.uid]);
+
+  useEffect(() => {
+    if (user?.uid && selectedAppointment?.schoolYear) {
+      void cleanupOfflineItemsForSchoolYear(user.uid, selectedAppointment.schoolYear);
+    }
+  }, [selectedAppointment?.schoolYear, user?.uid]);
+
   useEffect(() => {
     if (sectionStudents.length > 0) {
       const sortedStudents = [...sectionStudents].sort((a, b) => {
@@ -147,7 +279,6 @@ export default function SecretaryAttendancePage() {
         return a.firstName.localeCompare(b.firstName);
       });
 
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAttendanceRecords(
         sortedStudents.map((student) => ({
           lrn: student.lrn,
@@ -161,8 +292,27 @@ export default function SecretaryAttendancePage() {
   }, [sectionStudents]);
 
   useEffect(() => {
+    if (!localSessionLoaded) {
+      return;
+    }
+
+    if (queuedSubmission) {
+      setHasSessionToday(true);
+      setSessionSubmitted(true);
+      setIsEditing(false);
+      setAttendanceRecords((prev) => mergeStatusesIntoRecords(prev, queuedSubmission.students));
+      return;
+    }
+
+    if (localDraft?.hasSessionStarted) {
+      setHasSessionToday(true);
+      setSessionSubmitted(false);
+      setIsEditing(true);
+      setAttendanceRecords((prev) => mergeStatusesIntoRecords(prev, localDraft.students));
+      return;
+    }
+
     if (existingSession) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasSessionToday(true);
 
       if (existingSession.status === "locked" || (existingSession.records && Object.keys(existingSession.records).length > 0)) {
@@ -191,8 +341,60 @@ export default function SecretaryAttendancePage() {
       setHasSessionToday(false);
       setSessionSubmitted(false);
       setIsEditing(false);
+      setAttendanceRecords((prev) =>
+        prev.map((record) => ({
+          ...record,
+          status: null,
+        }))
+      );
     }
-  }, [existingSession]);
+  }, [existingSession, localDraft, localSessionLoaded, queuedSubmission]);
+
+  useEffect(() => {
+    if (
+      !user?.uid ||
+      !attendanceId ||
+      !selectedAppointment ||
+      !sectionSlug ||
+      !localSessionLoaded ||
+      !hasSessionToday ||
+      sessionSubmitted
+    ) {
+      return;
+    }
+
+    const draftStudents: OfflineAttendanceDraftStudentPayload[] = attendanceRecords.map((record) => ({
+      lrn: record.lrn,
+      studentName: record.studentName,
+      lastName: record.lastName,
+      status: record.status,
+    }));
+
+    void saveAttendanceDraft({
+      uid: user.uid,
+      attendanceId,
+      sectionId: selectedAppointment.sectionId,
+      sectionSlug,
+      date: selectedDate,
+      schoolYear: selectedAppointment.schoolYear,
+      teacherId: selectedAppointment.teacherId,
+      secretaryUid: selectedAppointment.secretaryUid,
+      students: draftStudents,
+      hasSessionStarted: true,
+      lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+    });
+  }, [
+    attendanceId,
+    attendanceRecords,
+    existingSession,
+    hasSessionToday,
+    localSessionLoaded,
+    sectionSlug,
+    selectedAppointment,
+    selectedDate,
+    sessionSubmitted,
+    user?.uid,
+  ]);
 
   const teacherStartedSession = existingSession?.createdByRole === "teacher";
 
@@ -238,13 +440,17 @@ export default function SecretaryAttendancePage() {
     try {
       setError(null);
       setSubmitError(null);
+      setInfoMessage(null);
 
-      const newAttendanceId = await startAttendanceSession(
-        selectedAppointment,
-        sectionSlug,
-        selectedDate,
-        selectedAppointment.schoolYear
-      );
+      if (!isOnline) {
+        setHasSessionToday(true);
+        setIsEditing(true);
+        setSessionSubmitted(false);
+        setInfoMessage("Session saved locally. You can keep recording attendance offline.");
+        return;
+      }
+
+      const newAttendanceId = await startAttendanceSession(selectedAppointment, sectionSlug, selectedDate, selectedAppointment.schoolYear);
 
       await queryClient.invalidateQueries({ queryKey: ["attendanceSession", newAttendanceId] });
       
@@ -252,6 +458,14 @@ export default function SecretaryAttendancePage() {
       setIsEditing(true);
       setSessionSubmitted(false);
     } catch (err) {
+      if (isTransientAttendanceError(err)) {
+        setHasSessionToday(true);
+        setIsEditing(true);
+        setSessionSubmitted(false);
+        setInfoMessage("Connection dropped. Session was kept locally and will sync after submit.");
+        return;
+      }
+
       console.error("Error starting session:", err);
       setError(err instanceof Error ? err.message : "Failed to start attendance session");
     }
@@ -271,13 +485,42 @@ export default function SecretaryAttendancePage() {
 
     try {
       setError(null);
+      setInfoMessage(null);
 
       const studentsData = attendanceRecords.map((record) => ({
         lrn: record.lrn,
         studentName: record.studentName,
         lastName: record.lastName,
-        status: record.status as "present" | "late" | "absent",
+        status: record.status as AttendanceStatus,
       }));
+
+      if (!isOnline) {
+        if (!operationId || !user?.uid) {
+          throw new Error("Offline queue is not ready for this session yet.");
+        }
+
+        await enqueueAttendanceSync({
+          operationId,
+          uid: user.uid,
+          attendanceId,
+          sectionId: selectedAppointment.sectionId,
+          sectionSlug,
+          date: selectedDate,
+          schoolYear: selectedAppointment.schoolYear,
+          teacherId: selectedAppointment.teacherId,
+          secretaryUid: selectedAppointment.secretaryUid,
+          sessionKey: `${selectedAppointment.sectionId}:${selectedDate}`,
+          students: studentsData,
+          lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+        });
+
+        await deleteAttendanceDraft(user.uid, attendanceId);
+        setSessionSubmitted(true);
+        setIsEditing(false);
+        setSubmitError(null);
+        setInfoMessage("Attendance saved offline. It will sync automatically when you reconnect.");
+        return;
+      }
 
       await submitFullAttendance(
         attendanceId,
@@ -293,11 +536,52 @@ export default function SecretaryAttendancePage() {
       setSessionSubmitted(true);
       setIsEditing(false);
       setSubmitError(null);
+      setInfoMessage("Attendance synced successfully.");
+
+      if (user?.uid) {
+        await deleteAttendanceDraft(user.uid, attendanceId);
+      }
 
       queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
       queryClient.invalidateQueries({ queryKey: ["attendanceSession", attendanceId] });
       queryClient.invalidateQueries({ queryKey: ["attendanceHistory", user?.uid] });
     } catch (err) {
+      if (err instanceof OfflineStorageCapError) {
+        setSubmitError(err.message);
+        return;
+      }
+
+      if (isTransientAttendanceError(err) && operationId && user?.uid) {
+        const studentsData = attendanceRecords.map((record) => ({
+          lrn: record.lrn,
+          studentName: record.studentName,
+          lastName: record.lastName,
+          status: record.status as AttendanceStatus,
+        }));
+
+        await enqueueAttendanceSync({
+          operationId,
+          uid: user.uid,
+          attendanceId,
+          sectionId: selectedAppointment.sectionId,
+          sectionSlug,
+          date: selectedDate,
+          schoolYear: selectedAppointment.schoolYear,
+          teacherId: selectedAppointment.teacherId,
+          secretaryUid: selectedAppointment.secretaryUid,
+          sessionKey: `${selectedAppointment.sectionId}:${selectedDate}`,
+          students: studentsData,
+          lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+        });
+
+        await deleteAttendanceDraft(user.uid, attendanceId);
+        setSessionSubmitted(true);
+        setIsEditing(false);
+        setSubmitError(null);
+        setInfoMessage("Attendance was queued after a connection problem. It will retry automatically.");
+        return;
+      }
+
       console.error("Error submitting attendance:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to submit attendance. Please try again.";
       if (errorMessage.includes("locked")) {
@@ -325,6 +609,19 @@ export default function SecretaryAttendancePage() {
   const sectionDisplayName = section
     ? `${section.gradeLevel} - ${section.sectionName}`
     : "Section information unavailable";
+  const sessionSyncLabel = queuedSubmission?.status === "needs_review"
+    ? "Needs review"
+    : queuedSubmission?.status === "failed"
+      ? "Sync error"
+      : queuedSubmission?.status === "syncing"
+        ? "Syncing"
+        : queuedSubmission?.status === "pending"
+          ? "Pending sync"
+          : sessionSubmitted
+            ? "Synced"
+            : isOnline
+              ? "Online"
+              : "Offline draft";
 
   const presentCount = attendanceRecords.filter(r => r.status === "present").length;
   const lateCount = attendanceRecords.filter(r => r.status === "late").length;
@@ -375,6 +672,14 @@ export default function SecretaryAttendancePage() {
         />
       )}
 
+      {infoMessage && (
+        <PopupAlert
+          message={infoMessage}
+          type="info"
+          onClose={() => setInfoMessage(null)}
+        />
+      )}
+
       <main className="p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Page Header */}
@@ -395,6 +700,7 @@ export default function SecretaryAttendancePage() {
                 </p>
               </div>
             </div>
+
           </div>
 
           <AttendanceHeader
@@ -403,9 +709,12 @@ export default function SecretaryAttendancePage() {
             hasSessionToday={hasSessionToday}
             sessionSubmitted={sessionSubmitted}
             isEditing={isEditing}
-            allowCorrections={allowCorrections}
             onStartSession={handleStartSession}
-            onEnableEditing={handleEnableEditing}
+            syncLabel={sessionSyncLabel}
+            canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
+            onSyncNow={() => void syncStatus.syncNow()}
+            syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
+            isSyncing={syncStatus.isSyncing}
           />
 
           {hasSessionToday || sessionSubmitted ? (

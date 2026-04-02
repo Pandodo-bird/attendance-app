@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, ChevronRight, FileText, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNetworkStatus } from "@/lib/networkStatus";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
 import { PopupAlert } from "@/components/ui";
@@ -16,6 +17,7 @@ interface AttendanceSessionCardProps {
 
 export default function HistoryPage() {
   const { user } = useAuth();
+  const { isOnline } = useNetworkStatus();
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
 
@@ -108,6 +110,15 @@ export default function HistoryPage() {
                 </p>
               </div>
             </div>
+
+            {!isOnline && (
+              <div
+                className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium"
+                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
+              >
+                Offline mode: showing cached history when it is already available on this device.
+              </div>
+            )}
           </div>
 
           {/* Summary Stats */}
@@ -202,7 +213,9 @@ export default function HistoryPage() {
                 No Attendance History
               </h3>
               <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
-                You haven&apos;t submitted any attendance records yet
+                {isOnline
+                  ? "You haven&apos;t submitted any attendance records yet"
+                  : "No cached attendance history is available on this device yet"}
               </p>
             </motion.div>
           )}

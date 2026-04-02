@@ -11,6 +11,8 @@ import {
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { createUserProfile, getUserProfile, UserData } from "../lib/firestore";
+import { clearQueueUiForUser } from "@/lib/offlineQueue";
+import { stopSecretarySync } from "@/lib/syncManager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextType {
@@ -122,6 +124,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    if (user?.uid) {
+      await stopSecretarySync(user.uid);
+      await clearQueueUiForUser(user.uid);
+    }
+
     // Clear query cache for user profile
     queryClient.removeQueries({ queryKey: ["userProfile"] });
     currentUserIdRef.current = null;

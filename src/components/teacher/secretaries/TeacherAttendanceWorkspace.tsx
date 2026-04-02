@@ -332,9 +332,7 @@ export function TeacherAttendanceWorkspace({
             hasSessionToday={teacherHasSessionForDate}
             sessionSubmitted={teacherSessionSubmitted}
             isEditing={teacherIsEditing}
-            allowCorrections={false}
             onStartSession={onStartSession}
-            onEnableEditing={() => undefined}
           />
 
           {teacherStudentsLoading ? (

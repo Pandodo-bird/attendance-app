@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, PlayCircle, Edit2 } from "lucide-react";
+import { Calendar, PlayCircle, Edit2, RefreshCw } from "lucide-react";
 
 interface AttendanceHeaderProps {
   selectedDate: string;
@@ -8,9 +8,12 @@ interface AttendanceHeaderProps {
   hasSessionToday: boolean;
   sessionSubmitted: boolean;
   isEditing: boolean;
-  allowCorrections: boolean;
   onStartSession: () => void;
-  onEnableEditing: () => void;
+  syncLabel?: string;
+  canSync?: boolean;
+  onSyncNow?: () => void;
+  syncDisabled?: boolean;
+  isSyncing?: boolean;
 }
 
 function formatLocalDateInputValue(date: Date): string {
@@ -27,9 +30,12 @@ export default function AttendanceHeader({
   hasSessionToday,
   sessionSubmitted,
   isEditing,
-  allowCorrections,
   onStartSession,
-  onEnableEditing,
+  syncLabel,
+  canSync = false,
+  onSyncNow,
+  syncDisabled = false,
+  isSyncing = false,
 }: AttendanceHeaderProps) {
   const isToday = (date: string) => {
     const today = formatLocalDateInputValue(new Date());
@@ -83,7 +89,31 @@ export default function AttendanceHeader({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          {syncLabel && (
+            <div
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 rounded-lg"
+              style={{ backgroundColor: "#EFF6FF" }}
+            >
+              <span className="text-sm font-semibold" style={{ color: "#1D4ED8" }}>
+                {syncLabel}
+              </span>
+            </div>
+          )}
+
+          {canSync && onSyncNow && (
+            <button
+              type="button"
+              onClick={onSyncNow}
+              disabled={syncDisabled}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ backgroundColor: "#FFFFFF", color: "#1e3a5f", border: "1px solid #E5E7EB" }}
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+              Sync now
+            </button>
+          )}
+
           {!hasSessionToday && !sessionSubmitted ? (
             <button
               onClick={onStartSession}

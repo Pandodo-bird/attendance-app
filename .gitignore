@@ -47,3 +47,7 @@ next-env.d.ts
 firestore.rules
 
 .plans/
+
+# Serwist
+public/sw.js
+public/sw.js.map

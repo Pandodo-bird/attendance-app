@@ -20,7 +20,7 @@ export default function ProfilePage() {
 function ProfileContent() {
   const { user, userProfile } = useAuth();
 
-  const getAvatarColor = (name: string): string => {
+  const getAvatarColor = (name: string): { bg: string; text: string } => {
     const colors = [
       { bg: "#e6deff", text: "#493598" },
       { bg: "#d4f0e8", text: "#00695c" },
@@ -38,9 +38,10 @@ function ProfileContent() {
   };
 
   const avatarColors = getAvatarColor(user?.displayName || "S");
+  const secretaryProfile = userProfile?.role === "secretary" ? userProfile : null;
 
-  const formattedDate = userProfile?.createdAt
-    ? new Date(userProfile.createdAt instanceof Date ? userProfile.createdAt : userProfile.createdAt.toDate()).toLocaleDateString("en-US", {
+  const formattedDate = secretaryProfile?.createdAt
+    ? new Date(secretaryProfile.createdAt instanceof Date ? secretaryProfile.createdAt : secretaryProfile.createdAt.toDate()).toLocaleDateString("en-US", {
         month: "long",
         day: "numeric",
         year: "numeric",
@@ -198,7 +199,7 @@ function ProfileContent() {
               </div>
             </div>
 
-            {userProfile?.lrn && (
+            {secretaryProfile?.lrn && (
               <>
                 <div
                   className="h-px"
@@ -216,7 +217,7 @@ function ProfileContent() {
                       LRN
                     </p>
                     <p className="text-sm font-mono font-medium" style={{ color: "#1F1F1F" }}>
-                      {userProfile.lrn}
+                      {secretaryProfile.lrn}
                     </p>
                   </div>
                 </div>
