@@ -38,7 +38,7 @@ const serwist = new Serwist({
   runtimeCaching: [
     {
       matcher: ({ request, url }) => {
-        return request.destination === "document" && isCachedSecretaryDocument(url.pathname);
+        return request.method === "GET" && isCachedSecretaryDocument(url.pathname);
       },
       handler: new NetworkFirst({
         cacheName: "secretary-route-documents",
