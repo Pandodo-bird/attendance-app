@@ -228,10 +228,10 @@ export default function SecretaryAttendancePage() {
     queryKey: ["attendanceSession", attendanceId],
     queryFn: () => getAttendanceSession(attendanceId!),
     enabled: !!attendanceId,
-    staleTime: 30 * 60 * 1000,
+    staleTime: 0,
     gcTime: 60 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   const { data: sectionStudentsQuery = [], isLoading: studentsLoading } = useQuery({
@@ -280,6 +280,11 @@ export default function SecretaryAttendancePage() {
 
       if (cancelled) {
         return;
+      }
+
+      if (queueItem?.status === "synced" || queueItem?.status === "needs_review" || queueItem?.failureCode === "locked") {
+        await queryClient.invalidateQueries({ queryKey: ["attendanceSession", attendanceId] });
+        await queryClient.invalidateQueries({ queryKey: ["attendanceHistory", user.uid] });
       }
 
       setLocalDraft(draft);
@@ -344,6 +349,48 @@ export default function SecretaryAttendancePage() {
       setSessionSubmitted(true);
       setIsEditing(false);
       setAttendanceRecords((prev) => mergeStatusesIntoRecords(prev, queuedSubmission.students));
+      return;
+    }
+
+    if (isOnline) {
+      if (existingSession) {
+        setHasSessionToday(true);
+
+        if (existingSession.status === "locked" || (existingSession.records && Object.keys(existingSession.records).length > 0)) {
+          setSessionSubmitted(true);
+          setIsEditing(false);
+
+          if (existingSession.records) {
+            setAttendanceRecords((prev) =>
+              prev.map((record) => {
+                const existingRecord = existingSession.records![record.lrn];
+                if (existingRecord) {
+                  return {
+                    ...record,
+                    status: existingRecord.status as AttendanceStatus,
+                  };
+                }
+                return record;
+              })
+            );
+          }
+        } else {
+          setIsEditing(true);
+          setSessionSubmitted(false);
+        }
+
+        return;
+      }
+
+      setHasSessionToday(false);
+      setSessionSubmitted(false);
+      setIsEditing(false);
+      setAttendanceRecords((prev) =>
+        prev.map((record) => ({
+          ...record,
+          status: null,
+        }))
+      );
       return;
     }
 
@@ -587,8 +634,12 @@ export default function SecretaryAttendancePage() {
         return;
       }
 
+      const resolvedAttendanceId = existingSession
+        ? attendanceId
+        : await startAttendanceSession(selectedAppointment, sectionSlug, selectedDate, selectedAppointment.schoolYear);
+
       await submitFullAttendance(
-        attendanceId,
+        resolvedAttendanceId,
         selectedAppointment.sectionId,
         selectedAppointment.teacherId,
         selectedAppointment.secretaryUid,

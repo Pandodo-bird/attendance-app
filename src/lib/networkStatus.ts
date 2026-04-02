@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const NETWORK_PROBE_URL = "/manifest.webmanifest";
+const NETWORK_PROBE_URL = "/api/network-status";
 const NETWORK_PROBE_TIMEOUT_MS = 4000;
 const NETWORK_RECHECK_INTERVAL_MS = 15000;
 

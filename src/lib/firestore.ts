@@ -14,7 +14,6 @@ import {
   updateDoc,
   increment,
   deleteField,
-  type WithFieldValue,
 } from "firebase/firestore";
 
 // ==================== User Profile Types ====================
@@ -253,7 +252,7 @@ function doesSessionMatchQueuedSubmission(
   students: OfflineAttendanceStudentPayload[],
   secretaryUid: string,
 ): boolean {
-  if (!session.records) {
+  if (session.status !== "locked" || !session.records) {
     return false;
   }
 
@@ -291,48 +290,6 @@ async function ensureSecretaryAttendanceSession(item: OfflineAttendanceQueueItem
     createdByUid: item.secretaryUid,
     createdByRole: "secretary",
   });
-}
-
-function buildQueuedRecordsMap(
-  students: OfflineAttendanceStudentPayload[],
-  secretaryUid: string,
-): Record<string, AttendanceRecord> {
-  const recordsMap: Record<string, AttendanceRecord> = {};
-
-  students.forEach((student) => {
-    recordsMap[student.lrn] = {
-      studentName: student.studentName,
-      status: student.status,
-      timeRecorded: new Date(),
-      recordedByUid: secretaryUid,
-    };
-  });
-
-  return recordsMap;
-}
-
-async function syncQueuedAttendanceToOpenSession(
-  item: OfflineAttendanceQueueItem,
-): Promise<Attendance | null> {
-  const attendanceRef = doc(db, "attendance", item.attendanceId);
-  const recordsMap = buildQueuedRecordsMap(item.students, item.secretaryUid);
-  const updatePayload: WithFieldValue<Partial<Attendance>> = {
-    records: recordsMap,
-    status: "open",
-    secretaryUid: item.secretaryUid,
-  };
-
-  await updateDoc(attendanceRef, updatePayload);
-
-  const syncedSnap = await getDoc(attendanceRef);
-  if (!syncedSnap.exists()) {
-    return null;
-  }
-
-  return {
-    id: syncedSnap.id,
-    ...syncedSnap.data(),
-  } as Attendance;
 }
 
 export async function replayQueuedAttendanceSubmission(
@@ -385,7 +342,25 @@ export async function replayQueuedAttendanceSubmission(
     await ensureSecretaryAttendanceSession(item);
   }
 
-  const syncedSession = await syncQueuedAttendanceToOpenSession(item);
+  await submitFullAttendance(
+    item.attendanceId,
+    item.sectionId,
+    item.teacherId,
+    item.secretaryUid,
+    item.sectionSlug,
+    item.date,
+    item.schoolYear,
+    item.students,
+    {
+      uid: item.secretaryUid,
+      role: "secretary",
+    },
+  );
+
+  const syncedSnap = await getDoc(attendanceRef);
+  const syncedSession = syncedSnap.exists()
+    ? ({ id: syncedSnap.id, ...syncedSnap.data() } as Attendance)
+    : null;
 
   console.log("📶 OFFLINE SYNC | replay end", {
     operationId: item.operationId,
