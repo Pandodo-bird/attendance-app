@@ -9,6 +9,7 @@ interface AttendanceHeaderProps {
   sessionSubmitted: boolean;
   isEditing: boolean;
   onStartSession: () => void;
+  startDisabled?: boolean;
   completedLabel?: string;
   syncLabel?: string;
   canSync?: boolean;
@@ -32,6 +33,7 @@ export default function AttendanceHeader({
   sessionSubmitted,
   isEditing,
   onStartSession,
+  startDisabled = false,
   completedLabel = "Saved",
   syncLabel,
   canSync = false,
@@ -119,7 +121,8 @@ export default function AttendanceHeader({
           {!hasSessionToday && !sessionSubmitted ? (
             <button
               onClick={onStartSession}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm"
+              disabled={startDisabled}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
             >
               <PlayCircle className="w-4 h-4" />

@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { createUserProfile, getUserProfile, UserData } from "../lib/firestore";
+import { getIsOnline, subscribeToNetworkStatus } from "@/lib/networkStatus";
 import { clearQueueUiForUser } from "@/lib/offlineQueue";
 import { stopSecretarySync } from "@/lib/syncManager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [offlineUser, setOfflineUser] = useState<User | null>(null);
   const [offlineProfile, setOfflineProfile] = useState<UserData | null>(null);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
   const queryClient = useQueryClient();
   // Track the current user ID to detect user changes
   const currentUserIdRef = useRef<string | null>(null);
@@ -48,6 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     staleTime: 30 * 60 * 1000, // 30 minutes - user profile rarely changes
     gcTime: 60 * 60 * 1000, // 1 hour
   });
+
+  useEffect(() => {
+    setIsOffline(!getIsOnline());
+    const unsubscribe = subscribeToNetworkStatus((isOnline) => {
+      setIsOffline(!isOnline);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -212,7 +225,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const isOffline = typeof navigator !== "undefined" ? !navigator.onLine : false;
   const effectiveUser = user ?? (isOffline ? offlineUser : null);
   const effectiveUserProfile = userProfile ?? (isOffline ? offlineProfile : null);
 

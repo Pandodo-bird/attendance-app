@@ -3,6 +3,7 @@
 import SecretarySidebar from "@/components/SecretarySidebar";
 import { PopupAlert } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNetworkStatus } from "@/lib/networkStatus";
 import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { Menu, RefreshCw, Wifi, WifiOff, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
@@ -15,6 +16,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [dismissedMessage, setDismissedMessage] = useState<string | null>(null);
+  const { isOnline } = useNetworkStatus();
   const syncStatus = useSecretarySyncStatus(user?.uid);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   const hasQueueIssues = syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0;
   const statusLabel = syncStatus.isSyncing
     ? "Syncing"
-    : !syncStatus.isOnline
+    : !isOnline
       ? "Offline"
       : hasQueueIssues
         ? "Sync error"
@@ -48,7 +50,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
 
   const statusColor = syncStatus.isSyncing
     ? { bg: "#EEF2FF", border: "#C7D2FE", text: "#3730A3" }
-    : !syncStatus.isOnline
+    : !isOnline
       ? { bg: "#FEF3C7", border: "#FDE68A", text: "#92400E" }
       : hasQueueIssues
         ? { bg: "#FEF2F2", border: "#FECACA", text: "#991B1B" }
@@ -106,7 +108,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
                   className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center"
                   style={{ backgroundColor: "#FFFFFF", color: statusColor.text }}
                 >
-                  {syncStatus.isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+                  {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
                 </div>
                 <div>
                   <p className="text-sm font-bold" style={{ color: statusColor.text }}>
@@ -121,7 +123,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
               <button
                 type="button"
                 onClick={() => void syncStatus.syncNow()}
-                disabled={!syncStatus.isOnline || syncStatus.isSyncing}
+                disabled={!isOnline || syncStatus.isSyncing}
                 className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ backgroundColor: "#FFFFFF", color: statusColor.text }}
               >

@@ -522,6 +522,11 @@ export default function SecretaryAttendancePage() {
       return;
     }
 
+    if (!hasLoadedStudents) {
+      setError("Student list is still loading. Wait for the roster before starting attendance.");
+      return;
+    }
+
     if (!sectionSlug) {
       setError("Section information not loaded. Please try again.");
       return;
@@ -564,6 +569,11 @@ export default function SecretaryAttendancePage() {
   const handleSubmitAttendance = async () => {
       if (!selectedAppointment || !sectionSlug || !attendanceId) {
       setError("Missing required information to save attendance");
+      return;
+    }
+
+    if (!hasLoadedStudents) {
+      setError("Student list is not loaded yet. Attendance cannot be saved without the roster.");
       return;
     }
 
@@ -742,6 +752,7 @@ export default function SecretaryAttendancePage() {
   const allPresent = attendanceRecords.every((r) => r.status === "present");
   const allMarked = attendanceRecords.every((r) => r.status !== null);
   const canEditAttendance = !sessionSubmitted;
+  const hasLoadedStudents = attendanceRecords.length > 0;
 
   const totalPages = Math.ceil(attendanceRecords.length / STUDENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
@@ -875,6 +886,7 @@ export default function SecretaryAttendancePage() {
             sessionSubmitted={sessionSubmitted}
             isEditing={isEditing}
             onStartSession={handleStartSession}
+            startDisabled={!hasLoadedStudents}
             completedLabel={completedLabel}
             syncLabel={sessionSyncLabel}
             canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
@@ -1142,15 +1154,20 @@ export default function SecretaryAttendancePage() {
                       Please mark attendance for all students before saving.
                     </p>
                   )}
+                  {!hasLoadedStudents && (
+                    <p className="text-sm mb-3" style={{ color: "#EF4444" }}>
+                      Wait for the student roster to load before starting or saving attendance.
+                    </p>
+                  )}
                   <button
                     onClick={handleSubmitAttendance}
-                    disabled={!allMarked}
+                    disabled={!allMarked || !hasLoadedStudents}
                     className="w-full px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      backgroundColor: allMarked ? "#1e3a5f" : "#9CA3AF",
+                      backgroundColor: allMarked && hasLoadedStudents ? "#1e3a5f" : "#9CA3AF",
                       color: "#FFFFFF",
                     }}
-                    >
+                  >
                     Save Attendance
                   </button>
                 </motion.div>
