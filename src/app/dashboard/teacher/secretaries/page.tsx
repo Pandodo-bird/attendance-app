@@ -228,6 +228,7 @@ function SecretariesContent() {
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>("secretaries");
   const [sectionHistoryStartDate, setSectionHistoryStartDate] = useState("");
   const [sectionHistoryEndDate, setSectionHistoryEndDate] = useState("");
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   const today = formatLocalDateInputValue(new Date());
   const recentWindowStart = new Date();
@@ -1371,43 +1372,61 @@ function SecretariesContent() {
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#56738F" }}>
-                    From
-                  </label>
-                  <input
-                    type="date"
-                    value={sectionHistoryStartDate}
-                    onChange={(e) => setSectionHistoryStartDate(e.target.value)}
-                    className="rounded-lg border px-3 py-2 text-sm outline-none"
-                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#56738F" }}>
-                    To
-                  </label>
-                  <input
-                    type="date"
-                    value={sectionHistoryEndDate}
-                    onChange={(e) => setSectionHistoryEndDate(e.target.value)}
-                    className="rounded-lg border px-3 py-2 text-sm outline-none"
-                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
-                  />
-                </div>
-                {(sectionHistoryStartDate || sectionHistoryEndDate) && (
+              <div className="mt-5 flex items-center gap-3">
+                {!showDateFilter ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setSectionHistoryStartDate("");
-                      setSectionHistoryEndDate("");
-                    }}
-                    className="rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
-                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#6B7280" }}
+                    onClick={() => setShowDateFilter(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
+                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#56738F" }}
                   >
-                    Clear
+                    <Calendar size={14} />
+                    Filter by Date Range
                   </button>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#56738F" }}>
+                        From
+                      </label>
+                      <input
+                        type="date"
+                        value={sectionHistoryStartDate}
+                        onChange={(e) => setSectionHistoryStartDate(e.target.value)}
+                        className="rounded-lg border px-3 py-2 text-sm outline-none"
+                        style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#56738F" }}>
+                        To
+                      </label>
+                      <input
+                        type="date"
+                        value={sectionHistoryEndDate}
+                        onChange={(e) => setSectionHistoryEndDate(e.target.value)}
+                        className="rounded-lg border px-3 py-2 text-sm outline-none"
+                        style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5 invisible" style={{ color: "#56738F" }}>
+                        Placeholder
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSectionHistoryStartDate("");
+                          setSectionHistoryEndDate("");
+                          setShowDateFilter(false);
+                        }}
+                        className="rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
+                        style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#6B7280" }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -1506,10 +1525,6 @@ function SecretariesContent() {
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: "#64748B" }}>
-                                  <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
-                                    <span className="font-semibold" style={{ color: "#334155" }}>Section Name</span>
-                                    <span>{session.sectionLabel}</span>
-                                  </span>
                                   <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1" style={{ backgroundColor: "#F8FAFC" }}>
                                     <span className="font-semibold" style={{ color: "#334155" }}>Recorded By</span>
                                     <span>{`${session.recorderName} (${recorderRole})`}</span>
