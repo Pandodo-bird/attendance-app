@@ -20,6 +20,59 @@ export default function ProfilePage() {
 function ProfileContent() {
   const { user, userProfile } = useAuth();
 
+  const toDisplayDate = (value: unknown): string => {
+    if (!value) {
+      return "N/A";
+    }
+
+    if (value instanceof Date) {
+      return Number.isNaN(value.getTime())
+        ? "N/A"
+        : value.toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+    }
+
+    if (typeof value === "string" || typeof value === "number") {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime())
+        ? "N/A"
+        : parsed.toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          });
+    }
+
+    if (typeof value === "object" && value !== null) {
+      if ("toDate" in value && typeof value.toDate === "function") {
+        const parsed = value.toDate();
+        return parsed instanceof Date && !Number.isNaN(parsed.getTime())
+          ? parsed.toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })
+          : "N/A";
+      }
+
+      if ("seconds" in value && typeof value.seconds === "number") {
+        const parsed = new Date(value.seconds * 1000);
+        return Number.isNaN(parsed.getTime())
+          ? "N/A"
+          : parsed.toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            });
+      }
+    }
+
+    return "N/A";
+  };
+
   const getAvatarColor = (name: string): { bg: string; text: string } => {
     const colors = [
       { bg: "#e6deff", text: "#493598" },
@@ -40,13 +93,7 @@ function ProfileContent() {
   const avatarColors = getAvatarColor(user?.displayName || "S");
   const secretaryProfile = userProfile?.role === "secretary" ? userProfile : null;
 
-  const formattedDate = secretaryProfile?.createdAt
-    ? new Date(secretaryProfile.createdAt instanceof Date ? secretaryProfile.createdAt : secretaryProfile.createdAt.toDate()).toLocaleDateString("en-US", {
-        month: "long",
-        day: "numeric",
-        year: "numeric",
-      })
-    : "N/A";
+  const formattedDate = toDisplayDate(secretaryProfile?.createdAt);
 
   return (
     <>
