@@ -62,8 +62,9 @@ const serwist = new Serwist({
     entries: [
       {
         url: "/~offline",
-        matcher({ request, url }) {
-          return request.destination === "document" && !isCachedSecretaryDocument(url.pathname);
+        matcher({ request }) {
+          const requestUrl = new URL(request.url);
+          return request.destination === "document" && !isCachedSecretaryDocument(requestUrl.pathname);
         },
       },
     ],
