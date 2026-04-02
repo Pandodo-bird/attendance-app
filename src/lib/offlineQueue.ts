@@ -253,7 +253,6 @@ export async function saveAttendanceDraft(
     attendanceId: draft.attendanceId,
     students: draft.students.length,
   });
-  dispatchQueueChange(draft.uid);
   return nextDraft;
 }
 
@@ -265,7 +264,6 @@ export async function getAttendanceDraft(uid: string, attendanceId: string): Pro
 export async function deleteAttendanceDraft(uid: string, attendanceId: string): Promise<void> {
   const db = await getDb();
   await db.delete("drafts", getDraftKey(uid, attendanceId));
-  dispatchQueueChange(uid);
 }
 
 export async function enqueueAttendanceSync(

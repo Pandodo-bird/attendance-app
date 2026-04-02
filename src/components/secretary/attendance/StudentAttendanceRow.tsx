@@ -52,9 +52,7 @@ export default function StudentAttendanceRow({
     <motion.div
       className="grid grid-cols-12 gap-4 px-6 py-3 items-center"
       style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F9FAFB" }}
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.2 }}
+      initial={false}
     >
       <div className="col-span-5">
         <p className="text-sm font-medium" style={{ color: "#1F1F1F" }}>

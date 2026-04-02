@@ -6,7 +6,10 @@ import { ClipboardCheck, Calendar, Edit2, ChevronLeft, ChevronRight, CheckCircle
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  type Appointment,
   type Attendance,
+  type Section,
+  type Student,
   buildSectionAttendanceId,
   getSecretaryAppointments,
   getSectionById,
@@ -30,6 +33,10 @@ import {
   type OfflineAttendanceQueueItem,
 } from "@/lib/offlineQueue";
 import { useNetworkStatus } from "@/lib/networkStatus";
+import {
+  readSecretaryBootstrapCache,
+  writeSecretaryBootstrapCache,
+} from "@/lib/secretaryOfflineBootstrap";
 import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
 import { BulkAttendanceActions } from "@/components/secretary/attendance";
@@ -163,6 +170,10 @@ export default function SecretaryAttendancePage() {
   const [localDraft, setLocalDraft] = useState<OfflineAttendanceDraft | null>(null);
   const [queuedSubmission, setQueuedSubmission] = useState<OfflineAttendanceQueueItem | null>(null);
   const [localSessionLoaded, setLocalSessionLoaded] = useState<boolean>(false);
+  const [cachedBootstrapLoaded, setCachedBootstrapLoaded] = useState<boolean>(false);
+  const [cachedAppointment, setCachedAppointment] = useState<Appointment | null>(null);
+  const [cachedSection, setCachedSection] = useState<Section | null>(null);
+  const [cachedStudents, setCachedStudents] = useState<Student[]>([]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -176,7 +187,23 @@ export default function SecretaryAttendancePage() {
     gcTime: 60 * 60 * 1000,
   });
 
-  const selectedAppointment = appointments.length > 0 ? appointments[0] : null;
+  useEffect(() => {
+    if (!user?.uid) {
+      setCachedAppointment(null);
+      setCachedSection(null);
+      setCachedStudents([]);
+      setCachedBootstrapLoaded(true);
+      return;
+    }
+
+    const cachedBootstrap = readSecretaryBootstrapCache(user.uid);
+    setCachedAppointment(cachedBootstrap?.appointment ?? null);
+    setCachedSection(cachedBootstrap?.section ?? null);
+    setCachedStudents(cachedBootstrap?.students ?? []);
+    setCachedBootstrapLoaded(true);
+  }, [user?.uid]);
+
+  const selectedAppointment = appointments.length > 0 ? appointments[0] : cachedAppointment;
   const sectionId = selectedAppointment?.sectionId;
 
   const { data: section } = useQuery({
@@ -187,8 +214,10 @@ export default function SecretaryAttendancePage() {
     gcTime: 60 * 60 * 1000,
   });
 
-  const sectionSlug = section
-    ? `${section.gradeLevel}-${section.sectionName.replace(/\s+/g, "-")}`
+  const resolvedSection = section ?? cachedSection;
+
+  const sectionSlug = resolvedSection
+    ? `${resolvedSection.gradeLevel}-${resolvedSection.sectionName.replace(/\s+/g, "-")}`
     : null;
 
   const attendanceId = sectionSlug
@@ -205,13 +234,27 @@ export default function SecretaryAttendancePage() {
     refetchOnMount: false,
   });
 
-  const { data: sectionStudents = [], isLoading: studentsLoading } = useQuery({
+  const { data: sectionStudentsQuery = [], isLoading: studentsLoading } = useQuery({
     queryKey: ["sectionStudents", sectionId],
     queryFn: () => getSectionStudents(sectionId!),
     enabled: !!sectionId,
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
   });
+
+  const sectionStudents = sectionStudentsQuery.length > 0 ? sectionStudentsQuery : cachedStudents;
+
+  useEffect(() => {
+    if (!user?.uid || !selectedAppointment || !resolvedSection || sectionStudentsQuery.length === 0) {
+      return;
+    }
+
+    writeSecretaryBootstrapCache(user.uid, {
+      appointment: selectedAppointment,
+      section: resolvedSection,
+      students: sectionStudentsQuery,
+    });
+  }, [resolvedSection, sectionStudentsQuery, selectedAppointment, user?.uid]);
 
   const [attendanceRecords, setAttendanceRecords] = useState<StudentAttendance[]>([]);
 
@@ -653,8 +696,8 @@ export default function SecretaryAttendancePage() {
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
   const endIndex = startIndex + STUDENTS_PER_PAGE;
   const paginatedStudents = attendanceRecords.slice(startIndex, endIndex);
-  const sectionDisplayName = section
-    ? `${section.gradeLevel} - ${section.sectionName}`
+  const sectionDisplayName = resolvedSection
+    ? `${resolvedSection.gradeLevel} - ${resolvedSection.sectionName}`
     : "Section information unavailable";
   const sessionSyncLabel = queuedSubmission?.status === "needs_review"
     ? "Needs review"
@@ -675,7 +718,9 @@ export default function SecretaryAttendancePage() {
   const absentCount = attendanceRecords.filter(r => r.status === "absent").length;
   const excusedCount = attendanceRecords.filter(r => r.status === "excused").length;
 
-  if (appointmentsLoading || studentsLoading) {
+  const waitingForBootstrap = !cachedBootstrapLoaded || (appointmentsLoading && !selectedAppointment) || (studentsLoading && sectionStudents.length === 0);
+
+  if (waitingForBootstrap) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#F8FAFC" }}>
         <div className="text-center">
@@ -1111,9 +1156,7 @@ function MobileStudentAttendanceCard({
     <motion.div
       className="p-3 sm:p-4"
       style={{ backgroundColor: index % 2 === 0 ? "#FFFFFF" : "#F9FAFB" }}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03, duration: 0.2 }}
+      initial={false}
     >
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
