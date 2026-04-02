@@ -1503,7 +1503,7 @@ function SecretariesContent() {
                   const secretaryRecordedCount = group.sessions.filter(
                     (session) => session.submittedByRole === "secretary" || session.createdByRole === "secretary"
                   ).length;
-                  const isSelected = selectedSectionHistoryGroup?.secretaryUid === group.secretaryUid;
+                  const isSelected = selectedSecretaryUid === group.secretaryUid;
                   const latestRecorderRole = latestSession
                     ? formatRecorderRole(latestSession.submittedByRole ?? latestSession.createdByRole)
                     : "Recorder";
