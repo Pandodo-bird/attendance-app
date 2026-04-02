@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Pencil } from "lucide-react";
+import { X, Pencil, Check, User, MapPin, Phone, BookOpen, Calendar, Shield } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 
 export interface StudentProfile {
@@ -38,69 +38,42 @@ interface StudentProfileDrawerProps {
   onSave?: (updates: Partial<StudentProfile>) => Promise<void>;
 }
 
-// Move InputField outside to prevent recreation on every render
-interface InputFieldProps {
+interface InfoFieldProps {
   label: string;
-  field: keyof StudentProfile;
+  value: string;
+  icon?: React.ReactNode;
+  isEdit?: boolean;
+  editValue?: string;
+  onEditChange?: (value: string) => void;
   type?: string;
-  isEditMode: boolean;
-  value: string | Date | Timestamp;
-  onChange: (field: keyof StudentProfile, value: string) => void;
 }
 
-function InputField({ label, field, type = "text", isEditMode, value, onChange }: InputFieldProps) {
-  const parseStudentDate = (date: Date | Timestamp | string): Date | null => {
-    if (!date) return null;
-    if (date instanceof Date) return date;
-    if (date instanceof Timestamp) return date.toDate();
-
-    const parsedDate = new Date(date);
-    if (Number.isNaN(parsedDate.getTime())) return null;
-    return parsedDate;
-  };
-
-  const formatDate = (date: Date | Timestamp | string) => {
-    const parsedDate = parseStudentDate(date);
-    if (!parsedDate) return "";
-    return parsedDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
-  };
-
-  const formatDateInput = (date: Date | Timestamp | string) => {
-    const parsedDate = parseStudentDate(date);
-    if (!parsedDate) return "";
-    return parsedDate.toISOString().split("T")[0];
-  };
-
+function InfoField({ label, value, icon, isEdit, editValue, onEditChange, type = "text" }: InfoFieldProps) {
   const isEmpty = !value || (typeof value === "string" && value.trim() === "");
-
+  
   return (
-    <div className="space-y-1">
-      <label className="text-xs font-medium uppercase tracking-wide" style={{ color: "#6B7280" }}>
-        {label}
-      </label>
-      {isEditMode ? (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        {icon && <span className="text-xs" style={{ color: "#64748B" }}>{icon}</span>}
+        <label className="text-xs font-medium" style={{ color: "#64748B" }}>
+          {label}
+        </label>
+      </div>
+      {isEdit && onEditChange ? (
         <input
           type={type}
-          value={type === "date" && value ? formatDateInput(value) : String(value || "")}
-          onChange={(e) => onChange(field, e.target.value)}
-          className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all"
-          style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#1F1F1F" }}
+          value={editValue || ""}
+          onChange={(e) => onEditChange(e.target.value)}
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all"
+          style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#1F1F1F" }}
         />
       ) : (
-        <p className="text-sm" style={{ color: isEmpty ? "#9CA3AF" : "#1F1F1F" }}>
-          {type === "date" ? formatDate(value) : String(value || "N/A")}
+        <p className="text-sm font-medium" style={{ color: isEmpty ? "#94A3B8" : "#0F172A" }}>
+          {value || "N/A"}
         </p>
       )}
     </div>
   );
-}
-
-// Religion field with predefined options + custom input
-interface ReligionFieldProps {
-  label: string;
-  isEditMode: boolean;
-  value: string;
-  onChange: (value: string) => void;
 }
 
 const RELIGION_OPTIONS = [
@@ -110,25 +83,35 @@ const RELIGION_OPTIONS = [
   "Buddhism",
 ];
 
-function ReligionField({ label, isEditMode, value, onChange }: ReligionFieldProps) {
-  const isEmpty = !value || value.trim() === "";
-  const isCustom = !RELIGION_OPTIONS.includes(value);
+interface ReligionFieldProps {
+  isEditMode: boolean;
+  value: string;
+  onChange: (value: string) => void;
+}
 
+function ReligionField({ isEditMode, value, onChange }: ReligionFieldProps) {
+  const isCustom = !RELIGION_OPTIONS.includes(value);
+  
   return (
-    <div className="space-y-1">
-      <label className="text-xs font-medium uppercase tracking-wide" style={{ color: "#6B7280" }}>
-        {label}
-      </label>
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1.5">
+        <BookOpen size={12} style={{ color: "#64748B" }} />
+        <label className="text-xs font-medium" style={{ color: "#64748B" }}>
+          Religion
+        </label>
+      </div>
       {isEditMode ? (
         <div className="space-y-2">
           <select
             value={isCustom && value !== "" ? "custom" : value}
             onChange={(e) => {
               const selected = e.target.value;
-              onChange(selected);
+              if (selected !== "custom") {
+                onChange(selected);
+              }
             }}
-            className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all"
-            style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#1F1F1F" }}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all"
+            style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#1F1F1F" }}
           >
             <option value="">Select religion...</option>
             {RELIGION_OPTIONS.map((option) => (
@@ -144,13 +127,13 @@ function ReligionField({ label, isEditMode, value, onChange }: ReligionFieldProp
               value={value === "custom" ? "" : value}
               onChange={(e) => onChange(e.target.value)}
               placeholder="Enter custom religion..."
-              className="w-full border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all"
-              style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#1F1F1F" }}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all"
+              style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#1F1F1F" }}
             />
           )}
         </div>
       ) : (
-        <p className="text-sm" style={{ color: isEmpty ? "#9CA3AF" : "#1F1F1F" }}>
+        <p className="text-sm font-medium" style={{ color: !value ? "#94A3B8" : "#0F172A" }}>
           {value || "N/A"}
         </p>
       )}
@@ -174,6 +157,27 @@ export default function StudentProfileDrawer({
     }
     setIsEditMode(false);
   }, [student]);
+
+  const parseDate = (date: Date | Timestamp | string): Date | null => {
+    if (!date) return null;
+    if (date instanceof Date) return date;
+    if (date instanceof Timestamp) return date.toDate();
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed;
+  };
+
+  const formatDate = (date: Date | Timestamp | string) => {
+    const parsed = parseDate(date);
+    if (!parsed) return "N/A";
+    return parsed.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  };
+
+  const formatDateInput = (date: Date | Timestamp | string) => {
+    const parsed = parseDate(date);
+    if (!parsed) return "";
+    return parsed.toISOString().split("T")[0];
+  };
 
   if (!student || !editedStudent) return null;
 
@@ -201,13 +205,10 @@ export default function StudentProfileDrawer({
 
       if (Object.keys(updates).length > 0) {
         await onSave(updates);
-        // Success - close edit mode
         setIsEditMode(false);
       }
     } catch (error) {
       console.error("Error saving student:", error);
-      // Don't close edit mode - let user try again
-      // Error is shown by parent component via setError
     } finally {
       setIsSaving(false);
     }
@@ -218,20 +219,24 @@ export default function StudentProfileDrawer({
     setEditedStudent({ ...editedStudent, [field]: value });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
       case "active":
-        return { bg: "#D1FAE5", text: "#065F46" };
+        return { bg: "#DCFCE7", text: "#166534", label: "Active" };
       case "inactive":
-        return { bg: "#FEF3C7", text: "#92400E" };
+        return { bg: "#FEF3C7", text: "#92400E", label: "Inactive" };
       case "graduated":
-        return { bg: "#DBEAFE", text: "#1E40AF" };
+        return { bg: "#DBEAFE", text: "#1D4ED8", label: "Graduated" };
       case "dropped":
-        return { bg: "#FEE2E2", text: "#991B1B" };
+        return { bg: "#FEE2E2", text: "#991B1B", label: "Dropped" };
       default:
-        return { bg: "#F3F4F6", text: "#6B7280" };
+        return { bg: "#F1F5F9", text: "#64748B", label: status };
     }
   };
+
+  const statusConfig = getStatusConfig(editedStudent.studentStatus);
+  const fullName = `${editedStudent.firstName} ${editedStudent.middleName ? editedStudent.middleName + " " : ""}${editedStudent.lastName}`;
+  const initials = `${editedStudent.firstName.charAt(0)}${editedStudent.lastName.charAt(0)}`.toUpperCase();
 
   return (
     <AnimatePresence>
@@ -239,7 +244,7 @@ export default function StudentProfileDrawer({
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/30 z-40"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -248,196 +253,256 @@ export default function StudentProfileDrawer({
 
           {/* Drawer */}
           <motion.div
-            className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white z-50 shadow-2xl overflow-y-auto"
+            className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white z-50 shadow-2xl flex flex-col"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
           >
-            {/* Header */}
+            {/* Header with gradient */}
             <div
-              className="sticky top-0 flex items-center justify-between px-6 py-4 border-b backdrop-blur-md"
-              style={{ backgroundColor: "rgba(255, 255, 255, 0.95)", borderColor: "#E5E7EB" }}
+              className="relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #1E3A5F 0%, #2D4A6F 100%)",
+              }}
             >
-              <div>
-                <h2 className="text-xl font-bold" style={{ color: "#1F1F1F" }}>
-                  {editedStudent.lastName}, {editedStudent.firstName}
-                  {editedStudent.middleName && ` ${editedStudent.middleName}`}
-                </h2>
-                <p className="text-sm" style={{ color: "#6B7280" }}>
-                  {editedStudent.gradeLevel} - {editedStudent.sectionName}
-                </p>
+              <div className="absolute inset-0 opacity-10">
+                <div className="absolute top-0 right-0 w-64 h-64 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.1)" }} />
+                <div className="absolute bottom-0 left-0 w-48 h-48 rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.05)" }} />
               </div>
-              <div className="flex items-center gap-2">
-                {isEditMode ? (
-                  <>
-                    <button
-                      onClick={handleCancel}
-                      disabled={isSaving}
-                      className="px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 hover:text-[#1F1F1F]"
-                      style={{ color: "#6B7280" }}
+              
+              <div className="relative px-6 py-5">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div
+                      className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold"
+                      style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#FFFFFF" }}
                     >
-                      Cancel
-                    </button>
+                      {initials}
+                    </div>
+                    
+                    <div>
+                      <h2 className="text-xl font-bold" style={{ color: "#FFFFFF" }}>
+                        {fullName}
+                      </h2>
+                      <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>
+                        {editedStudent.gradeLevel} • {editedStudent.sectionName}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <span
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold"
+                          style={{ backgroundColor: statusConfig.bg, color: statusConfig.text }}
+                        >
+                          {statusConfig.label}
+                        </span>
+                        {editedStudent.learningModality && (
+                          <span
+                            className="px-2.5 py-1 rounded-full text-xs font-semibold"
+                            style={{ backgroundColor: "rgba(255,255,255,0.15)", color: "#FFFFFF" }}
+                          >
+                            {editedStudent.learningModality}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    {isEditMode ? (
+                      <>
+                        <button
+                          onClick={handleCancel}
+                          disabled={isSaving}
+                          className="px-4 py-2 text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
+                          style={{ color: "rgba(255,255,255,0.7)" }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSave}
+                          disabled={isSaving}
+                          className="px-4 py-2 rounded-lg font-medium text-sm transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                          style={{ backgroundColor: "#FFFFFF", color: "#1E3A5F" }}
+                        >
+                          <Check size={14} />
+                          {isSaving ? "Saving..." : "Save"}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleEdit}
+                        className="p-2 rounded-lg transition-colors hover:bg-white/10"
+                        style={{ color: "rgba(255,255,255,0.7)" }}
+                      >
+                        <Pencil size={18} />
+                      </button>
+                    )}
                     <button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="px-4 py-2 rounded-md font-medium text-sm transition-colors disabled:opacity-50"
-                      style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
+                      onClick={onClose}
+                      className="p-2 rounded-lg transition-colors hover:bg-white/10"
+                      style={{ color: "rgba(255,255,255,0.7)" }}
                     >
-                      {isSaving ? "Saving..." : "Save"}
+                      <X size={18} />
                     </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={handleEdit}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    style={{ color: "#9CA3AF" }}
-                  >
-                    <Pencil size={20} />
-                  </button>
-                )}
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  style={{ color: "#9CA3AF" }}
-                >
-                  <X size={20} />
-                </button>
+                  </div>
+                </div>
+
+                {/* LRN */}
+                <div className="mt-4 pt-4 border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                  <p className="text-xs font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>
+                    LRN: <span style={{ color: "rgba(255,255,255,0.9)", fontFamily: "monospace" }}>{editedStudent.lrn}</span>
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Content */}
-            <div className="p-6 space-y-8">
-              {/* Status Badge */}
-              <div className="flex items-center gap-3">
-                <span
-                  className="px-3 py-1.5 rounded-full text-xs font-medium"
-                  style={{
-                    backgroundColor: getStatusColor(editedStudent.studentStatus).bg,
-                    color: getStatusColor(editedStudent.studentStatus).text,
-                  }}
-                >
-                  {editedStudent.studentStatus.charAt(0).toUpperCase() + editedStudent.studentStatus.slice(1)}
-                </span>
-                <span
-                  className="px-3 py-1.5 rounded-full text-xs font-medium"
-                  style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}
-                >
-                  {editedStudent.learningModality || "N/A"}
-                </span>
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-6">
+                {/* Personal Information */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#EEF2FF" }}>
+                      <User size={16} style={{ color: "#4F46E5" }} />
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#0F172A" }}>
+                      Personal Information
+                    </h3>
+                  </div>
+                  <div className="rounded-xl border p-4 space-y-4" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+                    <div className="grid grid-cols-2 gap-4">
+                      <InfoField
+                        label="Sex"
+                        value={editedStudent.sex ? editedStudent.sex.charAt(0).toUpperCase() + editedStudent.sex.slice(1) : ""}
+                        isEdit={isEditMode}
+                        editValue={editedStudent.sex}
+                        onEditChange={(v) => handleChange("sex", v)}
+                      />
+                      <InfoField
+                        label="Birth Date"
+                        value={isEditMode ? "" : formatDate(editedStudent.birthDate)}
+                        icon={<Calendar size={12} />}
+                        isEdit={isEditMode}
+                        editValue={isEditMode ? formatDateInput(editedStudent.birthDate) : ""}
+                        onEditChange={(v) => handleChange("birthDate", v)}
+                        type="date"
+                      />
+                    </div>
+                    <ReligionField
+                      isEditMode={isEditMode}
+                      value={editedStudent.religion}
+                      onChange={(value) => handleChange("religion", value)}
+                    />
+                  </div>
+                </section>
+
+                {/* Address */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F0FDF4" }}>
+                      <MapPin size={16} style={{ color: "#16A34A" }} />
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#0F172A" }}>
+                      Address
+                    </h3>
+                  </div>
+                  <div className="rounded-xl border p-4 space-y-4" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+                    <InfoField
+                      label="Barangay"
+                      value={editedStudent.barangay}
+                      isEdit={isEditMode}
+                      editValue={editedStudent.barangay}
+                      onEditChange={(v) => handleChange("barangay", v)}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <InfoField
+                        label="City"
+                        value={editedStudent.city}
+                        isEdit={isEditMode}
+                        editValue={editedStudent.city}
+                        onEditChange={(v) => handleChange("city", v)}
+                      />
+                      <InfoField
+                        label="Province"
+                        value={editedStudent.province}
+                        isEdit={isEditMode}
+                        editValue={editedStudent.province}
+                        onEditChange={(v) => handleChange("province", v)}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Family Information */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FEF3C7" }}>
+                      <Shield size={16} style={{ color: "#D97706" }} />
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#0F172A" }}>
+                      Family Information
+                    </h3>
+                  </div>
+                  <div className="rounded-xl border p-4 space-y-4" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+                    <InfoField
+                      label="Father's Name"
+                      value={editedStudent.fatherName}
+                      isEdit={isEditMode}
+                      editValue={editedStudent.fatherName}
+                      onEditChange={(v) => handleChange("fatherName", v)}
+                    />
+                    <InfoField
+                      label="Mother's Maiden Name"
+                      value={editedStudent.motherMaidenName}
+                      isEdit={isEditMode}
+                      editValue={editedStudent.motherMaidenName}
+                      onEditChange={(v) => handleChange("motherMaidenName", v)}
+                    />
+                  </div>
+                </section>
+
+                {/* Guardian Information */}
+                <section>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FCE7F3" }}>
+                      <Phone size={16} style={{ color: "#DB2777" }} />
+                    </div>
+                    <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#0F172A" }}>
+                      Guardian Information
+                    </h3>
+                  </div>
+                  <div className="rounded-xl border p-4 space-y-4" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
+                    <InfoField
+                      label="Guardian Name"
+                      value={editedStudent.guardianName}
+                      isEdit={isEditMode}
+                      editValue={editedStudent.guardianName}
+                      onEditChange={(v) => handleChange("guardianName", v)}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <InfoField
+                        label="Relationship"
+                        value={editedStudent.guardianRelationship}
+                        isEdit={isEditMode}
+                        editValue={editedStudent.guardianRelationship}
+                        onEditChange={(v) => handleChange("guardianRelationship", v)}
+                      />
+                      <InfoField
+                        label="Contact Number"
+                        value={editedStudent.guardianContactNumber}
+                        isEdit={isEditMode}
+                        editValue={editedStudent.guardianContactNumber}
+                        onEditChange={(v) => handleChange("guardianContactNumber", v)}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                {/* Bottom padding for scroll */}
+                <div className="h-4" />
               </div>
-
-              {/* Personal Information */}
-              <section className="space-y-4 pb-6" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
-                <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>
-                  Personal Information
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField
-                    label="LRN"
-                    field="lrn"
-                    isEditMode={isEditMode}
-                    value={editedStudent.lrn}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Sex"
-                    field="sex"
-                    isEditMode={isEditMode}
-                    value={editedStudent.sex}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Birth Date"
-                    field="birthDate"
-                    type="date"
-                    isEditMode={isEditMode}
-                    value={editedStudent.birthDate}
-                    onChange={handleChange}
-                  />
-                  <ReligionField
-                    label="Religion"
-                    isEditMode={isEditMode}
-                    value={editedStudent.religion}
-                    onChange={(value) => handleChange("religion", value)}
-                  />
-                </div>
-              </section>
-
-              {/* Contact Information */}
-              <section className="space-y-4 pb-6" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
-                <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>
-                  Address
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <InputField
-                    label="Barangay"
-                    field="barangay"
-                    isEditMode={isEditMode}
-                    value={editedStudent.barangay}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="City"
-                    field="city"
-                    isEditMode={isEditMode}
-                    value={editedStudent.city}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Province"
-                    field="province"
-                    isEditMode={isEditMode}
-                    value={editedStudent.province}
-                    onChange={handleChange}
-                  />
-                </div>
-              </section>
-
-              {/* Family Information */}
-              <section className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-wide" style={{ color: "#6B7280" }}>
-                  Family Information
-                </h3>
-                <div className="grid grid-cols-1 gap-4">
-                  <InputField
-                    label="Father's Name"
-                    field="fatherName"
-                    isEditMode={isEditMode}
-                    value={editedStudent.fatherName}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Mother's Maiden Name"
-                    field="motherMaidenName"
-                    isEditMode={isEditMode}
-                    value={editedStudent.motherMaidenName}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Guardian Name"
-                    field="guardianName"
-                    isEditMode={isEditMode}
-                    value={editedStudent.guardianName}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Guardian Relationship"
-                    field="guardianRelationship"
-                    isEditMode={isEditMode}
-                    value={editedStudent.guardianRelationship}
-                    onChange={handleChange}
-                  />
-                  <InputField
-                    label="Guardian Contact Number"
-                    field="guardianContactNumber"
-                    isEditMode={isEditMode}
-                    value={editedStudent.guardianContactNumber}
-                    onChange={handleChange}
-                  />
-                </div>
-              </section>
             </div>
           </motion.div>
         </>

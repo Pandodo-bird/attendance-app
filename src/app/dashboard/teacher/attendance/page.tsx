@@ -2,7 +2,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
-import TeacherHeader from "@/components/TeacherHeader";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +16,7 @@ import {
 } from "@/lib/firestore";
 import { ClassAnalytics, MonthlyTrendChart, StudentSummaryCard } from "@/components/teacher/attendance";
 import { motion } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search, Grid3X3, List } from "lucide-react";
 
 export default function AttendancePage() {
   return (
@@ -47,7 +46,6 @@ function AttendanceContent() {
     return `${year}-${month}-${day}`;
   };
 
-  // Fetch teacher's sections
   const { data: sections = [], isLoading: sectionsLoading } = useQuery({
     queryKey: ["sections", user?.uid],
     queryFn: () => getTeacherSections(user?.uid || ""),
@@ -76,11 +74,9 @@ function AttendanceContent() {
     ? selectedSectionId
     : resolvedSectionId;
 
-  // Sync section filter to URL
   const handleSectionChange = (sectionId: string) => {
     setSelectedSectionId(sectionId);
     setCurrentPage(1);
-    // Save to localStorage for future navigation
     localStorage.setItem(`attendance_section_${user?.uid}`, sectionId);
     const params = new URLSearchParams(searchParams?.toString() || "");
     if (sectionId) {
@@ -91,7 +87,6 @@ function AttendanceContent() {
     router.push(`/dashboard/teacher/attendance?${params.toString()}`, { scroll: false });
   };
 
-  // Fetch students for selected section
   const { data: students = [] } = useQuery({
     queryKey: ["sectionStudents", effectiveSectionId],
     queryFn: () => getSectionStudents(effectiveSectionId),
@@ -100,7 +95,6 @@ function AttendanceContent() {
     gcTime: 20 * 60 * 1000,
   });
 
-  // Fetch student summaries for selected section
   const selectedSection = sections.find((section) => section.id === effectiveSectionId);
   const currentSchoolYear = selectedSection?.schoolYear ?? "2025-2026";
   const {
@@ -111,7 +105,7 @@ function AttendanceContent() {
     queryKey: ["studentSummaries", effectiveSectionId, currentSchoolYear],
     queryFn: () => getSectionSummariesBySection(effectiveSectionId, currentSchoolYear),
     enabled: !!effectiveSectionId,
-    staleTime: 30 * 60 * 1000, // 30 minutes - summaries are stable
+    staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     placeholderData: [],
   });
@@ -120,7 +114,6 @@ function AttendanceContent() {
   const todayDate = new Date();
   const todayDateKey = formatLocalDateKey(todayDate);
 
-  // Fetch today's attendance sessions and scope to selected section
   const { data: todaysSessions = [] } = useQuery({
     queryKey: ["teacherAttendanceToday", user?.uid, todayDateKey],
     queryFn: () => getTeacherAttendance(user?.uid || "", todayDateKey),
@@ -147,7 +140,6 @@ function AttendanceContent() {
     { present: 0, late: 0, absent: 0, excused: 0 }
   );
 
-  // Calculate analytics
   const analytics = calculateClassAnalytics(summaries);
 
   useEffect(() => {
@@ -160,7 +152,6 @@ function AttendanceContent() {
 
   const normalizedSearchQuery = debouncedSearchQuery.trim().toLowerCase();
 
-  // Filter and sort students alphabetically by last name
   const filteredStudents = students
     .filter(
       (student) =>
@@ -171,25 +162,14 @@ function AttendanceContent() {
     )
     .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
-  // Pagination
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
   const startIndex = (currentPage - 1) * studentsPerPage;
   const endIndex = startIndex + studentsPerPage;
   const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
 
-  // Get summary for a student
   const getStudentSummary = (lrn: string): StudentSummary | undefined => {
     return summaries.find((s) => s.lrn === lrn);
   };
-
-  // Calculate header stats
-  const headerStats = [
-    { label: "TOTAL STUDENTS", value: analytics.totalStudents.toString() },
-    {
-      label: "AVG ATTENDANCE",
-      value: `${analytics.averageAttendanceRate}%`,
-    },
-  ];
 
   if (sectionsLoading) {
     return (
@@ -209,24 +189,56 @@ function AttendanceContent() {
     <AuthGuard>
       <RoleGuard requiredRole="teacher">
         <>
-          {/* Header */}
-          <TeacherHeader
-            title="Attendance Analytics"
-            stats={headerStats}
-            searchPlaceholder="Search students..."
-            onSearch={(query) => {
-              setSearchInput(query);
-              setCurrentPage(1);
+          {/* Hero Section */}
+          <div
+            className="relative overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, #F7FBFF 0%, #EEF5FF 58%, #E8F0FB 100%)",
+              borderBottom: "1px solid #D7E2EF",
             }}
-            sectionFilter={{
-              sections,
-              selectedSectionId: effectiveSectionId,
-              onSectionChange: handleSectionChange,
-            }}
-          />
+          >
+            <div className="p-4 lg:p-8">
+              <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.24em]" style={{ color: "#56738F" }}>
+                    Attendance Analytics
+                  </p>
+                  <h1 className="mt-3 text-2xl font-bold leading-tight lg:text-3xl" style={{ color: "#102A43" }}>
+                    Track and analyze student attendance
+                  </h1>
+                  <p className="mt-3 max-w-3xl text-sm lg:text-[15px]" style={{ color: "#486581" }}>
+                    View attendance rates, monthly trends, and individual student summaries for each section.
+                  </p>
+                </div>
+
+                {/* Section Filter */}
+                <div className="sm:min-w-[280px]">
+                  <select
+                    value={effectiveSectionId}
+                    onChange={(e) => handleSectionChange(e.target.value)}
+                    className="w-full border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all cursor-pointer"
+                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
+                  >
+                    {sections.length === 0 && <option value="">No sections available</option>}
+                    {sections.map((section) => (
+                      <option key={section.id} value={section.id}>
+                        Grade {section.gradeLevel} - {section.sectionName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Content Canvas */}
-          <div className="p-4 lg:p-6 space-y-5 lg:space-y-6">
+          <motion.div
+            className="p-4 lg:p-8 space-y-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            {/* Info Banner */}
             <div
               className="rounded-xl border px-4 py-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
               style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}
@@ -322,31 +334,33 @@ function AttendanceContent() {
                       <div className="flex items-center gap-1 p-1 rounded-lg border" style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0" }}>
                         <button
                           onClick={() => { setViewMode("table"); setCurrentPage(1); }}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5"
                           style={{
                             backgroundColor: viewMode === "table" ? "#FFFFFF" : "transparent",
                             color: viewMode === "table" ? "#0F172A" : "#64748B",
                             boxShadow: viewMode === "table" ? "0 1px 2px rgba(15,23,42,0.08)" : "none",
                           }}
                         >
+                          <List size={14} />
                           Table
                         </button>
                         <button
                           onClick={() => { setViewMode("cards"); setCurrentPage(1); }}
-                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                          className="px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5"
                           style={{
                             backgroundColor: viewMode === "cards" ? "#FFFFFF" : "transparent",
                             color: viewMode === "cards" ? "#0F172A" : "#64748B",
                             boxShadow: viewMode === "cards" ? "0 1px 2px rgba(15,23,42,0.08)" : "none",
                           }}
                         >
+                          <Grid3X3 size={14} />
                           Cards
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Pagination Controls - Top (matching students page style) */}
+                  {/* Pagination Controls - Top */}
                   {totalPages > 1 && (
                     <motion.div
                       className="mb-4 flex items-center justify-between"
@@ -415,13 +429,11 @@ function AttendanceContent() {
                       </p>
                     </div>
                   ) : viewMode === "table" ? (
-                    /* Table View */
                     <div
                       className="rounded-xl border overflow-hidden"
                       style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
                     >
-                      {/* Table Header */}
-                      <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b font-medium text-xs uppercase tracking-wider" style={{ 
+                      <div className="grid grid-cols-12 gap-4 px-4 py-3 border-b font-medium text-xs uppercase tracking-wider" style={{
                         backgroundColor: "#F8FAFC",
                         borderColor: "#E2E8F0",
                         color: "#64748B"
@@ -433,8 +445,7 @@ function AttendanceContent() {
                         <div className="col-span-2 text-center">Absent</div>
                         <div className="col-span-1 text-center">Excused</div>
                       </div>
-                      
-                      {/* Table Body */}
+
                       <div>
                         {paginatedStudents.map((student, index) => {
                           const summary = getStudentSummary(student.lrn);
@@ -479,7 +490,6 @@ function AttendanceContent() {
                       </div>
                     </div>
                   ) : (
-                    /* Cards View */
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {paginatedStudents.map((student, index) => {
                         const summary = getStudentSummary(student.lrn);
@@ -523,7 +533,7 @@ function AttendanceContent() {
                 </div>
               </>
             )}
-          </div>
+          </motion.div>
         </>
       </RoleGuard>
     </AuthGuard>

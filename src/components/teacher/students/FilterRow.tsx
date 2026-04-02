@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Timestamp } from "firebase/firestore";
+import { X } from "lucide-react";
 
 export interface StudentRow {
   lrn: string;
@@ -49,7 +50,6 @@ export default function FilterRow({
   onFilterSex,
   onFilterModality,
 }: FilterRowProps) {
-  // Get unique values for filters from all students
   const sections = useMemo(() => {
     const unique = Array.from(new Set(students.map((s) => s.sectionName)));
     return unique.sort();
@@ -72,16 +72,16 @@ export default function FilterRow({
     <div className="flex flex-wrap items-center gap-3">
       {/* Section Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
-          SECTION:
+        <span className="text-xs font-semibold" style={{ color: "#64748B" }}>
+          Section
         </span>
         <select
           value={filterSection}
           onChange={(e) => onFilterSection(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all cursor-pointer"
-          style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#374151" }}
+          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all cursor-pointer"
+          style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#0F172A" }}
         >
-          <option value="">All</option>
+          <option value="">All Sections</option>
           {sections.map((section) => (
             <option key={section} value={section}>
               {section}
@@ -92,14 +92,14 @@ export default function FilterRow({
 
       {/* Sex Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
-          SEX:
+        <span className="text-xs font-semibold" style={{ color: "#64748B" }}>
+          Sex
         </span>
         <select
           value={filterSex}
           onChange={(e) => onFilterSex(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all cursor-pointer"
-          style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#374151" }}
+          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all cursor-pointer"
+          style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#0F172A" }}
         >
           <option value="">All</option>
           <option value="male">Male</option>
@@ -109,14 +109,14 @@ export default function FilterRow({
 
       {/* Modality Filter */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "#9CA3AF" }}>
-          MODALITY:
+        <span className="text-xs font-semibold" style={{ color: "#64748B" }}>
+          Modality
         </span>
         <select
           value={filterModality}
           onChange={(e) => onFilterModality(e.target.value)}
-          className="border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] outline-none transition-all cursor-pointer"
-          style={{ backgroundColor: "#F9FAFB", borderColor: "#E5E7EB", color: "#374151" }}
+          className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all cursor-pointer"
+          style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#0F172A" }}
         >
           <option value="">All</option>
           {modalities.map((modality) => (
@@ -131,10 +131,10 @@ export default function FilterRow({
       {hasActiveFilters && (
         <button
           onClick={handleClearAll}
-          className="text-xs font-medium px-3 py-2 rounded-md transition-colors flex items-center gap-1.5"
-          style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}
+          className="text-xs font-medium px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 hover:bg-slate-100"
+          style={{ backgroundColor: "#F1F5F9", color: "#64748B" }}
         >
-          <span className="material-symbols-outlined text-sm">close</span>
+          <X size={14} />
           Clear filters
         </button>
       )}

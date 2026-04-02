@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import AuthGuard from "@/components/AuthGuard";
-import TeacherHeader from "@/components/TeacherHeader";
+import { RoleGuard } from "@/hooks/useRequireRole";
 import { useState, useMemo } from "react";
 import {
   getTeacherSections,
@@ -18,16 +18,13 @@ import {
   getUserProfilesBatch,
   UserData,
 } from "@/lib/firestore";
-import { useRouter } from "next/navigation";
 import { AddStudentModal, ImportModal, StudentData, SectionDetailModal } from "@/components/teacher/sections";
 import { PopupAlert } from "@/components/ui";
-import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
-import { Plus } from "lucide-react";
+import { Plus, Users, Building2, Search } from "lucide-react";
 import StudentProfileDrawer, { StudentProfile } from "@/components/teacher/students/StudentProfileDrawer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-// Extended section with student count
 interface SectionWithCount extends Section {
   studentCount: number;
 }
@@ -47,16 +44,14 @@ function SectionsContent() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // TanStack Query for sections (rarely changes - 30 min cache)
   const { data: sectionsData = [], isLoading, error } = useQuery({
     queryKey: ["sections", user?.uid],
     queryFn: () => getTeacherSections(user?.uid || ""),
     enabled: !!user?.uid,
-    staleTime: 30 * 60 * 1000, // 30 minutes - sections rarely change
-    gcTime: 60 * 60 * 1000, // 1 hour
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
   });
 
-  // Transform sections data
   const sections: SectionWithCount[] = sectionsData.map((section) => ({
     ...section,
     studentCount: section.studentCount || 0,
@@ -101,7 +96,6 @@ function SectionsContent() {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertType, setAlertType] = useState<"error" | "success" | "info">("info");
 
-  // Section detail modal state - using TanStack Query
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [addStudentSectionId, setAddStudentSectionId] = useState<string | null>(null);
@@ -110,16 +104,16 @@ function SectionsContent() {
     queryKey: ["section", selectedSectionId],
     queryFn: () => getSectionById(selectedSectionId!),
     enabled: !!selectedSectionId,
-    staleTime: 15 * 60 * 1000, // 15 minutes - section info stable
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
   const { data: sectionStudents = [] } = useQuery({
     queryKey: ["sectionStudents", selectedSectionId],
     queryFn: () => getSectionStudents(selectedSectionId!),
     enabled: !!selectedSectionId,
-    staleTime: 10 * 60 * 1000, // 10 minutes - student list changes occasionally
-    gcTime: 20 * 60 * 1000, // 20 minutes
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
   });
 
   const { data: addStudentSection } = useQuery({
@@ -138,7 +132,6 @@ function SectionsContent() {
     gcTime: 20 * 60 * 1000,
   });
 
-  // Sort students alphabetically by last name, then first name
   const sortedSectionStudents = useMemo(() => {
     return [...sectionStudents].sort((a, b) => {
       const lastCompare = a.lastName.localeCompare(b.lastName);
@@ -147,15 +140,12 @@ function SectionsContent() {
     });
   }, [sectionStudents]);
 
-  // Student profile drawer state
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
 
-  // Calculate derived statistics
   const totalStudents = sections.reduce((sum, section) => sum + section.studentCount, 0);
   const activeSections = sections.filter((s) => s.status === "active").length;
 
-  // Filter sections based on search query
   const filteredSections = sections.filter(
     (section) =>
       section.sectionName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -174,7 +164,6 @@ function SectionsContent() {
     return map;
   }, [appointments]);
 
-  // Handle opening the import modal
   const handleOpenModal = () => {
     setShowImportModal(true);
   };
@@ -183,22 +172,20 @@ function SectionsContent() {
     return sectionName.charAt(0).toUpperCase();
   };
 
-  // Generate consistent color based on section name hash
   const getSectionColor = (sectionName: string): { bg: string; text: string; border: string; bgLight: string } => {
     const colors = [
-      { bg: "#e6deff", text: "#493598", border: "#6C5CE7", bgLight: "rgba(108, 92, 231, 0.05)" },   // Purple
-      { bg: "#d4f0e8", text: "#00695c", border: "#00897b", bgLight: "rgba(0, 137, 123, 0.05)" },     // Teal
-      { bg: "#ffe5d0", text: "#c45c00", border: "#f57c00", bgLight: "rgba(245, 124, 0, 0.05)" },     // Amber
-      { bg: "#fce4ec", text: "#ad1457", border: "#e91e63", bgLight: "rgba(233, 30, 99, 0.05)" },     // Pink
-      { bg: "#e8eaf6", text: "#3949ab", border: "#3f51b5", bgLight: "rgba(63, 81, 181, 0.05)" },     // Indigo
-      { bg: "#e0f7fa", text: "#006064", border: "#0097a7", bgLight: "rgba(0, 151, 167, 0.05)" },     // Cyan
-      { bg: "#f3e5f5", text: "#6a1b9a", border: "#8e24aa", bgLight: "rgba(142, 36, 170, 0.05)" },    // Deep Purple
-      { bg: "#e8f5e9", text: "#2e7d32", border: "#43a047", bgLight: "rgba(67, 160, 71, 0.05)" },     // Green
-      { bg: "#fff8e1", text: "#f57f17", border: "#fbc02d", bgLight: "rgba(251, 192, 45, 0.05)" },    // Yellow
-      { bg: "#efebe9", text: "#5d4037", border: "#795548", bgLight: "rgba(121, 85, 72, 0.05)" },     // Brown
+      { bg: "#e6deff", text: "#493598", border: "#6C5CE7", bgLight: "rgba(108, 92, 231, 0.05)" },
+      { bg: "#d4f0e8", text: "#00695c", border: "#00897b", bgLight: "rgba(0, 137, 123, 0.05)" },
+      { bg: "#ffe5d0", text: "#c45c00", border: "#f57c00", bgLight: "rgba(245, 124, 0, 0.05)" },
+      { bg: "#fce4ec", text: "#ad1457", border: "#e91e63", bgLight: "rgba(233, 30, 99, 0.05)" },
+      { bg: "#e8eaf6", text: "#3949ab", border: "#3f51b5", bgLight: "rgba(63, 81, 181, 0.05)" },
+      { bg: "#e0f7fa", text: "#006064", border: "#0097a7", bgLight: "rgba(0, 151, 167, 0.05)" },
+      { bg: "#f3e5f5", text: "#6a1b9a", border: "#8e24aa", bgLight: "rgba(142, 36, 170, 0.05)" },
+      { bg: "#e8f5e9", text: "#2e7d32", border: "#43a047", bgLight: "rgba(67, 160, 71, 0.05)" },
+      { bg: "#fff8e1", text: "#f57f17", border: "#fbc02d", bgLight: "rgba(251, 192, 45, 0.05)" },
+      { bg: "#efebe9", text: "#5d4037", border: "#795548", bgLight: "rgba(121, 85, 72, 0.05)" },
     ];
-    
-    // Generate hash from section name for consistent color
+
     let hash = 0;
     for (let i = 0; i < sectionName.length; i++) {
       hash = sectionName.charCodeAt(i) + ((hash << 5) - hash);
@@ -207,48 +194,15 @@ function SectionsContent() {
     return colors[index];
   };
 
-  const getSectionIcon = (sectionName: string): string => {
-    const nameLower = sectionName.toLowerCase();
-    if (nameLower.includes("math")) return "functions";
-    if (nameLower.includes("history") || nameLower.includes("social"))
-      return "auto_stories";
-    if (
-      nameLower.includes("science") ||
-      nameLower.includes("bio") ||
-      nameLower.includes("chem") ||
-      nameLower.includes("phys")
-    )
-      return "biotech";
-    if (
-      nameLower.includes("english") ||
-      nameLower.includes("language") ||
-      nameLower.includes("literature")
-    )
-      return "menu_book";
-    if (nameLower.includes("art")) return "palette";
-    if (nameLower.includes("music")) return "music_note";
-    if (
-      nameLower.includes("pe") ||
-      nameLower.includes("physical") ||
-      nameLower.includes("sport")
-    )
-      return "sports";
-    return "school";
-  };
-
-  // Navigate to section details (open modal)
   const handleManageSection = (sectionId: string) => {
     setSelectedSectionId(sectionId);
   };
 
-  // Handle editing section
   const handleEditSection = async (updates: Partial<Section>) => {
     if (!selectedSectionId) return;
 
     try {
       await updateSection(selectedSectionId, updates);
-
-      // Invalidate queries to refetch fresh data
       queryClient.invalidateQueries({ queryKey: ["section", selectedSectionId] });
       queryClient.invalidateQueries({ queryKey: ["sections", user?.uid] });
     } catch (error) {
@@ -259,13 +213,11 @@ function SectionsContent() {
 
   const handleAddStudent = async (sectionId: string, student: Omit<Student, "createdAt">) => {
     await addStudentToSection(sectionId, student);
-
     queryClient.invalidateQueries({ queryKey: ["sectionStudents", sectionId] });
     queryClient.invalidateQueries({ queryKey: ["section", sectionId] });
     queryClient.invalidateQueries({ queryKey: ["sections", user?.uid] });
   };
 
-  // Handle viewing student (open profile drawer)
   const handleViewStudent = (student: Student) => {
     const section = selectedSection;
     const fullProfile: StudentProfile = {
@@ -291,10 +243,9 @@ function SectionsContent() {
     };
     setSelectedStudent(fullProfile);
     setIsDrawerOpen(true);
-    handleCloseSectionModal(); // Close the section modal
+    handleCloseSectionModal();
   };
 
-  // Close section detail modal
   const handleCloseSectionModal = () => {
     setSelectedSectionId(null);
   };
@@ -321,34 +272,26 @@ function SectionsContent() {
     setShowAlert(true);
   };
 
-  // Handle saving section and students
   const handleSave = (sectionName: string, gradeLevel: string, students: StudentData[]) => {
     if (!user?.uid) {
-      console.error("No user logged in");
       setAlertMessage("Please log in to create a section");
       setAlertType('error');
       setShowAlert(true);
       return;
     }
 
-    // Store the data and show confirmation dialog
     setPendingSectionData({ sectionName, gradeLevel, students });
     setShowConfirmDialog(true);
   };
 
-  // Confirm and create section
   const confirmCreateSection = async () => {
     if (!pendingSectionData || !user?.uid) return;
 
     const { sectionName, gradeLevel, students } = pendingSectionData;
 
     try {
-      // Create the section first
-      console.log("Creating section:", { sectionName, gradeLevel, teacherId: user.uid });
       const sectionId = await createSection(user.uid, sectionName, gradeLevel, "2025-2026");
-      console.log("Section created with ID:", sectionId);
 
-      // Transform StudentData to Student format for batch import
       const studentData: Array<Omit<Student, "createdAt">> = students.map((s) => ({
         lrn: s.lrn,
         lastName: s.lastName,
@@ -371,21 +314,14 @@ function SectionsContent() {
           : "active",
       }));
 
-      console.log("Importing students:", studentData.length);
-
-      // Import students using batch
       await importStudentsBatch(sectionId, studentData);
-      console.log("Students imported successfully");
 
-      // Close modal and reset
       setShowConfirmDialog(false);
       setPendingSectionData(null);
       setShowImportModal(false);
 
-      // Invalidate queries to refetch fresh data
       queryClient.invalidateQueries({ queryKey: ["sections", user.uid] });
 
-      // Show success message
       setAlertMessage(`Section "${sectionName}" created with ${students.length} student(s)!`);
       setAlertType("success");
       setShowAlert(true);
@@ -402,254 +338,310 @@ function SectionsContent() {
 
   return (
     <>
-      {/* Header */}
-      <TeacherHeader
-        title="Current Sections"
-        stats={[
-          { label: "TOTAL STUDENTS", value: totalStudents },
-          {
-            label: "ACTIVE SECTIONS",
-            value: activeSections,
-          },
-          {
-            label: "",
-            value: (
-              <button
-                onClick={handleOpenModal}
-                className="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors h-[50px]"
-                style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#152C49";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#1E3A5F";
-                }}
-              >
-                <Plus size={18} strokeWidth={2} />
-                <span className="text-sm">New Section</span>
-              </button>
-            ),
-          },
-        ]}
-        searchPlaceholder="Search by section name, grade, or school year..."
-        onSearch={(query) => setSearchQuery(query)}
-      />
+      {/* Hero Section */}
+      <div
+        className="relative overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, #F7FBFF 0%, #EEF5FF 58%, #E8F0FB 100%)",
+          borderBottom: "1px solid #D7E2EF",
+        }}
+      >
+        <div className="p-4 lg:p-8">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em]" style={{ color: "#56738F" }}>
+                Section Management
+              </p>
+              <h1 className="mt-3 text-2xl font-bold leading-tight lg:text-3xl" style={{ color: "#102A43" }}>
+                Organize and manage your class sections
+              </h1>
+              <p className="mt-3 max-w-3xl text-sm lg:text-[15px]" style={{ color: "#486581" }}>
+                Create sections, import students, and manage class rosters all in one place.
+              </p>
+            </div>
 
-          {/* Content Canvas */}
-          <motion.div
-            className="p-4 lg:p-8 space-y-6 lg:space-y-8"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
+              <motion.div
+                className="rounded-2xl border px-4 py-3"
+                style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.25 }}
+              >
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#829AB1" }}>
+                  Total Students
+                </p>
+                <p className="mt-2 text-2xl font-bold" style={{ color: "#102A43" }}>
+                  {isLoading ? "-" : totalStudents}
+                </p>
+              </motion.div>
+              <motion.div
+                className="rounded-2xl border px-4 py-3"
+                style={{ backgroundColor: "rgba(16,42,67,0.06)", borderColor: "#C9D9EA" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.25 }}
+              >
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#627D98" }}>
+                  Active Sections
+                </p>
+                <p className="mt-2 text-2xl font-bold" style={{ color: "#102A43" }}>
+                  {isLoading ? "-" : activeSections}
+                </p>
+              </motion.div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Canvas */}
+      <motion.div
+        className="p-4 lg:p-8 space-y-6"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25, ease: "easeOut" }}
+      >
+        {/* Search and Action Bar */}
+        <div
+          className="rounded-xl border p-4"
+          style={{ backgroundColor: "#FFFFFF", borderColor: "#E2E8F0" }}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3 flex-1 max-w-xl">
+              <div className="relative flex-1">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#9CA3AF" }} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by section name, grade, or school year..."
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg border text-sm focus:ring-2 focus:ring-[#1e3a5f] focus:border-transparent outline-none transition-all"
+                  style={{ backgroundColor: "#F8FAFC", borderColor: "#E2E8F0", color: "#1F1F1F" }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleOpenModal}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shrink-0"
+              style={{ backgroundColor: "#1E3A5F", color: "#FFFFFF" }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#152C49";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "#1E3A5F";
+              }}
+            >
+              <Plus size={16} strokeWidth={2} />
+              <span>New Section</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section Cards Grid */}
+        {error ? (
+          <div className="col-span-full flex items-center justify-center py-12">
+            <div className="text-center px-4 max-w-md">
+              <span
+                className="material-symbols-outlined text-5xl lg:text-6xl mb-4"
+                style={{ color: "#EF4444" }}
+              >
+                error
+              </span>
+              <h3 className="text-xl font-bold mb-2" style={{ color: "#1c1a22" }}>
+                Unable to Load
+              </h3>
+              <p className="text-sm mb-4" style={{ color: "#484553" }}>
+                {error instanceof Error ? error.message : "Failed to load sections. Please try again."}
+              </p>
+            </div>
+          </div>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="w-8 h-8 border-4 rounded-full animate-spin"
+                style={{ borderColor: "#6C5CE7", borderTopColor: "#e7deff" }}
+              ></div>
+              <p className="text-sm" style={{ color: "#484553" }}>
+                Loading sections...
+              </p>
+            </div>
+          </div>
+        ) : filteredSections.length === 0 ? (
+          <div
+            className="rounded-xl border p-12 flex flex-col items-center justify-center gap-4"
+            style={{ backgroundColor: "#F8FBFF", borderColor: "#D7E2EF" }}
           >
-            {/* Bento Grid of Classes */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-              {error ? (
-                // Error state
-                <div className="col-span-full flex items-center justify-center py-12">
-                  <div className="text-center px-4 max-w-md">
-                    <span
-                      className="material-symbols-outlined text-5xl lg:text-6xl mb-4"
-                      style={{ color: "#EF4444" }}
-                    >
-                      error
-                    </span>
-                    <h3 className="text-xl font-bold mb-2" style={{ color: "#1c1a22" }}>
-                      Unable to Load
-                    </h3>
-                    <p className="text-sm mb-4" style={{ color: "#484553" }}>
-                      {error instanceof Error ? error.message : "Failed to load sections. Please try again."}
-                    </p>
+            <div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "#F0EDF7" }}
+            >
+              <Building2 size={32} style={{ color: "#6C5CE7" }} />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-medium" style={{ color: "#1F1F1F" }}>
+                {searchQuery ? "No sections match your search" : "No sections yet"}
+              </p>
+              <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+                {searchQuery ? "Try adjusting your search terms" : "Click \"New Section\" to get started"}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+            {filteredSections.map((section, index) => {
+              const sectionColor = getSectionColor(section.sectionName);
+              const sectionInitial = getSectionInitial(section.sectionName);
+
+              return (
+                <motion.div
+                  key={section.id}
+                  className="group rounded-xl p-5 relative overflow-hidden flex flex-col cursor-pointer"
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    border: "1px solid #E2E8F0",
+                  }}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
+                  whileHover={{
+                    borderColor: "#D1D5DB",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                  }}
+                  onClick={() => handleManageSection(section.id)}
+                >
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-xl"
+                        style={{
+                          backgroundColor: sectionColor.bg,
+                          color: sectionColor.text
+                        }}
+                      >
+                        {sectionInitial}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4
+                            className="font-headline text-lg font-bold"
+                            style={{ color: "#1c1a22" }}
+                          >
+                            Section {section.sectionName}
+                          </h4>
+                          {section.status === "active" ? (
+                            <span
+                              className="text-[10px] font-medium py-0.5 px-2 rounded-full"
+                              style={{ backgroundColor: "#DCFCE7", color: "#166534" }}
+                            >
+                              Active
+                            </span>
+                          ) : section.status === "archived" ? (
+                            <span
+                              className="text-[10px] font-medium py-0.5 px-2 rounded-full"
+                              style={{ backgroundColor: "#F1F5F9", color: "#64748B" }}
+                            >
+                              Archived
+                            </span>
+                          ) : (
+                            <span
+                              className="text-[10px] font-medium py-0.5 px-2 rounded-full"
+                              style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}
+                            >
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className="text-xs font-medium mt-0.5"
+                          style={{ color: "#64748B" }}
+                        >
+                          Grade {section.gradeLevel} • {section.schoolYear}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ) : isLoading ? (
-                // Loading state
-                <div className="col-span-full flex items-center justify-center py-12">
-                  <div className="flex flex-col items-center gap-4">
-                    <div
-                      className="w-8 h-8 border-4 rounded-full animate-spin"
-                      style={{ borderColor: "#6C5CE7", borderTopColor: "#e7deff" }}
-                    ></div>
-                    <p className="text-sm" style={{ color: "#484553" }}>
-                      Loading sections...
-                    </p>
+
+                  {/* Stats Row */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Users size={16} style={{ color: "#64748B" }} />
+                      <div>
+                        <p className="text-lg font-bold" style={{ color: "#0F172A" }}>
+                          {section.studentCount}
+                        </p>
+                        <p className="text-xs" style={{ color: "#64748B" }}>
+                          Students
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ) : filteredSections.length === 0 ? (
-                // Empty state - show nothing, the "Add New Section" card will be visible
-                <></>
-              ) : (
-                <>
-                  {filteredSections.map((section, index) => {
-                      const sectionColor = getSectionColor(section.sectionName);
-                      const sectionInitial = getSectionInitial(section.sectionName);
+
+                  {/* Appointed Secretary */}
+                  <div className="mb-4">
+                    <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: "#64748B" }}>
+                      Secretary
+                    </p>
+                    {(() => {
+                      const sectionAppointments = activeAppointmentsBySection.get(section.id) ?? [];
+                      if (sectionAppointments.length === 0) {
+                        return (
+                          <p className="text-sm" style={{ color: "#94A3B8" }}>
+                            Not appointed
+                          </p>
+                        );
+                      }
 
                       return (
-                      <motion.div
-                        key={section.id}
-                        className="group rounded-xl p-4 relative overflow-hidden flex flex-col shadow-sm cursor-pointer"
-                        style={{
-                          backgroundColor: "#F8FBFF",
-                          border: "0.5px solid #D7E2EF"
-                        }}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
-                        whileHover={{
-                          borderColor: "#D1D5DB",
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                        }}
-                        onClick={() => handleManageSection(section.id)}
-                      >
-                    {/* Card Header */}
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-bold text-xl"
-                          style={{
-                            backgroundColor: sectionColor.bg,
-                            color: sectionColor.text
-                          }}
-                        >
-                          {sectionInitial}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4
-                              className="font-headline text-lg font-bold"
-                              style={{ color: "#1c1a22" }}
-                            >
-                              Section {section.sectionName}
-                            </h4>
-                            {section.status === "active" ? (
-                              <span
-                                className="font-label text-[10px] font-medium py-0.5 px-2 rounded-full"
-                                style={{ backgroundColor: "#D1FAE5", color: "#065F46" }}
-                              >
-                                Active
-                              </span>
-                            ) : section.status === "archived" ? (
-                              <span
-                                className="font-label text-[10px] font-medium py-0.5 px-2 rounded-full"
-                                style={{ backgroundColor: "#F3F4F6", color: "#6B7280" }}
-                              >
-                                Archived
-                              </span>
-                            ) : (
-                              <span
-                                className="font-label text-[10px] font-medium py-0.5 px-2 rounded-full"
-                                style={{ backgroundColor: "#FEE2E2", color: "#991B1B" }}
-                              >
-                                Inactive
-                              </span>
-                            )}
-                          </div>
-                          <p
-                            className="font-body text-xs font-medium"
-                            style={{ color: "#6B7280" }}
-                          >
-                            Grade {section.gradeLevel} • {section.schoolYear}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Student Count */}
-                    <div className="mb-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="material-symbols-outlined text-lg"
-                          style={{ color: "#9CA3AF" }}
-                        >
-                          people
-                        </span>
-                        <div>
-                          <p className="text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                            {section.studentCount}
-                          </p>
-                          <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
-                            Students enrolled
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Appointed Secretary */}
-                    <div className="mb-4">
-                      <div className="flex items-start gap-3">
-                        <span
-                          className="material-symbols-outlined text-lg"
-                          style={{ color: "#9CA3AF" }}
-                        >
-                          badge
-                        </span>
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "#6B7280" }}>
-                            Appointed Secretary
-                          </p>
-                          {(() => {
-                            const sectionAppointments = activeAppointmentsBySection.get(section.id) ?? [];
-                            if (sectionAppointments.length === 0) {
-                              return (
-                                <p className="text-sm font-medium" style={{ color: "#9CA3AF" }}>
-                                  No secretary appointed yet
-                                </p>
-                              );
-                            }
-
+                        <div className="space-y-0.5">
+                          {sectionAppointments.map((appointment) => {
+                            const profile = secretaryProfiles.get(appointment.secretaryUid);
                             return (
-                              <div className="space-y-1 mt-1">
-                                {sectionAppointments.map((appointment) => {
-                                  const profile = secretaryProfiles.get(appointment.secretaryUid);
-                                  return (
-                                    <p
-                                      key={appointment.id}
-                                      className="text-sm font-medium"
-                                      style={{ color: "#1F1F1F" }}
-                                    >
-                                      {profile?.displayName || `Secretary ${appointment.secretaryLrn}`}
-                                    </p>
-                                  );
-                                })}
-                              </div>
+                              <p
+                                key={appointment.id}
+                                className="text-sm font-medium"
+                                style={{ color: "#0F172A" }}
+                              >
+                                {profile?.displayName || `Secretary ${appointment.secretaryLrn}`}
+                              </p>
                             );
-                          })()}
+                          })}
                         </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
+                  </div>
 
-                    {/* Footer */}
-                    <div
-                      className="mt-auto pt-3 border-t"
-                      style={{ borderColor: "#E5E7EB" }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium" style={{ color: "#6B7280" }}>
-                          Created: {section.createdAt
-                            ? new Date(
-                                typeof section.createdAt === 'object' && 'seconds' in section.createdAt
-                                  ? (section.createdAt as { seconds: number }).seconds * 1000
-                                  : section.createdAt
-                              ).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
-                              })
-                            : 'N/A'}
-                        </span>
-                        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#1E3A5F" }}>
-                          Open
-                        </span>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-                })}
-                </>
-              )}
-            </section>
-          </motion.div>
+                  {/* Footer */}
+                  <div
+                    className="mt-auto pt-3 border-t flex items-center justify-between"
+                    style={{ borderColor: "#F1F5F9" }}
+                  >
+                    <span className="text-xs" style={{ color: "#64748B" }}>
+                      Created: {section.createdAt
+                        ? new Date(
+                            typeof section.createdAt === 'object' && 'seconds' in section.createdAt
+                              ? (section.createdAt as { seconds: number }).seconds * 1000
+                              : section.createdAt
+                          ).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })
+                        : 'N/A'}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#1E3A5F" }}>
+                      Open
+                    </span>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </section>
+        )}
+      </motion.div>
 
       {/* Import Modal */}
       <ImportModal
@@ -677,7 +669,6 @@ function SectionsContent() {
             className="rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
             style={{ backgroundColor: '#FFFFFF' }}
           >
-            {/* Header */}
             <div
               className="px-6 py-4"
               style={{ backgroundColor: '#F0EDF7' }}
@@ -687,7 +678,6 @@ function SectionsContent() {
               </h3>
             </div>
 
-            {/* Body */}
             <div className="p-6 space-y-4">
               <div>
                 <p className="text-xs font-bold mb-1" style={{ color: '#6B6B6B' }}>SECTION NAME</p>
@@ -709,7 +699,6 @@ function SectionsContent() {
               </div>
             </div>
 
-            {/* Footer */}
             <div
               className="px-6 py-4 flex items-center justify-end gap-3"
               style={{ backgroundColor: '#F0EDF7' }}

@@ -45,6 +45,79 @@ interface StudentResultsTableProps {
   rowsPerPage?: number;
 }
 
+function Pagination({
+  activePage,
+  totalPages,
+  startIndex,
+  endIndex,
+  totalStudents,
+  onPageChange,
+}: {
+  activePage: number;
+  totalPages: number;
+  startIndex: number;
+  endIndex: number;
+  totalStudents: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <motion.div
+      className="mt-4 flex items-center justify-between"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      <p className="text-sm" style={{ color: "#6B7280" }}>
+        Showing <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{startIndex + 1}</span> to{" "}
+        <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{Math.min(endIndex, totalStudents)}</span> of{" "}
+        <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{totalStudents}</span> students
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(Math.max(activePage - 1, 1))}
+          disabled={activePage === 1}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            backgroundColor: activePage === 1 ? "#E5EDF7" : "#F8FBFF",
+            color: activePage === 1 ? "#9CA3AF" : "#374151",
+            border: "1px solid #D7E2EF",
+          }}
+        >
+          Previous
+        </button>
+        <div className="flex items-center gap-1">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+            <button
+              key={page}
+              onClick={() => onPageChange(page)}
+              className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                backgroundColor: activePage === page ? "#1e3a5f" : "#F8FBFF",
+                color: activePage === page ? "#FFFFFF" : "#374151",
+                border: "1px solid #D7E2EF",
+              }}
+            >
+              {page}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => onPageChange(Math.min(activePage + 1, totalPages))}
+          disabled={activePage === totalPages}
+          className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            backgroundColor: activePage === totalPages ? "#E5EDF7" : "#F8FBFF",
+            color: activePage === totalPages ? "#9CA3AF" : "#374151",
+            border: "1px solid #D7E2EF",
+          }}
+        >
+          Next
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function StudentResultsTable({
   students,
   searchQuery,
@@ -63,11 +136,9 @@ export default function StudentResultsTable({
   const [pageByFilter, setPageByFilter] = useState<Record<string, number>>({});
   const activePage = pageByFilter[paginationKey] ?? 1;
 
-  // Filter and search students
   const filteredStudents = useMemo(() => {
     return students
       .filter((student) => {
-        // Search by name or LRN
         const searchLower = searchQuery.toLowerCase();
         const fullName = `${student.firstName} ${student.middleName} ${student.lastName}`.toLowerCase();
         const matchesSearch =
@@ -75,26 +146,19 @@ export default function StudentResultsTable({
           fullName.includes(searchLower) ||
           student.lrn.toLowerCase().includes(searchLower);
 
-        // Filter by section
         const matchesSection = filterSection === "" || student.sectionName === filterSection;
-
-        // Filter by sex
         const matchesSex = filterSex === "" || student.sex === filterSex;
-
-        // Filter by modality
         const matchesModality = filterModality === "" || student.learningModality === filterModality;
 
         return matchesSearch && matchesSection && matchesSex && matchesModality;
       })
       .sort((a, b) => {
-        // Sort alphabetically by last name, then first name
         const lastCompare = a.lastName.localeCompare(b.lastName);
         if (lastCompare !== 0) return lastCompare;
         return a.firstName.localeCompare(b.firstName);
       });
   }, [students, searchQuery, filterSection, filterSex, filterModality]);
 
-  // Calculate pagination
   const totalPages = Math.ceil(filteredStudents.length / rowsPerPage);
   const startIndex = (activePage - 1) * rowsPerPage;
   const endIndex = startIndex + rowsPerPage;
@@ -117,19 +181,19 @@ export default function StudentResultsTable({
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":
-        return { bg: "#D1FAE5", text: "#065F46" };
+        return { bg: "#DCFCE7", text: "#166534" };
       case "inactive":
         return { bg: "#FEF3C7", text: "#92400E" };
       case "graduated":
-        return { bg: "#DBEAFE", text: "#1E40AF" };
+        return { bg: "#DBEAFE", text: "#1D4ED8" };
       case "dropped":
         return { bg: "#FEE2E2", text: "#991B1B" };
       default:
-        return { bg: "#F3F4F6", text: "#6B7280" };
+        return { bg: "#F1F5F9", text: "#64748B" };
     }
   };
 
-  // Empty state - no search query
+  // Empty state
   if (!searchQuery && !filterSection && !filterSex && !filterModality) {
     return (
       <div
@@ -179,18 +243,14 @@ export default function StudentResultsTable({
     );
   }
 
-  // Results table
+  // Table View
   return (
     <div className="space-y-4">
-      {/* Result count and rows per page */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm" style={{ color: "#9CA3AF" }}>
-          Showing {filteredStudents.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} result{filteredStudents.length !== 1 ? "s" : ""}
-          {searchQuery && ` for "${searchQuery}"`}
-        </p>
-      </div>
+      <p className="text-sm" style={{ color: "#9CA3AF" }}>
+        Showing {filteredStudents.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} result{filteredStudents.length !== 1 ? "s" : ""}
+        {searchQuery && ` for "${searchQuery}"`}
+      </p>
 
-      {/* Table */}
       <div
         className="rounded-xl overflow-hidden border"
         style={{ borderColor: "#D7E2EF", backgroundColor: "#F8FBFF" }}
@@ -312,92 +372,15 @@ export default function StudentResultsTable({
         </div>
       </div>
 
-      {/* Pagination Controls */}
       {totalPages > 1 && (
-        <motion.div
-          className="mt-4 flex items-center justify-between"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-        >
-          <p className="text-sm" style={{ color: "#6B7280" }}>
-            Showing <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{startIndex + 1}</span> to{" "}
-            <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{Math.min(endIndex, filteredStudents.length)}</span> of{" "}
-            <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{filteredStudents.length}</span> students
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActivePage(Math.max(activePage - 1, 1))}
-              disabled={activePage === 1}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: activePage === 1 ? "#E5EDF7" : "#F8FBFF",
-                color: activePage === 1 ? "#9CA3AF" : "#374151",
-                border: "1px solid #D7E2EF",
-              }}
-              onMouseEnter={(e) => {
-                if (activePage !== 1) {
-                  e.currentTarget.style.backgroundColor = "#EEF4FB";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activePage !== 1) {
-                  e.currentTarget.style.backgroundColor = "#F8FBFF";
-                }
-              }}
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  onClick={() => setActivePage(page)}
-                  className="w-8 h-8 rounded-lg text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: activePage === page ? "#1e3a5f" : "#F8FBFF",
-                    color: activePage === page ? "#FFFFFF" : "#374151",
-                    border: "1px solid #D7E2EF",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activePage !== page) {
-                      e.currentTarget.style.backgroundColor = "#EEF4FB";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activePage !== page) {
-                      e.currentTarget.style.backgroundColor = "#F8FBFF";
-                    }
-                  }}
-                >
-                  {page}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setActivePage(Math.min(activePage + 1, totalPages))}
-              disabled={activePage === totalPages}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: activePage === totalPages ? "#E5EDF7" : "#F8FBFF",
-                color: activePage === totalPages ? "#9CA3AF" : "#374151",
-                border: "1px solid #D7E2EF",
-              }}
-              onMouseEnter={(e) => {
-                if (activePage !== totalPages) {
-                  e.currentTarget.style.backgroundColor = "#EEF4FB";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (activePage !== totalPages) {
-                  e.currentTarget.style.backgroundColor = "#F8FBFF";
-                }
-              }}
-            >
-              Next
-            </button>
-          </div>
-        </motion.div>
+        <Pagination
+          activePage={activePage}
+          totalPages={totalPages}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          totalStudents={filteredStudents.length}
+          onPageChange={setActivePage}
+        />
       )}
     </div>
   );
