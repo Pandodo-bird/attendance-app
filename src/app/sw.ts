@@ -12,10 +12,23 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const secretaryDocumentPaths = new Set([
+  "/dashboard/secretary",
   "/dashboard/secretary/dashboard",
   "/dashboard/secretary/attendance",
   "/dashboard/secretary/history",
 ]);
+
+function normalizePathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+
+  return pathname;
+}
+
+function isCachedSecretaryDocument(pathname: string): boolean {
+  return secretaryDocumentPaths.has(normalizePathname(pathname));
+}
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
@@ -25,7 +38,7 @@ const serwist = new Serwist({
   runtimeCaching: [
     {
       matcher: ({ request, url }) => {
-        return request.destination === "document" && secretaryDocumentPaths.has(url.pathname);
+        return request.destination === "document" && isCachedSecretaryDocument(url.pathname);
       },
       handler: new NetworkFirst({
         cacheName: "secretary-route-documents",
@@ -49,8 +62,8 @@ const serwist = new Serwist({
     entries: [
       {
         url: "/~offline",
-        matcher({ request }) {
-          return request.destination === "document";
+        matcher({ request, url }) {
+          return request.destination === "document" && !isCachedSecretaryDocument(url.pathname);
         },
       },
     ],
