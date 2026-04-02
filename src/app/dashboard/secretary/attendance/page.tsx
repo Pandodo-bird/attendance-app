@@ -515,6 +515,28 @@ export default function SecretaryAttendancePage() {
         });
 
         await deleteAttendanceDraft(user.uid, attendanceId);
+        setQueuedSubmission({
+          operationId,
+          uid: user.uid,
+          attendanceId,
+          sectionId: selectedAppointment.sectionId,
+          sectionSlug,
+          date: selectedDate,
+          schoolYear: selectedAppointment.schoolYear,
+          teacherId: selectedAppointment.teacherId,
+          secretaryUid: selectedAppointment.secretaryUid,
+          sessionKey: `${selectedAppointment.sectionId}:${selectedDate}`,
+          students: studentsData,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          retryCount: 0,
+          lastError: null,
+          lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+          status: "pending",
+          failureCode: null,
+          syncedAt: null,
+        });
+        setLocalDraft(null);
         setSessionSubmitted(true);
         setIsEditing(false);
         setSubmitError(null);
@@ -535,6 +557,8 @@ export default function SecretaryAttendancePage() {
 
       setSessionSubmitted(true);
       setIsEditing(false);
+      setQueuedSubmission(null);
+      setLocalDraft(null);
       setSubmitError(null);
       setInfoMessage("Attendance synced successfully.");
 
@@ -575,6 +599,28 @@ export default function SecretaryAttendancePage() {
         });
 
         await deleteAttendanceDraft(user.uid, attendanceId);
+        setQueuedSubmission({
+          operationId,
+          uid: user.uid,
+          attendanceId,
+          sectionId: selectedAppointment.sectionId,
+          sectionSlug,
+          date: selectedDate,
+          schoolYear: selectedAppointment.schoolYear,
+          teacherId: selectedAppointment.teacherId,
+          secretaryUid: selectedAppointment.secretaryUid,
+          sessionKey: `${selectedAppointment.sectionId}:${selectedDate}`,
+          students: studentsData,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          retryCount: 0,
+          lastError: null,
+          lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+          status: "pending",
+          failureCode: null,
+          syncedAt: null,
+        });
+        setLocalDraft(null);
         setSessionSubmitted(true);
         setIsEditing(false);
         setSubmitError(null);
@@ -601,6 +647,7 @@ export default function SecretaryAttendancePage() {
 
   const allPresent = attendanceRecords.every((r) => r.status === "present");
   const allMarked = attendanceRecords.every((r) => r.status !== null);
+  const canEditAttendance = !sessionSubmitted;
 
   const totalPages = Math.ceil(attendanceRecords.length / STUDENTS_PER_PAGE);
   const startIndex = (currentPage - 1) * STUDENTS_PER_PAGE;
@@ -849,13 +896,13 @@ export default function SecretaryAttendancePage() {
                 </div>
               )}
 
-              {(isEditing || !sessionSubmitted) && (
+              {canEditAttendance && (
                 <BulkAttendanceActions
                   onMarkAllPresent={handleMarkAllPresent}
                   onClearAll={handleClearAll}
                   allPresent={allPresent}
                   allMarked={allMarked}
-                  disabled={!isEditing && !sessionSubmitted}
+                  disabled={!canEditAttendance}
                 />
               )}
 
@@ -887,7 +934,7 @@ export default function SecretaryAttendancePage() {
                         studentName={record.studentName}
                         status={record.status}
                         index={index}
-                        isEditable={isEditing || !sessionSubmitted}
+                        isEditable={canEditAttendance}
                         onStatusChange={handleStatusChange}
                       />
                     ))}
@@ -901,7 +948,7 @@ export default function SecretaryAttendancePage() {
                       lrn={record.lrn}
                       studentName={record.studentName}
                       status={record.status}
-                      isEditable={isEditing || !sessionSubmitted}
+                      isEditable={canEditAttendance}
                       onStatusChange={handleStatusChange}
                       index={index}
                     />
@@ -964,7 +1011,7 @@ export default function SecretaryAttendancePage() {
                 </motion.div>
               )}
 
-              {(isEditing || !sessionSubmitted) && (
+              {canEditAttendance && (
                 <motion.div
                   className="mt-4 sm:mt-6"
                   initial={{ opacity: 0, y: 8 }}

@@ -28,9 +28,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const OFFLINE_AUTH_USER_KEY = "offline-auth-user";
+const OFFLINE_AUTH_PROFILE_KEY = "offline-auth-profile";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [offlineUser, setOfflineUser] = useState<User | null>(null);
+  const [offlineProfile, setOfflineProfile] = useState<UserData | null>(null);
   const queryClient = useQueryClient();
   // Track the current user ID to detect user changes
   const currentUserIdRef = useRef<string | null>(null);
@@ -43,6 +48,64 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     staleTime: 30 * 60 * 1000, // 30 minutes - user profile rarely changes
     gcTime: 60 * 60 * 1000, // 1 hour
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedUser = window.localStorage.getItem(OFFLINE_AUTH_USER_KEY);
+    const storedProfile = window.localStorage.getItem(OFFLINE_AUTH_PROFILE_KEY);
+
+    if (storedUser) {
+      setOfflineUser(JSON.parse(storedUser) as User);
+    }
+
+    if (storedProfile) {
+      setOfflineProfile(JSON.parse(storedProfile) as UserData);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (user) {
+      window.localStorage.setItem(
+        OFFLINE_AUTH_USER_KEY,
+        JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+        }),
+      );
+      setOfflineUser(user);
+      return;
+    }
+
+    if (window.navigator.onLine) {
+      window.localStorage.removeItem(OFFLINE_AUTH_USER_KEY);
+      setOfflineUser(null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (userProfile) {
+      window.localStorage.setItem(OFFLINE_AUTH_PROFILE_KEY, JSON.stringify(userProfile));
+      setOfflineProfile(userProfile);
+      return;
+    }
+
+    if (window.navigator.onLine && !user) {
+      window.localStorage.removeItem(OFFLINE_AUTH_PROFILE_KEY);
+      setOfflineProfile(null);
+    }
+  }, [user, userProfile]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -129,6 +192,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await clearQueueUiForUser(user.uid);
     }
 
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(OFFLINE_AUTH_USER_KEY);
+      window.localStorage.removeItem(OFFLINE_AUTH_PROFILE_KEY);
+    }
+    setOfflineUser(null);
+    setOfflineProfile(null);
+
     // Clear query cache for user profile
     queryClient.removeQueries({ queryKey: ["userProfile"] });
     currentUserIdRef.current = null;
@@ -142,9 +212,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const isOffline = typeof navigator !== "undefined" ? !navigator.onLine : false;
+  const effectiveUser = user ?? (isOffline ? offlineUser : null);
+  const effectiveUserProfile = userProfile ?? (isOffline ? offlineProfile : null);
+
   const value: AuthContextType = {
-    user,
-    userProfile: userProfile || null,
+    user: effectiveUser,
+    userProfile: effectiveUserProfile,
     loading,
     signUp,
     createSecretaryAccount,
