@@ -533,3 +533,50 @@ export function useOfflineQueueSummary(uid?: string): {
 
   return uid ? summary : defaultSummary;
 }
+
+export function useOfflineQueuedDates(uid?: string): {
+  dates: string[];
+  loaded: boolean;
+} {
+  const [state, setState] = useState<{ dates: string[]; loaded: boolean }>({
+    dates: [],
+    loaded: !uid,
+  });
+
+  useEffect(() => {
+    if (!uid) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadDates = async () => {
+      const items = await listQueueItems(uid);
+      const queuedDates = Array.from(
+        new Set(
+          items
+            .filter((item) => item.status === "pending" || item.status === "syncing" || item.status === "failed" || item.status === "needs_review")
+            .map((item) => item.date)
+        )
+      ).sort((a, b) => b.localeCompare(a));
+
+      if (!cancelled) {
+        setState({ dates: queuedDates, loaded: true });
+      }
+    };
+
+    void loadDates();
+    const unsubscribe = subscribeToOfflineQueueChanges((changedUid) => {
+      if (!changedUid || changedUid === uid) {
+        void loadDates();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [uid]);
+
+  return uid ? state : { dates: [], loaded: true };
+}

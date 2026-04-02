@@ -805,6 +805,7 @@ export default function SecretaryAttendancePage() {
       : "Attendance is saved in the session and can still be reviewed while the session remains open.";
 
   const completionTimestampLabel = existingSession?.status === "locked" ? "Locked on" : queuedSubmission ? "Saved locally on" : "Saved on";
+  const headerSyncLabel = sessionSyncLabel === completedLabel ? undefined : sessionSyncLabel;
 
   const presentCount = attendanceRecords.filter(r => r.status === "present").length;
   const lateCount = attendanceRecords.filter(r => r.status === "late").length;
@@ -897,7 +898,7 @@ export default function SecretaryAttendancePage() {
             onStartSession={handleStartSession}
             startDisabled={!hasLoadedStudents}
             completedLabel={completedLabel}
-            syncLabel={sessionSyncLabel}
+            syncLabel={headerSyncLabel}
             canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
             onSyncNow={() => void syncStatus.syncNow()}
             syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}

@@ -29,6 +29,13 @@ interface SyncStatusSnapshot {
   lastMessage: string | null;
 }
 
+interface SyncRunSummary {
+  synced: number;
+  skippedLocked: string[];
+  needsReview: number;
+  failed: number;
+}
+
 type SyncListener = (state: SyncStatusSnapshot) => void;
 
 function createOwnerId(): string {
@@ -61,6 +68,42 @@ function classifySyncError(error: unknown): {
   }
 
   return { failureCode: "transient", message: errorMessage };
+}
+
+function formatSyncRunMessage(summary: SyncRunSummary): string | null {
+  const parts: string[] = [];
+
+  if (summary.synced > 0) {
+    parts.push(`Synced ${summary.synced} date${summary.synced > 1 ? "s" : ""}.`);
+  }
+
+  if (summary.skippedLocked.length === 1) {
+    parts.push(`${summary.skippedLocked[0]} was not synced because the teacher already recorded attendance for that day.`);
+  } else if (summary.skippedLocked.length > 1) {
+    parts.push(`${summary.skippedLocked.length} date${summary.skippedLocked.length > 1 ? "s were" : " was"} skipped because the teacher already recorded attendance.`);
+  }
+
+  if (summary.needsReview > 0) {
+    parts.push(`${summary.needsReview} date${summary.needsReview > 1 ? "s need" : " needs"} review.`);
+  }
+
+  if (summary.failed > 0) {
+    parts.push(`${summary.failed} date${summary.failed > 1 ? "s failed" : " failed"} and will retry later.`);
+  }
+
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+function formatShortDate(value: string): string {
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 class SecretarySyncController {
@@ -178,10 +221,16 @@ class SecretarySyncController {
     }
 
     this.running = true;
-    this.setState({ isOnline: true, isSyncing: true, lastMessage: trigger === "manual" ? "Syncing now..." : this.state.lastMessage });
+    this.setState({ isOnline: true, isSyncing: true, lastMessage: trigger === "manual" ? null : this.state.lastMessage });
 
     try {
       const pendingItems = await listPendingQueueItems(this.uid);
+      const summary: SyncRunSummary = {
+        synced: 0,
+        skippedLocked: [],
+        needsReview: 0,
+        failed: 0,
+      };
 
       for (const item of pendingItems) {
         await markQueueItemSyncing(item.operationId);
@@ -193,18 +242,18 @@ class SecretarySyncController {
             await markQueueItemSynced(item.operationId);
             await deleteAttendanceDraft(item.uid, item.attendanceId);
             console.log("📦 OFFLINE QUEUE | replay success", { operationId: item.operationId });
-            this.setState({ lastMessage: result.message });
+            summary.synced += 1;
             continue;
           }
 
           if (result.outcome === "locked") {
             await markQueueItemFailed(item.operationId, "locked", result.message);
-            this.setState({ lastMessage: result.message });
+            summary.skippedLocked.push(formatShortDate(item.date));
             continue;
           }
 
           await markQueueItemFailed(item.operationId, "conflict", result.message);
-          this.setState({ lastMessage: result.message });
+          summary.needsReview += 1;
         } catch (error) {
           const classification = classifySyncError(error);
           await markQueueItemFailed(item.operationId, classification.failureCode, classification.message);
@@ -212,12 +261,25 @@ class SecretarySyncController {
             operationId: item.operationId,
             failureCode: classification.failureCode,
           });
-          this.setState({ lastMessage: classification.message });
+          if (classification.failureCode === "locked") {
+            summary.skippedLocked.push(formatShortDate(item.date));
+          } else if (classification.failureCode === "failed_auth" || classification.failureCode === "failed_permission") {
+            this.setState({ lastMessage: classification.message });
+          } else if (classification.failureCode === "validation") {
+            summary.needsReview += 1;
+          } else {
+            summary.failed += 1;
+          }
 
           if (classification.failureCode === "failed_auth" || classification.failureCode === "failed_permission") {
             break;
           }
         }
+      }
+
+      const nextMessage = formatSyncRunMessage(summary);
+      if (nextMessage) {
+        this.setState({ lastMessage: nextMessage });
       }
     } finally {
       this.running = false;
@@ -229,7 +291,7 @@ class SecretarySyncController {
 
   private async handleNetworkRefresh(trigger: "online" | "resume" | "start"): Promise<void> {
     const isOnline = await refreshNetworkStatus();
-    this.setState({ isOnline, lastMessage: trigger === "online" ? null : this.state.lastMessage });
+    this.setState({ isOnline, lastMessage: null });
     if (isOnline) {
       await this.syncNow(trigger);
     }
