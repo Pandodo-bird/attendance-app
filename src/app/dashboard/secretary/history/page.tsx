@@ -38,7 +38,7 @@ export default function HistoryPage() {
       );
       return result;
     },
-    enabled: !!user?.uid,
+    enabled: !!user?.uid && isOnline,
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       return lastPage.hasMore ? lastPage.nextOffset ?? undefined : undefined;
@@ -116,13 +116,36 @@ export default function HistoryPage() {
                 className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium"
                 style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
               >
-                Offline mode: showing cached history when it is already available on this device.
+                History is available only while online. Reconnect to view attendance history.
               </div>
             )}
           </div>
 
+          {!isOnline && (
+            <motion.div
+              className="rounded-2xl p-6 sm:p-12 text-center border"
+              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ backgroundColor: "#F1F5F9" }}
+              >
+                <Calendar className="w-8 h-8" style={{ color: "#6B7280" }} />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
+                History Unavailable Offline
+              </h3>
+              <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
+                Go online to load and view attendance history.
+              </p>
+            </motion.div>
+          )}
+
           {/* Summary Stats */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          {isOnline && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <motion.div
               className="rounded-xl p-3 sm:p-4 border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -182,10 +205,10 @@ export default function HistoryPage() {
                 {totalSessions > 0 ? Math.round(totalStudentsMarked / totalSessions) : 0}
               </p>
             </motion.div>
-          </div>
+          </div>}
 
           {/* Loading State */}
-          {isLoading && (
+          {isOnline && isLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-[#1e3a5f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -195,7 +218,7 @@ export default function HistoryPage() {
           )}
 
           {/* Empty State */}
-          {!isLoading && sessions.length === 0 && (
+          {isOnline && !isLoading && sessions.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -213,15 +236,13 @@ export default function HistoryPage() {
                 No Attendance History
               </h3>
               <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
-                {isOnline
-                  ? "You haven&apos;t submitted any attendance records yet"
-                  : "No cached attendance history is available on this device yet"}
+                You haven&apos;t submitted any attendance records yet
               </p>
             </motion.div>
           )}
 
           {/* Session Cards */}
-          {!isLoading && sessions.length > 0 && (
+          {isOnline && !isLoading && sessions.length > 0 && (
             <div className="space-y-2 sm:space-y-3">
               {sessions.map((session) => (
                 <AttendanceSessionCardWithSection

@@ -34,8 +34,8 @@ import {
 } from "@/lib/offlineQueue";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import {
+  mergeSecretaryBootstrapCache,
   readSecretaryBootstrapCache,
-  writeSecretaryBootstrapCache,
 } from "@/lib/secretaryOfflineBootstrap";
 import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
@@ -171,9 +171,9 @@ export default function SecretaryAttendancePage() {
   const [queuedSubmission, setQueuedSubmission] = useState<OfflineAttendanceQueueItem | null>(null);
   const [localSessionLoaded, setLocalSessionLoaded] = useState<boolean>(false);
   const [cachedBootstrapLoaded, setCachedBootstrapLoaded] = useState<boolean>(false);
-  const [cachedAppointment, setCachedAppointment] = useState<Appointment | null>(null);
-  const [cachedSection, setCachedSection] = useState<Section | null>(null);
-  const [cachedStudents, setCachedStudents] = useState<Student[]>([]);
+  const [cachedAppointments, setCachedAppointments] = useState<Appointment[]>([]);
+  const [cachedSectionsById, setCachedSectionsById] = useState<Record<string, Section>>({});
+  const [cachedStudentsBySectionId, setCachedStudentsBySectionId] = useState<Record<string, Student[]>>({});
 
   useEffect(() => {
     setCurrentPage(1);
@@ -189,21 +189,21 @@ export default function SecretaryAttendancePage() {
 
   useEffect(() => {
     if (!user?.uid) {
-      setCachedAppointment(null);
-      setCachedSection(null);
-      setCachedStudents([]);
+      setCachedAppointments([]);
+      setCachedSectionsById({});
+      setCachedStudentsBySectionId({});
       setCachedBootstrapLoaded(true);
       return;
     }
 
     const cachedBootstrap = readSecretaryBootstrapCache(user.uid);
-    setCachedAppointment(cachedBootstrap?.appointment ?? null);
-    setCachedSection(cachedBootstrap?.section ?? null);
-    setCachedStudents(cachedBootstrap?.students ?? []);
+    setCachedAppointments(cachedBootstrap?.appointments ?? []);
+    setCachedSectionsById(cachedBootstrap?.sectionsById ?? {});
+    setCachedStudentsBySectionId(cachedBootstrap?.studentsBySectionId ?? {});
     setCachedBootstrapLoaded(true);
   }, [user?.uid]);
 
-  const selectedAppointment = appointments.length > 0 ? appointments[0] : cachedAppointment;
+  const selectedAppointment = appointments.length > 0 ? appointments[0] : cachedAppointments[0] ?? null;
   const sectionId = selectedAppointment?.sectionId;
 
   const { data: section } = useQuery({
@@ -214,7 +214,7 @@ export default function SecretaryAttendancePage() {
     gcTime: 60 * 60 * 1000,
   });
 
-  const resolvedSection = section ?? cachedSection;
+  const resolvedSection = section ?? (sectionId ? cachedSectionsById[sectionId] ?? null : null);
 
   const sectionSlug = resolvedSection
     ? `${resolvedSection.gradeLevel}-${resolvedSection.sectionName.replace(/\s+/g, "-")}`
@@ -242,19 +242,26 @@ export default function SecretaryAttendancePage() {
     gcTime: 20 * 60 * 1000,
   });
 
+  const cachedStudents = sectionId ? cachedStudentsBySectionId[sectionId] ?? [] : [];
   const sectionStudents = sectionStudentsQuery.length > 0 ? sectionStudentsQuery : cachedStudents;
 
   useEffect(() => {
-    if (!user?.uid || !selectedAppointment || !resolvedSection || sectionStudentsQuery.length === 0) {
+    if (!user?.uid || !selectedAppointment || !resolvedSection) {
       return;
     }
 
-    writeSecretaryBootstrapCache(user.uid, {
-      appointment: selectedAppointment,
-      section: resolvedSection,
-      students: sectionStudentsQuery,
+    mergeSecretaryBootstrapCache(user.uid, {
+      appointments: appointments.length > 0 ? appointments : undefined,
+      sectionsById: {
+        [resolvedSection.id]: resolvedSection,
+      },
+      studentsBySectionId: sectionStudentsQuery.length > 0
+        ? {
+            [selectedAppointment.sectionId]: sectionStudentsQuery,
+          }
+        : undefined,
     });
-  }, [resolvedSection, sectionStudentsQuery, selectedAppointment, user?.uid]);
+  }, [appointments, resolvedSection, sectionStudentsQuery, selectedAppointment, user?.uid]);
 
   const [attendanceRecords, setAttendanceRecords] = useState<StudentAttendance[]>([]);
 
@@ -344,14 +351,6 @@ export default function SecretaryAttendancePage() {
       return;
     }
 
-    if (queuedSubmission) {
-      setHasSessionToday(true);
-      setSessionSubmitted(true);
-      setIsEditing(false);
-      setAttendanceRecords((prev) => mergeStatusesIntoRecords(prev, queuedSubmission.students));
-      return;
-    }
-
     if (isOnline) {
       if (existingSession) {
         setHasSessionToday(true);
@@ -385,12 +384,21 @@ export default function SecretaryAttendancePage() {
       setHasSessionToday(false);
       setSessionSubmitted(false);
       setIsEditing(false);
+      setQueuedSubmission(null);
       setAttendanceRecords((prev) =>
         prev.map((record) => ({
           ...record,
           status: null,
         }))
       );
+      return;
+    }
+
+    if (queuedSubmission) {
+      setHasSessionToday(true);
+      setSessionSubmitted(true);
+      setIsEditing(false);
+      setAttendanceRecords((prev) => mergeStatusesIntoRecords(prev, queuedSubmission.students));
       return;
     }
 

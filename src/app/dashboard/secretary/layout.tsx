@@ -3,10 +3,14 @@
 import SecretarySidebar from "@/components/SecretarySidebar";
 import { PopupAlert } from "@/components/ui";
 import { useAuth } from "@/contexts/AuthContext";
+import { getSecretaryAppointments, getSectionById, getSectionStudents } from "@/lib/firestore";
+import { mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { Menu, RefreshCw, Wifi, WifiOff, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
+
+const SECRETARY_BOOTSTRAP_REFRESH_MS = 60 * 1000;
 
 interface SecretaryLayoutProps {
   children: ReactNode;
@@ -36,6 +40,75 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
       mediaQuery.removeEventListener("change", handleChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid || !isOnline) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const prefetchSecretaryBootstrap = async () => {
+      try {
+        const appointments = await getSecretaryAppointments(user.uid);
+        if (cancelled || appointments.length === 0) {
+          return;
+        }
+
+        const sectionEntries = await Promise.all(
+          appointments.map(async (appointment) => {
+            const [section, students] = await Promise.all([
+              getSectionById(appointment.sectionId),
+              getSectionStudents(appointment.sectionId),
+            ]);
+
+            return {
+              appointment,
+              section,
+              students,
+            };
+          })
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        mergeSecretaryBootstrapCache(user.uid, {
+          appointments,
+          sectionsById: Object.fromEntries(
+            sectionEntries
+              .filter((entry) => entry.section)
+              .map((entry) => [entry.appointment.sectionId, entry.section!])
+          ),
+          studentsBySectionId: Object.fromEntries(
+            sectionEntries.map((entry) => [entry.appointment.sectionId, entry.students])
+          ),
+        });
+      } catch (error) {
+        console.error("Error prefetching secretary offline bootstrap:", error);
+      }
+    };
+
+    void prefetchSecretaryBootstrap();
+    const intervalId = window.setInterval(() => {
+      void prefetchSecretaryBootstrap();
+    }, SECRETARY_BOOTSTRAP_REFRESH_MS);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void prefetchSecretaryBootstrap();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isOnline, user?.uid]);
 
   const hasQueueIssues = syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0;
   const statusLabel = syncStatus.isSyncing

@@ -2,10 +2,10 @@ import type { Appointment, Section, Student } from "@/lib/firestore";
 
 const SECRETARY_BOOTSTRAP_PREFIX = "secretary-attendance-bootstrap";
 
-interface SecretaryBootstrapCache {
-  appointment: Appointment;
-  section: Section | null;
-  students: Student[];
+export interface SecretaryBootstrapCache {
+  appointments: Appointment[];
+  sectionsById: Record<string, Section>;
+  studentsBySectionId: Record<string, Student[]>;
   updatedAt: number;
 }
 
@@ -41,6 +41,31 @@ export function writeSecretaryBootstrapCache(
 
   const payload: SecretaryBootstrapCache = {
     ...data,
+    updatedAt: Date.now(),
+  };
+
+  window.localStorage.setItem(getStorageKey(uid), JSON.stringify(payload));
+}
+
+export function mergeSecretaryBootstrapCache(
+  uid: string,
+  data: Partial<Omit<SecretaryBootstrapCache, "updatedAt">>,
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const existing = readSecretaryBootstrapCache(uid);
+  const payload: SecretaryBootstrapCache = {
+    appointments: data.appointments ?? existing?.appointments ?? [],
+    sectionsById: {
+      ...(existing?.sectionsById ?? {}),
+      ...(data.sectionsById ?? {}),
+    },
+    studentsBySectionId: {
+      ...(existing?.studentsBySectionId ?? {}),
+      ...(data.studentsBySectionId ?? {}),
+    },
     updatedAt: Date.now(),
   };
 
