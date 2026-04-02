@@ -508,7 +508,7 @@ function SectionsContent() {
                       return (
                       <motion.div
                         key={section.id}
-                        className="group rounded-xl p-4 relative overflow-hidden flex flex-col shadow-sm"
+                        className="group rounded-xl p-4 relative overflow-hidden flex flex-col shadow-sm cursor-pointer"
                         style={{
                           backgroundColor: "#F8FBFF",
                           border: "0.5px solid #D7E2EF"
@@ -516,10 +516,11 @@ function SectionsContent() {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05, duration: 0.25, ease: "easeOut" }}
-                        whileHover={section.status === "active" ? {
+                        whileHover={{
                           borderColor: "#D1D5DB",
                           boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                        } : undefined}
+                        }}
+                        onClick={() => handleManageSection(section.id)}
                       >
                     {/* Card Header */}
                     <div className="flex justify-between items-start mb-4">
@@ -657,37 +658,9 @@ function SectionsContent() {
                               })
                             : 'N/A'}
                         </span>
-                        <div className="flex items-center">
-                          <button
-                            className="flex-1 py-2.5 text-sm font-medium transition-colors"
-                            style={{ color: "#374151" }}
-                            onClick={() => handleManageSection(section.id)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = "#6C5CE7";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = "#374151";
-                            }}
-                            title="Manage this section"
-                          >
-                            Manage
-                          </button>
-                          <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
-                          <button
-                            className="flex-1 py-2.5 text-sm font-medium transition-colors"
-                            style={{ color: "#374151" }}
-                            onClick={() => handleDeleteSection(section.id)}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.color = "#DC2626";
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.color = "#374151";
-                            }}
-                            title="Delete section"
-                          >
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
-                        </div>
+                        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#1E3A5F" }}>
+                          Open
+                        </span>
                       </div>
                     </div>
                   </motion.div>

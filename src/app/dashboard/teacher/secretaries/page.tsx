@@ -226,6 +226,8 @@ function SecretariesContent() {
   const [teacherSubmitError, setTeacherSubmitError] = useState<string | null>(null);
   const [teacherCurrentPage, setTeacherCurrentPage] = useState(1);
   const [activeWorkspace, setActiveWorkspace] = useState<WorkspaceView>("secretaries");
+  const [sectionHistoryStartDate, setSectionHistoryStartDate] = useState("");
+  const [sectionHistoryEndDate, setSectionHistoryEndDate] = useState("");
 
   const today = formatLocalDateInputValue(new Date());
   const recentWindowStart = new Date();
@@ -468,7 +470,16 @@ function SecretariesContent() {
     })
     .filter((group) => group.sessions.length > 0);
 
-  const filteredSharedSectionGroups = sharedSectionGroups.filter((group) => {
+  const filteredSharedSectionGroups = sharedSectionGroups.map((group) => {
+    const filteredSessions = group.sessions.filter((session) => {
+      if (sectionHistoryStartDate && session.date < sectionHistoryStartDate) return false;
+      if (sectionHistoryEndDate && session.date > sectionHistoryEndDate) return false;
+      return true;
+    });
+    return { ...group, sessions: filteredSessions };
+  }).filter((group) => {
+    if (group.sessions.length === 0) return false;
+
     if (!searchQuery.trim()) return true;
 
     const normalizedSearch = searchQuery.toLowerCase();
@@ -1359,6 +1370,47 @@ function SecretariesContent() {
                   </div>
                 </div>
               </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#56738F" }}>
+                    From
+                  </label>
+                  <input
+                    type="date"
+                    value={sectionHistoryStartDate}
+                    onChange={(e) => setSectionHistoryStartDate(e.target.value)}
+                    className="rounded-lg border px-3 py-2 text-sm outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: "#56738F" }}>
+                    To
+                  </label>
+                  <input
+                    type="date"
+                    value={sectionHistoryEndDate}
+                    onChange={(e) => setSectionHistoryEndDate(e.target.value)}
+                    className="rounded-lg border px-3 py-2 text-sm outline-none"
+                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#102A43" }}
+                  />
+                </div>
+                {(sectionHistoryStartDate || sectionHistoryEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSectionHistoryStartDate("");
+                      setSectionHistoryEndDate("");
+                    }}
+                    className="rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
+                    style={{ backgroundColor: "rgba(255,255,255,0.72)", borderColor: "#D7E2EF", color: "#6B7280" }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
               {saveError && (
                 <p className="mt-3 text-sm" style={{ color: "#B91C1C" }}>
                   {saveError}

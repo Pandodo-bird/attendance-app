@@ -232,59 +232,38 @@ export default function SecretaryCard({
         ) : status === "active" ? (
           <>
             {onTakeAttendance && (
-              <>
-                <button
-                  className="flex-1 py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ color: todaySessionStatus === "locked" ? "#065F46" : "#374151" }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onTakeAttendance();
-                  }}
-                  disabled={todaySessionStatus === "locked"}
-                  onMouseEnter={(e) => {
-                    if (todaySessionStatus !== "locked") {
-                      e.currentTarget.style.color = "#6C5CE7";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (todaySessionStatus !== "locked") {
-                      e.currentTarget.style.color = "#374151";
-                    }
-                  }}
-                  title={todaySessionStatus === "locked" ? "Session already submitted for today" : "Open teacher attendance for today"}
-                >
-                  {todaySessionStatus === "open"
-                    ? "Continue Session"
-                    : todaySessionStatus === "locked"
-                    ? "Session Submitted"
-                    : "Take Attendance"}
-                </button>
-                <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
-              </>
+              <button
+                className="w-full py-2.5 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ color: todaySessionStatus === "locked" ? "#065F46" : "#374151" }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onTakeAttendance();
+                }}
+                disabled={todaySessionStatus === "locked"}
+                onMouseEnter={(e) => {
+                  if (todaySessionStatus !== "locked") {
+                    e.currentTarget.style.color = "#6C5CE7";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (todaySessionStatus !== "locked") {
+                    e.currentTarget.style.color = "#374151";
+                  }
+                }}
+                title={todaySessionStatus === "locked" ? "Session already submitted for today" : "Open teacher attendance for today"}
+              >
+                {todaySessionStatus === "open"
+                  ? "Continue Session"
+                  : todaySessionStatus === "locked"
+                  ? "Session Submitted"
+                  : "Take Attendance"}
+              </button>
             )}
             {!onTakeAttendance && (
-              <div className="flex-1 py-2.5 text-sm font-medium" style={{ color: "#1E3A5F" }}>
-                Open records from this card
+              <div className="w-full py-2.5 text-sm font-medium text-center" style={{ color: "#1E3A5F" }}>
+                View Records
               </div>
             )}
-            <div className="w-px mx-2" style={{ backgroundColor: "#E5E7EB" }} />
-            <button
-              className="flex-1 py-2.5 text-sm font-medium transition-colors"
-              style={{ color: "#374151" }}
-              onClick={(event) => {
-                event.stopPropagation();
-                onRemove?.();
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#DC2626";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = "#374151";
-              }}
-              title="Remove secretary from this section"
-            >
-              <span className="material-symbols-outlined text-sm">delete</span>
-            </button>
           </>
         ) : (
           <>
