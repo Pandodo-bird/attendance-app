@@ -124,7 +124,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
         >
           <button
             type="button"
-            className="fixed top-4 right-4 z-[60] p-2.5 rounded-lg shadow-md"
+            className="fixed right-4 top-4 z-[60] rounded-lg p-2.5 shadow-md lg:top-5"
             style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
             onClick={() => setIsSidebarOpen((prev) => !prev)}
             aria-label={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}
@@ -132,7 +132,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div className="flex min-h-0 flex-1 flex-col px-3 pt-16 sm:px-4 lg:px-8 lg:pt-4">
+          <div className="flex min-h-0 flex-1 flex-col px-3 pt-4 sm:px-4 lg:px-8 lg:pt-4">
             {showOfflineBanner && (
               <div
                 className="mb-4 rounded-2xl border px-4 py-3"
