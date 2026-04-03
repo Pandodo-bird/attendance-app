@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
 import { useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CloudOff,
   CalendarDays,
@@ -33,6 +33,7 @@ import {
 import { readSecretaryBootstrapCache, mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useOfflineHistoryQueueItems, useOfflineQueueSummary, type OfflineAttendanceQueueItem } from "@/lib/offlineQueue";
+import { useSecretarySyncStatus } from "@/lib/syncManager";
 
 export default function SecretaryDashboardPage() {
   return (
@@ -47,9 +48,11 @@ export default function SecretaryDashboardPage() {
 function SecretaryDashboardContent() {
   const { user } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isOnline } = useNetworkStatus();
   const { items: offlineQueueItems } = useOfflineHistoryQueueItems(user?.uid);
   const offlineQueueSummary = useOfflineQueueSummary(user?.uid);
+  const syncStatus = useSecretarySyncStatus(user?.uid);
   const pendingSyncCount = offlineQueueSummary.pending + offlineQueueSummary.syncing + offlineQueueSummary.failed + offlineQueueSummary.needsReview;
   const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
   const cachedAppointments: Appointment[] = cachedBootstrap?.appointments ?? [];
@@ -167,6 +170,19 @@ function SecretaryDashboardContent() {
       attendanceHistorySessions: recentHistoryData?.sessions?.length ? recentHistoryData.sessions : undefined,
     });
   }, [appointments, recentHistoryData?.sessions, sectionsById, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      return;
+    }
+
+    const wasSyncing = syncStatus.isSyncing;
+    if (!wasSyncing && syncStatus.pendingCount === 0 && syncStatus.syncingCount === 0) {
+      queryClient.invalidateQueries({ queryKey: ["secretaryAttendanceToday", user?.uid, todayDateKey] });
+      queryClient.invalidateQueries({ queryKey: ["attendanceHistoryRecent", user?.uid] });
+      queryClient.invalidateQueries({ queryKey: ["appointments", user?.uid] });
+    }
+  }, [syncStatus.pendingCount, syncStatus.syncingCount, syncStatus.isSyncing, queryClient, user?.uid, todayDateKey]);
 
   const resolvedSectionsById = Object.keys(sectionsById).length > 0 ? sectionsById : cachedSectionsById;
 
@@ -385,7 +401,7 @@ function SecretaryDashboardContent() {
               </p>
             </div>
             <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {isLoading ? "—" : pendingSyncCount}
+              {isLoading ? "—" : (pendingSyncCount > 0 ? pendingSyncCount : "✓")}
             </p>
           </motion.div>
         </div>

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { useNetworkStatus } from "@/lib/networkStatus";
 
 interface SecretarySidebarProps {
   onClose?: () => void;
@@ -21,6 +22,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const { isOnline } = useNetworkStatus();
   const [indicatorTop, setIndicatorTop] = useState(0);
   const [indicatorOpacity, setIndicatorOpacity] = useState(0);
   const navContainerRef = useRef<HTMLDivElement>(null);
@@ -240,7 +242,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
       {/* Mobile Bottom Navigation */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 lg:hidden border-t"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{ backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB", borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}
       >
         <div className="flex items-center justify-around h-16">
           {mainNavItems.map((item) => {
