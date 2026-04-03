@@ -8,8 +8,16 @@ const UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 export default function PwaUpdatePrompt() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const refreshingRef = useRef(false);
+  const applyTimeoutRef = useRef<number | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isApplyingUpdate, setIsApplyingUpdate] = useState(false);
+
+  const clearApplyTimeout = (): void => {
+    if (applyTimeoutRef.current !== null) {
+      window.clearTimeout(applyTimeoutRef.current);
+      applyTimeoutRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "production" || !("serviceWorker" in navigator)) {
@@ -17,6 +25,13 @@ export default function PwaUpdatePrompt() {
     }
 
     let mounted = true;
+
+    const handleWorkerStateChange = (worker: ServiceWorker): void => {
+      if (worker.state === "activating" || worker.state === "activated") {
+        clearApplyTimeout();
+        setShowPrompt(false);
+      }
+    };
 
     const showWaitingWorker = (registration: ServiceWorkerRegistration): void => {
       if (!mounted || !registration.waiting) {
@@ -26,6 +41,9 @@ export default function PwaUpdatePrompt() {
       registrationRef.current = registration;
       setIsApplyingUpdate(false);
       setShowPrompt(true);
+      registration.waiting.addEventListener("statechange", () => {
+        handleWorkerStateChange(registration.waiting as ServiceWorker);
+      });
     };
 
     const attachUpdateListener = (registration: ServiceWorkerRegistration): void => {
@@ -93,6 +111,8 @@ export default function PwaUpdatePrompt() {
         return;
       }
 
+      clearApplyTimeout();
+      setShowPrompt(false);
       refreshingRef.current = true;
       window.location.reload();
     };
@@ -119,6 +139,7 @@ export default function PwaUpdatePrompt() {
 
     return () => {
       mounted = false;
+      clearApplyTimeout();
       window.clearInterval(intervalId);
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -142,7 +163,19 @@ export default function PwaUpdatePrompt() {
     }
 
     setIsApplyingUpdate(true);
+    setShowPrompt(false);
+    waitingWorker.addEventListener("statechange", () => {
+      if (waitingWorker.state === "activating" || waitingWorker.state === "activated") {
+        clearApplyTimeout();
+        setShowPrompt(false);
+      }
+    });
     waitingWorker.postMessage({ type: "SKIP_WAITING" });
+    applyTimeoutRef.current = window.setTimeout(() => {
+      if (!refreshingRef.current) {
+        window.location.reload();
+      }
+    }, 2500);
   };
 
   if (!showPrompt) {

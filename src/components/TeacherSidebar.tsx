@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import { APP_VERSION } from "@/lib/appVersion";
 
 interface TeacherSidebarProps {
   onClose?: () => void;
@@ -181,9 +182,17 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
               <BookOpen className="w-5 h-5 text-white" />
             </div>
             <div className="overflow-hidden">
-              <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#FFFFFF" }}>
-                EduAttend Pro
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#FFFFFF" }}>
+                  EduAttend Pro
+                </h1>
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+                  style={{ backgroundColor: "rgba(255,255,255,0.16)", color: "#E2E8F0" }}
+                >
+                  {APP_VERSION}
+                </span>
+              </div>
               <p className="text-xs" style={{ color: "#C7D5E6" }}>Teacher Portal</p>
             </div>
           </div>
