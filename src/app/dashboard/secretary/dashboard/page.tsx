@@ -170,18 +170,27 @@ function SecretaryDashboardContent() {
 
   const resolvedSectionsById = Object.keys(sectionsById).length > 0 ? sectionsById : cachedSectionsById;
 
-  const resolvedTodaySessions = isOnline
-    ? (todaySessions.length > 0 ? todaySessions : cachedTodaySessions)
-    : (() => {
-        const seenIds = new Set<string>(cachedTodaySessions.map((s) => s.id));
-        const uniqueOffline = offlineTodaySessions.filter((s) => !seenIds.has(s.id));
-        return [...cachedTodaySessions, ...uniqueOffline];
-      })();
+  const resolvedTodaySessions = (() => {
+    const serverSessions = isOnline
+      ? (todaySessions.length > 0 ? todaySessions : cachedTodaySessions)
+      : cachedTodaySessions;
+    const seenIds = new Set<string>(serverSessions.map((s) => s.id));
+    const uniqueOffline = offlineTodaySessions.filter((s) => !seenIds.has(s.id));
+    return [...serverSessions, ...uniqueOffline];
+  })();
 
+  const syncedSectionIds = new Set(resolvedTodaySessions.filter((s) => !offlineQueueItems.some((q) => q.attendanceId === s.id)).map((s) => s.sectionId));
+  const locallySavedSectionIds = new Set(offlineQueueItems.filter((item) => item.date === todayDateKey).map((item) => item.sectionId));
+
+  function getSectionStatus(sectionId: string): "not_recorded" | "saved_locally" | "synced" {
+    if (syncedSectionIds.has(sectionId)) return "synced";
+    if (locallySavedSectionIds.has(sectionId)) return "saved_locally";
+    return "not_recorded";
+  }
+
+  const notRecordedCount = resolvedAppointments.filter((a) => getSectionStatus(a.sectionId) === "not_recorded").length;
   const assignedSectionsCount = uniqueSectionIds.length;
-  const expectedSessions = assignedSectionsCount;
   const submittedSessions = resolvedTodaySessions.length;
-  const pendingSessions = Math.max(0, expectedSessions - submittedSessions);
 
   const recentSessions = resolvedRecentSessions;
   const totalStudentsMarkedRecent = recentSessions.reduce((acc, session) => {
@@ -348,11 +357,11 @@ function SecretaryDashboardContent() {
                 <AlertCircle size={14} style={{ color: "#C45C00" }} />
               </div>
               <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                Pending
+                Not Yet Recorded
               </p>
             </div>
             <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {isLoading ? "—" : pendingSessions}
+              {isLoading ? "—" : notRecordedCount}
             </p>
           </motion.div>
 
@@ -419,9 +428,13 @@ function SecretaryDashboardContent() {
                 const sectionName = section
                   ? `${section.gradeLevel} - ${section.sectionName}`
                   : "Loading...";
-                const hasSubmittedToday = resolvedTodaySessions.some(
-                  (session) => session.sectionId === appointment.sectionId
-                );
+                const status = getSectionStatus(appointment.sectionId);
+
+                const badgeConfig = status === "synced"
+                  ? { label: "Done", bg: "#D1FAE5", text: "#065F46", cardBg: "#F0FDF4", cardBorder: "#BBF7D0" }
+                  : status === "saved_locally"
+                    ? { label: "Saved Locally", bg: "#FEF3C7", text: "#92400E", cardBg: "#FFFBEB", cardBorder: "#FDE68A" }
+                    : { label: "Not Recorded", bg: "#F3F4F6", text: "#6B7280", cardBg: "#F9FAFB", cardBorder: "#E5E7EB" };
 
                 return (
                   <motion.button
@@ -429,8 +442,8 @@ function SecretaryDashboardContent() {
                     onClick={() => router.push("/dashboard/secretary/attendance")}
                     className="w-full rounded-xl px-3 py-3 border flex items-center justify-between gap-3 text-left"
                     style={{
-                      backgroundColor: hasSubmittedToday ? "#F0FDF4" : "#FFFBEB",
-                      borderColor: hasSubmittedToday ? "#BBF7D0" : "#FDE68A",
+                      backgroundColor: badgeConfig.cardBg,
+                      borderColor: badgeConfig.cardBorder,
                     }}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
@@ -440,17 +453,17 @@ function SecretaryDashboardContent() {
                         {sectionName}
                       </p>
                       <p className="text-xs" style={{ color: "#6B7280" }}>
-                        Tap to take attendance
+                        {status === "synced" ? "Attendance submitted" : status === "saved_locally" ? "Will sync when online" : "Tap to take attendance"}
                       </p>
                     </div>
                     <span
                       className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0"
                       style={{
-                        backgroundColor: hasSubmittedToday ? "#D1FAE5" : "#FEF3C7",
-                        color: hasSubmittedToday ? "#065F46" : "#92400E",
+                        backgroundColor: badgeConfig.bg,
+                        color: badgeConfig.text,
                       }}
                     >
-                      {hasSubmittedToday ? "Done" : "Pending"}
+                      {badgeConfig.label}
                     </span>
                   </motion.button>
                 );
@@ -509,7 +522,7 @@ function SecretaryDashboardContent() {
         </div>
 
         {/* Attention Needed */}
-        {!isLoading && pendingSessions > 0 && (
+        {!isLoading && notRecordedCount > 0 && (
           <motion.div
             className="rounded-xl p-4 border flex items-start gap-3"
             style={{ backgroundColor: "#FFFBEB", borderColor: "#FDE68A" }}
@@ -528,7 +541,7 @@ function SecretaryDashboardContent() {
                 Attention Needed
               </p>
               <p className="text-xs mt-0.5" style={{ color: "#A16207" }}>
-                {pendingSessions} section(s) still need attendance today
+                {notRecordedCount} section(s) still need attendance today
               </p>
             </div>
           </motion.div>
