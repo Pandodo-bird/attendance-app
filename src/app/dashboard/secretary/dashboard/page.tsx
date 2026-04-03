@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  CloudOff,
   CalendarDays,
   ClipboardCheck,
   FileText,
@@ -31,6 +32,7 @@ import {
 } from "@/lib/firestore";
 import { readSecretaryBootstrapCache, mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { useNetworkStatus } from "@/lib/networkStatus";
+import { useOfflineHistoryQueueItems, useOfflineQueueSummary, type OfflineAttendanceQueueItem } from "@/lib/offlineQueue";
 
 export default function SecretaryDashboardPage() {
   return (
@@ -46,6 +48,9 @@ function SecretaryDashboardContent() {
   const { user } = useAuth();
   const router = useRouter();
   const { isOnline } = useNetworkStatus();
+  const { items: offlineQueueItems } = useOfflineHistoryQueueItems(user?.uid);
+  const offlineQueueSummary = useOfflineQueueSummary(user?.uid);
+  const pendingSyncCount = offlineQueueSummary.pending + offlineQueueSummary.syncing + offlineQueueSummary.failed + offlineQueueSummary.needsReview;
   const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
   const cachedAppointments: Appointment[] = cachedBootstrap?.appointments ?? [];
   const cachedSectionsById: Record<string, Section> = cachedBootstrap?.sectionsById ?? {};
@@ -89,6 +94,35 @@ function SecretaryDashboardContent() {
     ? recentHistoryData.sessions
     : cachedHistorySessions.slice(0, 5);
   const cachedTodaySessions = cachedHistorySessions.filter((session) => session.date === todayDateKey);
+
+  const offlineTodaySessions: Attendance[] = useMemo(() => {
+    return offlineQueueItems
+      .filter((item) => item.date === todayDateKey)
+      .map((item: OfflineAttendanceQueueItem) => ({
+        id: item.attendanceId,
+        sectionId: item.sectionId,
+        teacherId: item.teacherId,
+        secretaryUid: item.secretaryUid,
+        date: item.date,
+        schoolYear: item.schoolYear,
+        status: "locked" as const,
+        records: Object.fromEntries(
+          item.students.map((s) => [
+            s.lrn,
+            {
+              studentName: s.studentName,
+              status: s.status,
+              timeRecorded: new Date(item.updatedAt),
+              recordedByUid: item.secretaryUid,
+            },
+          ])
+        ),
+        createdAt: new Date(item.createdAt),
+        lockedAt: new Date(item.updatedAt),
+        submittedByUid: item.secretaryUid,
+        submittedByRole: "secretary" as const,
+      }));
+  }, [offlineQueueItems, todayDateKey]);
 
   const uniqueSectionIds = useMemo(
     () => Array.from(new Set(resolvedAppointments.map((appointment) => appointment.sectionId))),
@@ -136,14 +170,18 @@ function SecretaryDashboardContent() {
 
   const resolvedSectionsById = Object.keys(sectionsById).length > 0 ? sectionsById : cachedSectionsById;
 
-  const resolvedTodaySessions = isOnline ? todaySessions : cachedTodaySessions;
+  const resolvedTodaySessions = isOnline
+    ? (todaySessions.length > 0 ? todaySessions : cachedTodaySessions)
+    : (() => {
+        const seenIds = new Set<string>(cachedTodaySessions.map((s) => s.id));
+        const uniqueOffline = offlineTodaySessions.filter((s) => !seenIds.has(s.id));
+        return [...cachedTodaySessions, ...uniqueOffline];
+      })();
 
   const assignedSectionsCount = uniqueSectionIds.length;
   const expectedSessions = assignedSectionsCount;
   const submittedSessions = resolvedTodaySessions.length;
   const pendingSessions = Math.max(0, expectedSessions - submittedSessions);
-  const dailyCoverage =
-    expectedSessions > 0 ? Math.round((submittedSessions / expectedSessions) * 100) : 0;
 
   const recentSessions = resolvedRecentSessions;
   const totalStudentsMarkedRecent = recentSessions.reduce((acc, session) => {
@@ -320,21 +358,25 @@ function SecretaryDashboardContent() {
 
           <motion.div
             className="rounded-xl p-3 sm:p-4 border"
-            style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+            style={{ backgroundColor: "#FFFFFF", borderColor: pendingSyncCount > 0 ? "#FDE68A" : "#E5E7EB" }}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.25 }}
           >
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#DBEAFE" }}>
-                <Users size={14} style={{ color: "#1E40AF" }} />
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: pendingSyncCount > 0 ? "#FEF3C7" : "#DBEAFE" }}>
+                {pendingSyncCount > 0 ? (
+                  <CloudOff size={14} style={{ color: "#92400E" }} />
+                ) : (
+                  <Users size={14} style={{ color: "#1E40AF" }} />
+                )}
               </div>
               <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                Coverage
+                {pendingSyncCount > 0 ? "Pending Sync" : "All Synced"}
               </p>
             </div>
             <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-              {isLoading ? "—" : `${dailyCoverage}%`}
+              {isLoading ? "—" : pendingSyncCount}
             </p>
           </motion.div>
         </div>
@@ -487,6 +529,32 @@ function SecretaryDashboardContent() {
               </p>
               <p className="text-xs mt-0.5" style={{ color: "#A16207" }}>
                 {pendingSessions} section(s) still need attendance today
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Pending Sync Notice */}
+        {!isLoading && pendingSyncCount > 0 && (
+          <motion.div
+            className="rounded-xl p-4 border flex items-start gap-3"
+            style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "#92400E" }}
+            >
+              <CloudOff size={16} style={{ color: "#FFFFFF" }} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                Pending Sync
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "#A16207" }}>
+                {pendingSyncCount} attendance record(s) saved locally and waiting to sync
               </p>
             </div>
           </motion.div>
