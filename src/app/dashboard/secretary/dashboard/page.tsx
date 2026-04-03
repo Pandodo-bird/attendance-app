@@ -6,7 +6,7 @@ import SecretaryHeader from "@/components/SecretaryHeader";
 import { useRouter } from "next/navigation";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -25,7 +25,12 @@ import {
   getSecretaryAppointments,
   getSecretaryAttendanceForDate,
   getSecretaryAttendanceHistoryPaginated,
+  type Attendance,
+  type Appointment,
+  type Section,
 } from "@/lib/firestore";
+import { readSecretaryBootstrapCache, mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
+import { useNetworkStatus } from "@/lib/networkStatus";
 
 export default function SecretaryDashboardPage() {
   return (
@@ -40,6 +45,11 @@ export default function SecretaryDashboardPage() {
 function SecretaryDashboardContent() {
   const { user } = useAuth();
   const router = useRouter();
+  const { isOnline } = useNetworkStatus();
+  const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
+  const cachedAppointments: Appointment[] = cachedBootstrap?.appointments ?? [];
+  const cachedSectionsById: Record<string, Section> = cachedBootstrap?.sectionsById ?? {};
+  const cachedHistorySessions: Attendance[] = cachedBootstrap?.attendanceHistorySessions ?? [];
 
   const formatLocalDateKey = (date: Date): string => {
     const year = date.getFullYear();
@@ -53,7 +63,7 @@ function SecretaryDashboardContent() {
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ["appointments", user?.uid],
     queryFn: () => getSecretaryAppointments(user?.uid || ""),
-    enabled: !!user?.uid,
+    enabled: !!user?.uid && isOnline,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
@@ -61,7 +71,7 @@ function SecretaryDashboardContent() {
   const { data: todaySessions = [], isLoading: todaySessionsLoading } = useQuery({
     queryKey: ["secretaryAttendanceToday", user?.uid, todayDateKey],
     queryFn: () => getSecretaryAttendanceForDate(user?.uid || "", todayDateKey),
-    enabled: !!user?.uid,
+    enabled: !!user?.uid && isOnline,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
@@ -69,14 +79,20 @@ function SecretaryDashboardContent() {
   const { data: recentHistoryData, isLoading: recentHistoryLoading } = useQuery({
     queryKey: ["attendanceHistoryRecent", user?.uid],
     queryFn: () => getSecretaryAttendanceHistoryPaginated(user?.uid || "", 5, 0),
-    enabled: !!user?.uid,
+    enabled: !!user?.uid && isOnline,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
 
+  const resolvedAppointments = appointments.length > 0 ? appointments : cachedAppointments;
+  const resolvedRecentSessions = recentHistoryData?.sessions?.length
+    ? recentHistoryData.sessions
+    : cachedHistorySessions.slice(0, 5);
+  const cachedTodaySessions = cachedHistorySessions.filter((session) => session.date === todayDateKey);
+
   const uniqueSectionIds = useMemo(
-    () => Array.from(new Set(appointments.map((appointment) => appointment.sectionId))),
-    [appointments]
+    () => Array.from(new Set(resolvedAppointments.map((appointment) => appointment.sectionId))),
+    [resolvedAppointments]
   );
 
   const { data: sectionsById = {}, isLoading: sectionsLoading } = useQuery({
@@ -97,19 +113,37 @@ function SecretaryDashboardContent() {
         {}
       );
     },
-    enabled: uniqueSectionIds.length > 0,
+    enabled: uniqueSectionIds.length > 0 && isOnline,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
 
+  useEffect(() => {
+    if (!user?.uid || (!appointments.length && !recentHistoryData?.sessions?.length && Object.keys(sectionsById).length === 0)) {
+      return;
+    }
+
+    const serializableSectionsById = Object.fromEntries(
+      Object.entries(sectionsById).filter(([, section]) => section)
+    ) as Record<string, Section>;
+
+    mergeSecretaryBootstrapCache(user.uid, {
+      appointments: appointments.length > 0 ? appointments : undefined,
+      sectionsById: Object.keys(serializableSectionsById).length > 0 ? serializableSectionsById : undefined,
+      attendanceHistorySessions: recentHistoryData?.sessions?.length ? recentHistoryData.sessions : undefined,
+    });
+  }, [appointments, recentHistoryData?.sessions, sectionsById, user?.uid]);
+
+  const resolvedSectionsById = Object.keys(sectionsById).length > 0 ? sectionsById : cachedSectionsById;
+
   const assignedSectionsCount = uniqueSectionIds.length;
   const expectedSessions = assignedSectionsCount;
-  const submittedSessions = todaySessions.length;
+  const submittedSessions = todaySessions.length > 0 ? todaySessions.length : cachedTodaySessions.length;
   const pendingSessions = Math.max(0, expectedSessions - submittedSessions);
   const dailyCoverage =
     expectedSessions > 0 ? Math.round((submittedSessions / expectedSessions) * 100) : 0;
 
-  const recentSessions = recentHistoryData?.sessions ?? [];
+  const recentSessions = resolvedRecentSessions;
   const totalStudentsMarkedRecent = recentSessions.reduce((acc, session) => {
     const stats = calculateAttendanceStats(session.records);
     return acc + stats.total;
@@ -124,20 +158,22 @@ function SecretaryDashboardContent() {
     : "No submissions yet";
 
   const isLoading =
-    appointmentsLoading ||
-    todaySessionsLoading ||
-    recentHistoryLoading ||
-    sectionsLoading;
+    isOnline && (
+      appointmentsLoading ||
+      todaySessionsLoading ||
+      recentHistoryLoading ||
+      sectionsLoading
+    );
 
   return (
     <>
-      <SecretaryHeader
-        title="Dashboard"
-        stats={[
-          { label: "APPOINTMENTS", value: appointments.length },
-          { label: "SECTIONS", value: assignedSectionsCount },
-          { label: "TODAY", value: submittedSessions },
-        ]}
+        <SecretaryHeader
+          title="Dashboard"
+          stats={[
+            { label: "APPOINTMENTS", value: resolvedAppointments.length },
+            { label: "SECTIONS", value: assignedSectionsCount },
+            { label: "TODAY", value: submittedSessions },
+          ]}
       />
 
       <motion.div
@@ -317,7 +353,7 @@ function SecretaryDashboardContent() {
             <div className="flex items-center justify-center py-6">
               <div className="w-6 h-6 border-2 border-[#1e3a5f] border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : appointments.length === 0 ? (
+           ) : resolvedAppointments.length === 0 ? (
             <div className="text-center py-6">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3"
@@ -334,8 +370,8 @@ function SecretaryDashboardContent() {
             </div>
           ) : (
             <div className="space-y-2">
-              {appointments.map((appointment) => {
-                const section = sectionsById[appointment.sectionId];
+               {resolvedAppointments.map((appointment) => {
+                 const section = resolvedSectionsById[appointment.sectionId];
                 const sectionName = section
                   ? `${section.gradeLevel} - ${section.sectionName}`
                   : "Loading...";

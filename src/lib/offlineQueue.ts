@@ -7,6 +7,7 @@ const DATABASE_NAME = "attendance-offline-sync";
 const DATABASE_VERSION = 1;
 const MAX_QUEUE_STORAGE_BYTES = 50 * 1024 * 1024;
 const SYNC_LEASE_TTL_MS = 30 * 1000;
+const STALE_SYNCING_THRESHOLD_MS = SYNC_LEASE_TTL_MS * 2;
 const QUEUE_EVENT_NAME = "attendance-offline-queue-changed";
 
 export type OfflineQueueItemStatus = "pending" | "syncing" | "synced" | "failed" | "needs_review";
@@ -198,6 +199,10 @@ export function buildOfflineOperationId(uid: string, attendanceId: string): stri
   return `${uid}:${attendanceId}:submit`;
 }
 
+function isQueueItemStaleSyncing(item: OfflineAttendanceQueueItem, now: number = Date.now()): boolean {
+  return item.status === "syncing" && now - item.updatedAt >= STALE_SYNCING_THRESHOLD_MS;
+}
+
 export async function getQueueStorageUsage(uid: string): Promise<number> {
   const db = await getDb();
   const queueItems = await db.getAllFromIndex("queue", "by-uid", uid);
@@ -313,9 +318,14 @@ export async function getLatestQueueItemForSession(uid: string, attendanceId: st
 export async function listPendingQueueItems(uid: string): Promise<OfflineAttendanceQueueItem[]> {
   const db = await getDb();
   const items = await db.getAllFromIndex("queue", "by-uid", uid);
+  const now = Date.now();
 
   return items
-    .filter((item) => item.status === "pending" || (item.status === "failed" && item.failureCode === "transient"))
+    .filter((item) => (
+      item.status === "pending" ||
+      (item.status === "failed" && item.failureCode === "transient") ||
+      isQueueItemStaleSyncing(item, now)
+    ))
     .sort((a, b) => {
       if (a.sessionKey === b.sessionKey) {
         return a.createdAt - b.createdAt;
@@ -404,10 +414,11 @@ export async function getQueueSummary(uid: string): Promise<{
   needsReview: number;
 }> {
   const items = await listQueueItems(uid);
+  const now = Date.now();
 
   return items.reduce(
     (summary, item) => {
-      if (item.status === "pending") {
+      if (item.status === "pending" || isQueueItemStaleSyncing(item, now)) {
         summary.pending += 1;
       } else if (item.status === "syncing") {
         summary.syncing += 1;
@@ -442,6 +453,24 @@ export async function acquireSyncLease(uid: string, ownerId: string): Promise<bo
   return true;
 }
 
+export async function renewSyncLease(uid: string, ownerId: string): Promise<boolean> {
+  const db = await getDb();
+  const key = getSyncLeaseKey(uid);
+  const existing = await db.get("syncLeases", key);
+
+  if (!existing || existing.ownerId !== ownerId) {
+    return false;
+  }
+
+  await db.put("syncLeases", {
+    key,
+    ownerId,
+    expiresAt: Date.now() + SYNC_LEASE_TTL_MS,
+  });
+
+  return true;
+}
+
 export async function releaseSyncLease(uid: string, ownerId: string): Promise<void> {
   const db = await getDb();
   const key = getSyncLeaseKey(uid);
@@ -468,6 +497,32 @@ export async function clearQueueUiForUser(uid: string): Promise<void> {
   await transaction.objectStore("syncLeases").delete(getSyncLeaseKey(uid));
   await transaction.done;
   dispatchQueueChange(uid);
+}
+
+export async function recoverStaleSyncingQueueItems(uid: string): Promise<number> {
+  const db = await getDb();
+  const items = await db.getAllFromIndex("queue", "by-uid", uid);
+  const staleItems = items.filter((item) => isQueueItemStaleSyncing(item));
+
+  if (staleItems.length === 0) {
+    return 0;
+  }
+
+  const transaction = db.transaction("queue", "readwrite");
+  const now = Date.now();
+
+  for (const item of staleItems) {
+    await transaction.store.put({
+      ...item,
+      status: "pending",
+      updatedAt: now,
+      lastError: item.lastError ?? "Recovered after an interrupted sync attempt.",
+    });
+  }
+
+  await transaction.done;
+  dispatchQueueChange(uid);
+  return staleItems.length;
 }
 
 export function subscribeToOfflineQueueChanges(callback: (uid?: string) => void): () => void {

@@ -33,6 +33,10 @@ function isCachedSecretaryDocument(pathname: string): boolean {
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
+  precacheOptions: {
+    navigateFallback: "/~offline",
+    navigateFallbackAllowlist: [/^\/dashboard\/secretary(?:\/.*)?$/],
+  },
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,

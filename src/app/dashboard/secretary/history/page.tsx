@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, ChevronRight, FileText, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
+import { mergeSecretaryBootstrapCache, readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { PopupAlert } from "@/components/ui";
 
 interface AttendanceSessionCardProps {
@@ -20,6 +21,9 @@ export default function HistoryPage() {
   const { isOnline } = useNetworkStatus();
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
+  const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
+  const cachedSessions = cachedBootstrap?.attendanceHistorySessions ?? [];
+  const cachedSectionsById = cachedBootstrap?.sectionsById ?? {};
 
   const {
     data,
@@ -57,10 +61,11 @@ export default function HistoryPage() {
     }
   }, [data, hasNextPage]);
 
-  const sessions = data?.pages.flatMap(page => page.sessions) || [];
-  const totalSessions = sessions.length;
+  const sessions = useMemo(() => data?.pages.flatMap((page) => page.sessions) ?? [], [data]);
+  const resolvedSessions = sessions.length > 0 ? sessions : cachedSessions;
+  const totalSessions = resolvedSessions.length;
 
-  const totalStudentsMarked = sessions.reduce((acc, session) => {
+  const totalStudentsMarked = resolvedSessions.reduce((acc, session) => {
     return acc + (session.records ? Object.keys(session.records).length : 0);
   }, 0);
 
@@ -73,6 +78,16 @@ export default function HistoryPage() {
       console.error("FETCH ERROR:", fetchError);
     }
   }, [fetchError]);
+
+  useEffect(() => {
+    if (!user?.uid || sessions.length === 0) {
+      return;
+    }
+
+    mergeSecretaryBootstrapCache(user.uid, {
+      attendanceHistorySessions: sessions,
+    });
+  }, [sessions, user?.uid]);
 
   const handleLoadMore = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -111,7 +126,7 @@ export default function HistoryPage() {
               </div>
             </div>
 
-            {!isOnline && (
+            {!isOnline && resolvedSessions.length === 0 && (
               <div
                 className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium"
                 style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
@@ -121,7 +136,7 @@ export default function HistoryPage() {
             )}
           </div>
 
-          {!isOnline && (
+          {!isOnline && resolvedSessions.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -145,7 +160,7 @@ export default function HistoryPage() {
           )}
 
           {/* Summary Stats */}
-          {isOnline && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          {(isOnline || resolvedSessions.length > 0) && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <motion.div
               className="rounded-xl p-3 sm:p-4 border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -218,7 +233,7 @@ export default function HistoryPage() {
           )}
 
           {/* Empty State */}
-          {isOnline && !isLoading && sessions.length === 0 && (
+          {(isOnline || resolvedSessions.length > 0) && !isLoading && resolvedSessions.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -242,18 +257,28 @@ export default function HistoryPage() {
           )}
 
           {/* Session Cards */}
-          {isOnline && !isLoading && sessions.length > 0 && (
+          {!isLoading && resolvedSessions.length > 0 && (
             <div className="space-y-2 sm:space-y-3">
-              {sessions.map((session) => (
+              {!isOnline && (
+                <div
+                  className="rounded-xl border px-3 py-2 text-xs font-medium"
+                  style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", color: "#1D4ED8" }}
+                >
+                  Showing cached history from this device. New history will load after reconnecting.
+                </div>
+              )}
+
+              {resolvedSessions.map((session) => (
                 <AttendanceSessionCardWithSection
                   key={session.id}
                   session={session}
+                  fallbackSection={cachedSectionsById[session.sectionId]}
                   onClick={() => setSelectedSession(session)}
                 />
               ))}
 
               {/* Load More Button */}
-              {hasNextPage && (
+              {isOnline && hasNextPage && (
                 <div className="py-6 text-center">
                   <button
                     onClick={handleLoadMore}
@@ -277,10 +302,10 @@ export default function HistoryPage() {
               )}
 
               {/* End of List Message */}
-              {!hasNextPage && sessions.length > 0 && (
+              {(!isOnline || !hasNextPage) && resolvedSessions.length > 0 && (
                 <div className="py-6 text-center">
                   <p className="text-sm" style={{ color: "#9CA3AF" }}>
-                    You&apos;ve reached the end of your history
+                    {isOnline ? "You&apos;ve reached the end of your history" : "Cached history ends here"}
                   </p>
                 </div>
               )}
@@ -304,9 +329,11 @@ export default function HistoryPage() {
 
 function AttendanceSessionCardWithSection({
   session,
+  fallbackSection,
   onClick,
 }: {
   session: Attendance;
+  fallbackSection?: Section | null;
   onClick: () => void;
 }) {
   const { data: section } = useQuery({
@@ -317,7 +344,7 @@ function AttendanceSessionCardWithSection({
     enabled: !!session.sectionId,
   });
 
-  return <AttendanceSessionCard session={session} section={section} onClick={onClick} />;
+  return <AttendanceSessionCard session={session} section={section ?? fallbackSection} onClick={onClick} />;
 }
 
 function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionCardProps) {

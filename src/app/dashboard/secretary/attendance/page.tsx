@@ -54,6 +54,7 @@ interface StudentAttendance {
 }
 
 const STUDENTS_PER_PAGE = 10;
+const DRAFT_SAVE_DEBOUNCE_MS = 300;
 const getDisplayEndIndex = (end: number, total: number): number => Math.min(end, total);
 
 function formatLocalDateInputValue(date: Date): string {
@@ -255,6 +256,7 @@ export default function SecretaryAttendancePage() {
       sectionsById: {
         [resolvedSection.id]: resolvedSection,
       },
+      attendanceHistorySessions: undefined,
       studentsBySectionId: sectionStudentsQuery.length > 0
         ? {
             [selectedAppointment.sectionId]: sectionStudentsQuery,
@@ -318,7 +320,7 @@ export default function SecretaryAttendancePage() {
       cancelled = true;
       unsubscribe();
     };
-  }, [attendanceId, user?.uid]);
+  }, [attendanceId, queryClient, user?.uid]);
 
   useEffect(() => {
     if (user?.uid && selectedAppointment?.schoolYear) {
@@ -446,7 +448,7 @@ export default function SecretaryAttendancePage() {
         }))
       );
     }
-  }, [existingSession, localDraft, localSessionLoaded, queuedSubmission]);
+  }, [existingSession, isOnline, localDraft, localSessionLoaded, queuedSubmission]);
 
   useEffect(() => {
     if (
@@ -468,19 +470,25 @@ export default function SecretaryAttendancePage() {
       status: record.status,
     }));
 
-    void saveAttendanceDraft({
-      uid: user.uid,
-      attendanceId,
-      sectionId: selectedAppointment.sectionId,
-      sectionSlug,
-      date: selectedDate,
-      schoolYear: selectedAppointment.schoolYear,
-      teacherId: selectedAppointment.teacherId,
-      secretaryUid: selectedAppointment.secretaryUid,
-      students: draftStudents,
-      hasSessionStarted: true,
-      lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
-    });
+    const timeoutId = window.setTimeout(() => {
+      void saveAttendanceDraft({
+        uid: user.uid,
+        attendanceId,
+        sectionId: selectedAppointment.sectionId,
+        sectionSlug,
+        date: selectedDate,
+        schoolYear: selectedAppointment.schoolYear,
+        teacherId: selectedAppointment.teacherId,
+        secretaryUid: selectedAppointment.secretaryUid,
+        students: draftStudents,
+        hasSessionStarted: true,
+        lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+      });
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [
     attendanceId,
     attendanceRecords,
