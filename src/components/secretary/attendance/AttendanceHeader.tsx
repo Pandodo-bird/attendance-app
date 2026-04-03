@@ -12,6 +12,7 @@ interface AttendanceHeaderProps {
   startDisabled?: boolean;
   completedLabel?: string;
   syncLabel?: string;
+  syncLabelColor?: { bg: string; text: string };
   canSync?: boolean;
   onSyncNow?: () => void;
   syncDisabled?: boolean;
@@ -36,6 +37,7 @@ export default function AttendanceHeader({
   startDisabled = false,
   completedLabel = "Saved",
   syncLabel,
+  syncLabelColor,
   canSync = false,
   onSyncNow,
   syncDisabled = false,
@@ -97,9 +99,12 @@ export default function AttendanceHeader({
           {syncLabel && (
             <div
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 rounded-lg"
-              style={{ backgroundColor: "#EFF6FF" }}
+              style={{
+                backgroundColor: syncLabelColor?.bg ?? "#EFF6FF",
+                color: syncLabelColor?.text ?? "#1D4ED8",
+              }}
             >
-              <span className="text-sm font-semibold" style={{ color: "#1D4ED8" }}>
+              <span className="text-sm font-semibold">
                 {syncLabel}
               </span>
             </div>

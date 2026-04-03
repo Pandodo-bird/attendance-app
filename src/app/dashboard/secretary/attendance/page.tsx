@@ -815,6 +815,9 @@ export default function SecretaryAttendancePage() {
 
   const completionTimestampLabel = existingSession?.status === "locked" ? "Locked on" : queuedSubmission ? "Saved locally on" : "Saved on";
   const headerSyncLabel = sessionSyncLabel === completedLabel ? undefined : sessionSyncLabel;
+  const headerSyncLabelColor = queuedSubmission
+    ? { bg: "#FEF3C7", text: "#92400E" }
+    : undefined;
 
   const presentCount = attendanceRecords.filter(r => r.status === "present").length;
   const lateCount = attendanceRecords.filter(r => r.status === "late").length;
@@ -908,6 +911,7 @@ export default function SecretaryAttendancePage() {
             startDisabled={!hasLoadedStudents}
             completedLabel={completedLabel}
             syncLabel={headerSyncLabel}
+            syncLabelColor={headerSyncLabelColor}
             canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
             onSyncNow={() => void syncStatus.syncNow()}
             syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
@@ -955,21 +959,24 @@ export default function SecretaryAttendancePage() {
               {sessionSubmitted && !isEditing && (
                 <div
                   className="rounded-xl p-4 sm:p-6 mb-4 sm:mb-6"
-                  style={{ backgroundColor: "#D1FAE5", border: "1px solid #A7F3D0" }}
+                  style={{
+                    backgroundColor: queuedSubmission ? "#FEF3C7" : "#D1FAE5",
+                    border: `1px solid ${queuedSubmission ? "#FDE68A" : "#A7F3D0"}`,
+                  }}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                     <div className="flex items-center gap-3">
                       <div
                         className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: "#10B981" }}
+                        style={{ backgroundColor: queuedSubmission ? "#F59E0B" : "#10B981" }}
                       >
                         <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#FFFFFF" }} />
                       </div>
                       <div>
-                        <p className="text-sm sm:text-base font-bold" style={{ color: "#065F46" }}>
+                        <p className="text-sm sm:text-base font-bold" style={{ color: queuedSubmission ? "#92400E" : "#065F46" }}>
                           {completionTitle}
                         </p>
-                        <p className="text-xs sm:text-sm" style={{ color: "#047857" }}>
+                        <p className="text-xs sm:text-sm" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
                           {completionDescription}
                         </p>
                       </div>
@@ -978,12 +985,12 @@ export default function SecretaryAttendancePage() {
                       <button
                         onClick={handleEnableEditing}
                         className="flex w-full sm:w-auto justify-center items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                        style={{ backgroundColor: "#10B981", color: "#FFFFFF" }}
+                        style={{ backgroundColor: queuedSubmission ? "#F59E0B" : "#10B981", color: "#FFFFFF" }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#059669";
+                          e.currentTarget.style.backgroundColor = queuedSubmission ? "#D97706" : "#059669";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "#10B981";
+                          e.currentTarget.style.backgroundColor = queuedSubmission ? "#F59E0B" : "#10B981";
                         }}
                       >
                         <Edit2 className="w-4 h-4" />
@@ -1035,7 +1042,7 @@ export default function SecretaryAttendancePage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
+                  <div className="flex items-center gap-2 text-xs" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
                     <Calendar className="w-3.5 h-3.5" />
                     <span>
                       {completionTimestampLabel} {formatSessionTimestamp(
