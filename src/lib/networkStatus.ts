@@ -67,7 +67,7 @@ export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void):
 export function useNetworkStatus(): { isOnline: boolean } {
   const [isOnline, setIsOnline] = useState<boolean>(() => {
     if (typeof navigator !== "undefined") {
-      return navigator.onLine;
+      return lastKnownIsOnline && navigator.onLine;
     }
     return lastKnownIsOnline;
   });
@@ -85,7 +85,10 @@ export function useNetworkStatus(): { isOnline: boolean } {
     const handleOnline = () => {
       void refreshOnlineState();
     };
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setLastKnownIsOnline(false);
+      setIsOnline(false);
+    };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void refreshOnlineState();

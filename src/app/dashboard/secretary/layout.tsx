@@ -7,7 +7,7 @@ import { useOfflineQueuedDates } from "@/lib/offlineQueue";
 import { mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useSecretarySyncStatus } from "@/lib/syncManager";
-import { AlertCircle, CalendarDays, Menu, RefreshCw, Wifi, WifiOff, X } from "lucide-react";
+import { AlertCircle, CalendarDays, Menu, RefreshCw, WifiOff, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
 interface SecretaryLayoutProps {
@@ -107,38 +107,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
 
   const hasQueueIssues = syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0;
   const pendingDateCount = queuedDatesState.dates.length;
-  const showStatusBanner = !isOnline || syncStatus.isSyncing || hasQueueIssues;
-  const statusLabel = syncStatus.isSyncing
-    ? "Syncing"
-    : !isOnline
-      ? "Offline"
-      : hasQueueIssues
-        ? "Sync error"
-        : syncStatus.pendingCount > 0
-          ? "Pending sync"
-          : "Online";
-
-  const statusColor = syncStatus.isSyncing
-    ? { bg: "#EEF2FF", border: "#C7D2FE", text: "#3730A3" }
-    : !isOnline
-      ? { bg: "#FEF3C7", border: "#FDE68A", text: "#92400E" }
-      : hasQueueIssues
-        ? { bg: "#FEF2F2", border: "#FECACA", text: "#991B1B" }
-        : syncStatus.pendingCount > 0
-          ? { bg: "#EFF6FF", border: "#BFDBFE", text: "#1D4ED8" }
-          : { bg: "#ECFDF5", border: "#A7F3D0", text: "#065F46" };
-
-  const queueSummaryText = syncStatus.needsReviewCount > 0
-    ? `${syncStatus.needsReviewCount} session${syncStatus.needsReviewCount > 1 ? "s" : ""} need review`
-    : syncStatus.failedCount > 0
-      ? `${syncStatus.failedCount} failed sync${syncStatus.failedCount > 1 ? "s" : ""}`
-      : !isOnline && pendingDateCount > 0
-        ? `${pendingDateCount} locally saved date${pendingDateCount > 1 ? "s" : ""}. Teachers cannot see them until sync finishes.`
-      : syncStatus.pendingCount > 0
-        ? `${syncStatus.pendingCount} pending sync${syncStatus.pendingCount > 1 ? "s" : ""}`
-        : !isOnline
-          ? "Working offline — no unsynced records"
-          : "All attendance synced";
+  const showOfflineBanner = !isOnline;
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
@@ -164,24 +133,24 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
           </button>
 
           <div className="px-3 sm:px-4 lg:px-8 pt-16 lg:pt-4 pb-4">
-            {showStatusBanner && (
+            {showOfflineBanner && (
               <div
                 className="mb-4 rounded-2xl border px-4 py-3"
-                style={{ backgroundColor: statusColor.bg, borderColor: statusColor.border }}
+                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex items-center gap-3">
                   <div
-                    className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: "#FFFFFF", color: statusColor.text }}
+                    className="h-9 w-9 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: "#FFFFFF", color: "#92400E" }}
                   >
-                    {isOnline ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+                    <WifiOff className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold" style={{ color: statusColor.text }}>
-                      {statusLabel}
+                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                      App is offline
                     </p>
-                    <p className="text-xs" style={{ color: statusColor.text }}>
-                      {queueSummaryText}
+                    <p className="text-xs" style={{ color: "#A16207" }}>
+                      Working offline. Your changes will sync when the connection returns.
                     </p>
                   </div>
                 </div>

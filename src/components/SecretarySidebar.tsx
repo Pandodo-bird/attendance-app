@@ -108,16 +108,16 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
         onClick={() => handleNavClick(href)}
         className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors relative"
         style={{
-          backgroundColor: active ? "#F1F5F9" : "transparent",
+          backgroundColor: active ? (isOnline ? "#F1F5F9" : "#FEF3C7") : "transparent",
         }}
         onMouseEnter={(e) => {
           if (!active) {
-            e.currentTarget.style.backgroundColor = "#F8FAFC";
+            e.currentTarget.style.backgroundColor = isOnline ? "#F8FAFC" : "#FFFBEB";
           }
         }}
         onMouseLeave={(e) => {
           if (!active) {
-            e.currentTarget.style.backgroundColor = active ? "#F1F5F9" : "transparent";
+            e.currentTarget.style.backgroundColor = active ? (isOnline ? "#F1F5F9" : "#FEF3C7") : "transparent";
           }
         }}
       >
@@ -155,13 +155,13 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           ${isOpen ? "translate-x-0 w-64" : "-translate-x-full w-0"}
         `}
         style={{
-          backgroundColor: "#FFFFFF",
-          borderColor: "#E5E7EB"
+          backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB",
+          borderColor: isOnline ? "#E5E7EB" : "#FDE68A"
         }}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
-          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "#E5E7EB" }}>
+          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}>
             <div
               className="w-9 h-9 rounded flex items-center justify-center shrink-0"
               style={{ backgroundColor: "#1e3a5f" }}
@@ -200,7 +200,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           </nav>
 
           {/* User Profile & Logout */}
-          <div className="p-4 shrink-0 border-t" style={{ borderColor: "#E5E7EB" }}>
+          <div className="p-4 shrink-0 border-t" style={{ borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}>
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-10 h-10 rounded flex items-center justify-center font-semibold text-base shrink-0"
