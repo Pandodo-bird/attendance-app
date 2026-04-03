@@ -1256,14 +1256,6 @@ export default function SecretaryAttendancePage() {
                       year: "numeric",
                     })}
                   </p>
-                  <button
-                    onClick={handleStartSession}
-                    disabled={!hasLoadedStudents}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
-                  >
-                    Start Session
-                  </button>
                 </>
               )}
             </motion.div>

@@ -1,31 +1,34 @@
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
+import { APP_VERSION } from "./src/lib/appVersion";
+
+const secretaryOfflineRevision = `secretary-offline-${APP_VERSION}`;
 
 const withSerwist = withSerwistInit({
   additionalPrecacheEntries: [
     {
       url: "/~offline",
-      revision: "secretary-offline-v2",
+      revision: secretaryOfflineRevision,
     },
     {
       url: "/dashboard/secretary",
-      revision: "secretary-offline-v2",
+      revision: secretaryOfflineRevision,
     },
     {
       url: "/dashboard/secretary/dashboard",
-      revision: "secretary-offline-v2",
+      revision: secretaryOfflineRevision,
     },
     {
       url: "/dashboard/secretary/attendance",
-      revision: "secretary-offline-v2",
+      revision: secretaryOfflineRevision,
     },
     {
       url: "/dashboard/secretary/history",
-      revision: "secretary-offline-v2",
+      revision: secretaryOfflineRevision,
     },
     {
       url: "/dashboard/secretary/profile",
-      revision: "secretary-offline-v2",
+      revision: secretaryOfflineRevision,
     },
   ],
   cacheOnNavigation: true,
