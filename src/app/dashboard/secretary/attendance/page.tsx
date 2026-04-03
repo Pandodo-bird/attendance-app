@@ -839,7 +839,7 @@ export default function SecretaryAttendancePage() {
 
   if (!selectedAppointment) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+      <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: "#F8FAFC" }}>
         <main className="p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="max-w-2xl mx-auto text-center pt-20">
             <div
@@ -861,7 +861,7 @@ export default function SecretaryAttendancePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: "#F8FAFC" }}>
       {error && (
         <PopupAlert 
           message={error} 
@@ -878,22 +878,22 @@ export default function SecretaryAttendancePage() {
         />
       )}
 
-      <main className="p-3 sm:p-4 md:p-6 lg:p-8">
+      <main className="overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Page Header */}
           <div className="mb-4 sm:mb-6">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-3 mb-2 min-w-0">
               <div
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: "#1e3a5f" }}
               >
                 <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold" style={{ color: "#1F1F1F" }}>
                   Attendance
                 </h1>
-                <p className="text-xs" style={{ color: "#6B7280" }}>
+                <p className="text-xs break-words" style={{ color: "#6B7280" }}>
                   {sectionDisplayName} • {sectionStudents.length} students
                 </p>
               </div>
@@ -1115,7 +1115,7 @@ export default function SecretaryAttendancePage() {
 
               {totalPages > 1 && (
                 <motion.div
-                  className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                  className="mt-4 flex min-w-0 flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
@@ -1125,7 +1125,7 @@ export default function SecretaryAttendancePage() {
                     <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{getDisplayEndIndex(endIndex, attendanceRecords.length)}</span> of{" "}
                     <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{attendanceRecords.length}</span>
                   </p>
-                  <div className="flex items-center gap-1">
+                  <div className="flex max-w-full flex-wrap items-center gap-1">
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
@@ -1137,7 +1137,7 @@ export default function SecretaryAttendancePage() {
                     >
                       <ChevronLeft className="w-4 h-4" style={{ color: "#374151" }} />
                     </button>
-                    <div className="flex items-center gap-1">
+                    <div className="flex max-w-full flex-wrap items-center gap-1">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                         <button
                           key={page}
