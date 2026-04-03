@@ -65,7 +65,12 @@ export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void):
 }
 
 export function useNetworkStatus(): { isOnline: boolean } {
-  const [isOnline, setIsOnline] = useState<boolean>(getIsOnline);
+  const [isOnline, setIsOnline] = useState<boolean>(() => {
+    if (typeof navigator !== "undefined") {
+      return navigator.onLine;
+    }
+    return lastKnownIsOnline;
+  });
 
   useEffect(() => {
     let cancelled = false;
