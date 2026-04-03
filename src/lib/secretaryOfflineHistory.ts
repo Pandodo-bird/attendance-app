@@ -63,6 +63,24 @@ export async function mergeSecretaryHistoryCache(
   });
 }
 
+export async function replaceSecretaryHistoryCache(
+  uid: string,
+  schoolYear: string,
+  sessions: Attendance[],
+): Promise<void> {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const db = await getOfflineDb();
+  await db.put("historyBootstrap", {
+    uid,
+    schoolYear,
+    sessions: sortSessionsDescending(filterSessionsBySchoolYear(sessions, schoolYear)),
+    updatedAt: Date.now(),
+  });
+}
+
 export async function clearSecretaryHistoryCache(uid?: string): Promise<void> {
   if (typeof window === "undefined" || !uid) {
     return;

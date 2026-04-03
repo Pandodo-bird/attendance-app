@@ -3,11 +3,9 @@
 import SecretarySidebar from "@/components/SecretarySidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { getSecretaryAppointments, getSectionById, getSectionStudents } from "@/lib/firestore";
-import { useOfflineQueuedDates } from "@/lib/offlineQueue";
 import { mergeSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { useNetworkStatus } from "@/lib/networkStatus";
-import { useSecretarySyncStatus } from "@/lib/syncManager";
-import { AlertCircle, CalendarDays, Menu, RefreshCw, WifiOff, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
 interface SecretaryLayoutProps {
@@ -17,10 +15,7 @@ interface SecretaryLayoutProps {
 export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   const { user } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
-  const [dismissedMessage, setDismissedMessage] = useState<string | null>(null);
   const { isOnline } = useNetworkStatus();
-  const syncStatus = useSecretarySyncStatus(user?.uid);
-  const queuedDatesState = useOfflineQueuedDates(user?.uid);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
@@ -105,10 +100,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
     };
   }, [isOnline, user?.uid]);
 
-  const hasQueueIssues = syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0;
-  const pendingDateCount = queuedDatesState.dates.length;
-  const showOfflineBanner = !isOnline;
-
   return (
     <div className="h-dvh overflow-hidden" style={{ backgroundColor: "#F5F3FA" }}>
       <div className="flex h-full min-h-0">
@@ -133,108 +124,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
           </button>
 
           <div className="flex min-h-0 flex-1 flex-col px-3 pt-4 sm:px-4 lg:px-8 lg:pt-4">
-            {showOfflineBanner && (
-              <div
-                className="mb-4 rounded-2xl border px-4 py-3"
-                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }}
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-9 w-9 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: "#FFFFFF", color: "#92400E" }}
-                  >
-                    <WifiOff className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
-                      App is offline
-                    </p>
-                    <p className="text-xs" style={{ color: "#A16207" }}>
-                      Working offline. Your changes will sync when the connection returns.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {pendingDateCount > 0 && (
-              <div
-                className="mb-4 rounded-2xl border px-4 py-3"
-                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }}
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: "#FFFFFF", color: "#92400E" }}
-                    >
-                      <CalendarDays className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
-                        Locally saved attendance
-                      </p>
-                      <p className="text-xs mt-1" style={{ color: "#A16207" }}>
-                        All attendance recorded while offline can be viewed in History. They will sync automatically when a connection is available.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void syncStatus.syncNow()}
-                      disabled={!isOnline || syncStatus.isSyncing}
-                      className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: "#FFFFFF", color: "#92400E" }}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? "animate-spin" : ""}`} />
-                      Sync now
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {syncStatus.lastMessage && dismissedMessage !== syncStatus.lastMessage && (
-              <div
-                className="mb-4 rounded-2xl border px-4 py-3"
-                style={{
-                  backgroundColor: hasQueueIssues ? "#FEF2F2" : "#ECFDF5",
-                  borderColor: hasQueueIssues ? "#FECACA" : "#A7F3D0",
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                    style={{
-                      backgroundColor: "#FFFFFF",
-                      color: hasQueueIssues ? "#991B1B" : "#065F46",
-                    }}
-                  >
-                    <AlertCircle className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold" style={{ color: hasQueueIssues ? "#991B1B" : "#065F46" }}>
-                      {hasQueueIssues ? "Sync needs attention" : "Sync complete"}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: hasQueueIssues ? "#B91C1C" : "#047857" }}>
-                      {syncStatus.lastMessage}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDismissedMessage(syncStatus.lastMessage)}
-                    className="p-1.5 rounded-lg shrink-0"
-                    style={{ backgroundColor: hasQueueIssues ? "#FEE2E2" : "#D1FAE5", color: hasQueueIssues ? "#991B1B" : "#065F46" }}
-                    aria-label="Dismiss sync update"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )}
-
             <div className="flex min-h-0 flex-1 flex-col pb-16 lg:pb-4">{children}</div>
           </div>
         </main>

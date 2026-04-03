@@ -41,6 +41,7 @@ import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
 import { BulkAttendanceActions } from "@/components/secretary/attendance";
 import { AttendanceHeader } from "@/components/secretary/attendance";
+import SecretaryStatusStrip from "@/components/SecretaryStatusStrip";
 import { PopupAlert } from "@/components/ui";
 
 type AttendanceStatus = "present" | "late" | "absent" | "excused";
@@ -917,6 +918,7 @@ export default function SecretaryAttendancePage() {
               syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
               isSyncing={syncStatus.isSyncing}
             />
+            <SecretaryStatusStrip />
           </div>
 
           {hasSessionToday || sessionSubmitted ? (

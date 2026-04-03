@@ -68,7 +68,7 @@ function SecretaryDashboardContent() {
 
   const todayDateKey = formatLocalDateKey(new Date());
 
-  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
+  const { data: appointments, isLoading: appointmentsLoading } = useQuery({
     queryKey: ["appointments", user?.uid],
     queryFn: () => getSecretaryAppointments(user?.uid || ""),
     enabled: !!user?.uid && isOnline,
@@ -76,7 +76,7 @@ function SecretaryDashboardContent() {
     gcTime: 60 * 60 * 1000,
   });
 
-  const { data: todaySessions = [], isLoading: todaySessionsLoading } = useQuery({
+  const { data: todaySessions, isLoading: todaySessionsLoading } = useQuery({
     queryKey: ["secretaryAttendanceToday", user?.uid, todayDateKey],
     queryFn: () => getSecretaryAttendanceForDate(user?.uid || "", todayDateKey),
     enabled: !!user?.uid && isOnline,
@@ -92,8 +92,10 @@ function SecretaryDashboardContent() {
     gcTime: 30 * 60 * 1000,
   });
 
-  const resolvedAppointments = appointments.length > 0 ? appointments : cachedAppointments;
-  const resolvedRecentSessions = recentHistoryData?.sessions?.length
+  const resolvedAppointments = appointments ?? cachedAppointments;
+  const recentHistorySessions = recentHistoryData?.sessions;
+  const hasRecentHistoryResult = recentHistoryData !== undefined;
+  const resolvedRecentSessions = recentHistoryData
     ? recentHistoryData.sessions
     : cachedHistorySessions.slice(0, 5);
   const cachedTodaySessions = cachedHistorySessions.filter((session) => session.date === todayDateKey);
@@ -156,7 +158,7 @@ function SecretaryDashboardContent() {
   });
 
   useEffect(() => {
-    if (!user?.uid || (!appointments.length && !recentHistoryData?.sessions?.length && Object.keys(sectionsById).length === 0)) {
+    if (!user?.uid || (!appointments && !hasRecentHistoryResult && Object.keys(sectionsById).length === 0)) {
       return;
     }
 
@@ -165,11 +167,11 @@ function SecretaryDashboardContent() {
     ) as Record<string, Section>;
 
     mergeSecretaryBootstrapCache(user.uid, {
-      appointments: appointments.length > 0 ? appointments : undefined,
+      appointments,
       sectionsById: Object.keys(serializableSectionsById).length > 0 ? serializableSectionsById : undefined,
-      attendanceHistorySessions: recentHistoryData?.sessions?.length ? recentHistoryData.sessions : undefined,
+      attendanceHistorySessions: recentHistorySessions,
     });
-  }, [appointments, recentHistoryData?.sessions, sectionsById, user?.uid]);
+  }, [appointments, hasRecentHistoryResult, recentHistorySessions, sectionsById, user?.uid]);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -188,7 +190,7 @@ function SecretaryDashboardContent() {
 
   const resolvedTodaySessions = (() => {
     const serverSessions = isOnline
-      ? (todaySessions.length > 0 ? todaySessions : cachedTodaySessions)
+      ? (todaySessions ?? cachedTodaySessions)
       : cachedTodaySessions;
     const seenIds = new Set<string>(serverSessions.map((s) => s.id));
     const uniqueOffline = offlineTodaySessions.filter((s) => !seenIds.has(s.id));

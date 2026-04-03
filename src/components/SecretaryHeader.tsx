@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import SecretaryStatusStrip from "@/components/SecretaryStatusStrip";
 
 interface SecretaryHeaderProps {
   title: string;
@@ -94,6 +95,9 @@ export default function SecretaryHeader({
               ))}
             </div>
           )}
+          <div className="w-full">
+            <SecretaryStatusStrip />
+          </div>
         </div>
       </section>
     </div>

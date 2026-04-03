@@ -8,8 +8,9 @@ import { useNetworkStatus } from "@/lib/networkStatus";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
 import { readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
-import { mergeSecretaryHistoryCache, readSecretaryHistoryCache } from "@/lib/secretaryOfflineHistory";
+import { readSecretaryHistoryCache, replaceSecretaryHistoryCache } from "@/lib/secretaryOfflineHistory";
 import { OfflineAttendanceQueueItem, useOfflineHistoryQueueItems } from "@/lib/offlineQueue";
+import SecretaryStatusStrip from "@/components/SecretaryStatusStrip";
 import { PopupAlert } from "@/components/ui";
 
 interface AttendanceSessionCardProps {
@@ -159,6 +160,7 @@ export default function HistoryPage() {
   }, [data, hasNextPage]);
 
   const sessions = useMemo(() => data?.pages.flatMap((page) => page.sessions) ?? [], [data]);
+  const hasRemoteHistoryResult = data !== undefined;
   const hasRemoteData = !isLoading && !!data;
   const isPageLoading = (!!user?.uid && !historyCacheLoaded) || (isOnline && isLoading);
   const mergedHistoryItems = useMemo(() => {
@@ -209,12 +211,12 @@ export default function HistoryPage() {
   }, [fetchError]);
 
   useEffect(() => {
-    if (!user?.uid || !currentSchoolYear || sessions.length === 0) {
+    if (!user?.uid || !currentSchoolYear || !hasRemoteHistoryResult) {
       return;
     }
 
-    void mergeSecretaryHistoryCache(user.uid, currentSchoolYear, sessions);
-  }, [currentSchoolYear, sessions, user?.uid]);
+    void replaceSecretaryHistoryCache(user.uid, currentSchoolYear, sessions);
+  }, [currentSchoolYear, hasRemoteHistoryResult, sessions, user?.uid]);
 
   const handleLoadMore = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -271,6 +273,7 @@ export default function HistoryPage() {
                 {isLoading || isRefetching ? "Refreshing..." : "Refresh History"}
               </button>
             )}
+            <SecretaryStatusStrip />
             </div>
 
             {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && <div className="grid grid-cols-3 gap-2 sm:gap-3">
