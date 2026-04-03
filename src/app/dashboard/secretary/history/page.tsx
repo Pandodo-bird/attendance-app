@@ -16,6 +16,7 @@ interface AttendanceSessionCardProps {
   section?: Section | null;
   badgeLabel?: string;
   badgeColor?: { bg: string; text: string };
+  isOfflinePending?: boolean;
   onClick: () => void;
 }
 
@@ -67,7 +68,7 @@ function getLocalBadge(status: OfflineAttendanceQueueItem["status"]): { label: s
     return { label: "Needs Review", color: { bg: "#FEE2E2", text: "#991B1B" } };
   }
 
-  return { label: "Saved Offline", color: { bg: "#EDE9FE", text: "#6D28D9" } };
+  return { label: "Offline — Pending Sync", color: { bg: "#FEF3C7", text: "#92400E" } };
 }
 
 export default function HistoryPage() {
@@ -347,9 +348,9 @@ export default function HistoryPage() {
               {offlineQueueState.items.length > 0 && (
                 <div
                   className="rounded-xl border px-3 py-2 text-xs font-medium"
-                  style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", color: "#1D4ED8" }}
+                  style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
                 >
-                  Local offline submissions appear here until sync finishes. Synced sessions are replaced by server history automatically.
+                  Locally saved attendance appears here with an amber highlight until sync finishes. Synced sessions are replaced by server history automatically.
                 </div>
               )}
 
@@ -372,6 +373,7 @@ export default function HistoryPage() {
                   fallbackSection={cachedSectionsById[item.session.sectionId]}
                   badgeLabel={localBadge?.label}
                   badgeColor={localBadge?.color}
+                  isOfflinePending={item.source === "local"}
                   onClick={() => setSelectedSession(item.session)}
                 />
                 );
@@ -432,12 +434,14 @@ function AttendanceSessionCardWithSection({
   fallbackSection,
   badgeLabel,
   badgeColor,
+  isOfflinePending,
   onClick,
 }: {
   session: Attendance;
   fallbackSection?: Section | null;
   badgeLabel?: string;
   badgeColor?: { bg: string; text: string };
+  isOfflinePending?: boolean;
   onClick: () => void;
 }) {
   const { data: section } = useQuery({
@@ -454,12 +458,13 @@ function AttendanceSessionCardWithSection({
       section={section ?? fallbackSection}
       badgeLabel={badgeLabel}
       badgeColor={badgeColor}
+      isOfflinePending={isOfflinePending}
       onClick={onClick}
     />
   );
 }
 
-function AttendanceSessionCard({ session, section, badgeLabel, badgeColor, onClick }: AttendanceSessionCardProps) {
+function AttendanceSessionCard({ session, section, badgeLabel, badgeColor, isOfflinePending, onClick }: AttendanceSessionCardProps) {
   const stats = calculateAttendanceStats(session.records);
   const attendanceRate = stats.total > 0
     ? Math.round(((stats.present + stats.late + stats.excused) / stats.total) * 100)
@@ -479,12 +484,15 @@ function AttendanceSessionCard({ session, section, badgeLabel, badgeColor, onCli
     <motion.div
       onClick={onClick}
       className="rounded-xl p-3 sm:p-4 cursor-pointer border"
-      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+      style={{
+        backgroundColor: isOfflinePending ? "#FEF3C7" : "#FFFFFF",
+        borderColor: isOfflinePending ? "#FDE68A" : "#E5E7EB",
+      }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0, duration: 0.2 }}
       whileHover={{
-        borderColor: "#D1D5DB",
+        borderColor: isOfflinePending ? "#FCD34D" : "#D1D5DB",
         boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
       }}
       whileTap={{ scale: 0.99 }}

@@ -106,9 +106,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   }, [isOnline, user?.uid]);
 
   const hasQueueIssues = syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0;
-  const queuedDates = queuedDatesState.dates;
-  const pendingDateCount = queuedDates.length;
-  const visibleQueuedDates = queuedDates.slice(0, 3);
+  const pendingDateCount = queuedDatesState.dates.length;
   const showStatusBanner = !isOnline || syncStatus.isSyncing || hasQueueIssues;
   const statusLabel = syncStatus.isSyncing
     ? "Syncing"
@@ -139,18 +137,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
       : syncStatus.pendingCount > 0
         ? `${syncStatus.pendingCount} pending sync${syncStatus.pendingCount > 1 ? "s" : ""}`
         : "All secretary attendance is up to date";
-
-  const formatQueuedDate = (value: string): string => {
-    const parsed = new Date(`${value}T00:00:00`);
-    if (Number.isNaN(parsed.getTime())) {
-      return value;
-    }
-
-    return parsed.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
@@ -214,56 +200,38 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
             {pendingDateCount > 0 && (
               <div
                 className="mb-4 rounded-2xl border px-4 py-3"
-                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A" }}
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-start gap-3">
                     <div
                       className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: "#EEF2FF", color: "#3730A3" }}
+                      style={{ backgroundColor: "#FFFFFF", color: "#92400E" }}
                     >
                       <CalendarDays className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold" style={{ color: "#1F1F1F" }}>
-                        {pendingDateCount} attendance date{pendingDateCount > 1 ? "s" : ""} waiting to sync
+                      <p className="text-sm font-semibold" style={{ color: "#92400E" }}>
+                        Locally saved attendance
                       </p>
-                      <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
-                        Saved attendance will sync automatically when a connection is available.
+                      <p className="text-xs mt-1" style={{ color: "#A16207" }}>
+                        All attendance recorded while offline can be viewed in History. They will sync automatically when a connection is available.
                       </p>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void syncStatus.syncNow()}
-                    disabled={!isOnline || syncStatus.isSyncing}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? "animate-spin" : ""}`} />
-                    Sync dates
-                  </button>
-                </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {visibleQueuedDates.map((date) => (
-                    <span
-                      key={date}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold"
-                      style={{ backgroundColor: "#EFF6FF", color: "#1D4ED8" }}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void syncStatus.syncNow()}
+                      disabled={!isOnline || syncStatus.isSyncing}
+                      className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ backgroundColor: "#FFFFFF", color: "#92400E" }}
                     >
-                      {formatQueuedDate(date)}
-                    </span>
-                  ))}
-                  {pendingDateCount > visibleQueuedDates.length && (
-                    <span
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold"
-                      style={{ backgroundColor: "#F3F4F6", color: "#4B5563" }}
-                    >
-                      +{pendingDateCount - visibleQueuedDates.length} more
-                    </span>
-                  )}
+                      <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? "animate-spin" : ""}`} />
+                      Sync now
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
