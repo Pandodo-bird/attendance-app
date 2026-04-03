@@ -164,7 +164,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
           <div className="px-3 sm:px-4 lg:px-8 pt-16 lg:pt-4 pb-4">
             {showStatusBanner && (
               <div
-                className="mb-4 rounded-2xl border px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                className="mb-4 rounded-2xl border px-4 py-3"
                 style={{ backgroundColor: statusColor.bg, borderColor: statusColor.border }}
               >
                 <div className="flex items-start gap-3">
@@ -183,17 +183,6 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
                     </p>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => void syncStatus.syncNow()}
-                  disabled={!isOnline || syncStatus.isSyncing}
-                  className="flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: "#FFFFFF", color: statusColor.text }}
-                >
-                  <RefreshCw className={`w-4 h-4 ${syncStatus.isSyncing ? "animate-spin" : ""}`} />
-                  Sync now
-                </button>
               </div>
             )}
 

@@ -336,15 +336,16 @@ export default function SecretaryAttendancePage() {
         return a.firstName.localeCompare(b.firstName);
       });
 
-      setAttendanceRecords(
-        sortedStudents.map((student) => ({
+      setAttendanceRecords((prev) => {
+        const existingStatuses = new Map(prev.map((r) => [r.lrn, r.status]));
+        return sortedStudents.map((student) => ({
           lrn: student.lrn,
           studentName: `${student.lastName}, ${student.firstName} ${student.middleName}`,
           lastName: student.lastName,
           firstName: student.firstName,
-          status: null,
-        }))
-      );
+          status: existingStatuses.get(student.lrn) ?? null,
+        }));
+      });
     }
   }, [sectionStudents]);
 
