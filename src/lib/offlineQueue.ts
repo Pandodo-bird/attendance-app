@@ -635,3 +635,46 @@ export function useOfflineQueuedDates(uid?: string): {
 
   return uid ? state : { dates: [], loaded: true };
 }
+
+export function useOfflineHistoryQueueItems(uid?: string): {
+  items: OfflineAttendanceQueueItem[];
+  loaded: boolean;
+} {
+  const [state, setState] = useState<{ items: OfflineAttendanceQueueItem[]; loaded: boolean }>({
+    items: [],
+    loaded: !uid,
+  });
+
+  useEffect(() => {
+    if (!uid) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadItems = async () => {
+      const items = await listQueueItems(uid);
+      const visibleItems = items.filter(
+        (item) => item.status === "pending" || item.status === "syncing" || item.status === "failed" || item.status === "needs_review"
+      );
+
+      if (!cancelled) {
+        setState({ items: visibleItems, loaded: true });
+      }
+    };
+
+    void loadItems();
+    const unsubscribe = subscribeToOfflineQueueChanges((changedUid) => {
+      if (!changedUid || changedUid === uid) {
+        void loadItems();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [uid]);
+
+  return uid ? state : { items: [], loaded: true };
+}

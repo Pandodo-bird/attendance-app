@@ -8,12 +8,66 @@ import { useNetworkStatus } from "@/lib/networkStatus";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
 import { mergeSecretaryBootstrapCache, readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
+import { OfflineAttendanceQueueItem, useOfflineHistoryQueueItems } from "@/lib/offlineQueue";
 import { PopupAlert } from "@/components/ui";
 
 interface AttendanceSessionCardProps {
   session: Attendance;
   section?: Section | null;
+  badgeLabel?: string;
+  badgeColor?: { bg: string; text: string };
   onClick: () => void;
+}
+
+interface HistorySessionItem {
+  session: Attendance;
+  source: "remote" | "local";
+  queueStatus?: OfflineAttendanceQueueItem["status"];
+}
+
+function buildLocalHistorySession(item: OfflineAttendanceQueueItem): Attendance {
+  const records = Object.fromEntries(
+    item.students.map((student) => [
+      student.lrn,
+      {
+        studentName: student.studentName,
+        status: student.status,
+        timeRecorded: new Date(item.updatedAt),
+        recordedByUid: item.secretaryUid,
+      },
+    ])
+  );
+
+  return {
+    id: item.attendanceId,
+    sectionId: item.sectionId,
+    teacherId: item.teacherId,
+    secretaryUid: item.secretaryUid,
+    date: item.date,
+    schoolYear: item.schoolYear,
+    status: "locked",
+    records,
+    createdAt: new Date(item.createdAt),
+    lockedAt: new Date(item.updatedAt),
+    submittedByUid: item.secretaryUid,
+    submittedByRole: "secretary",
+  };
+}
+
+function getLocalBadge(status: OfflineAttendanceQueueItem["status"]): { label: string; color: { bg: string; text: string } } {
+  if (status === "syncing") {
+    return { label: "Syncing", color: { bg: "#DBEAFE", text: "#1D4ED8" } };
+  }
+
+  if (status === "failed") {
+    return { label: "Retrying", color: { bg: "#FEF3C7", text: "#92400E" } };
+  }
+
+  if (status === "needs_review") {
+    return { label: "Needs Review", color: { bg: "#FEE2E2", text: "#991B1B" } };
+  }
+
+  return { label: "Saved Offline", color: { bg: "#EDE9FE", text: "#6D28D9" } };
 }
 
 export default function HistoryPage() {
@@ -22,8 +76,9 @@ export default function HistoryPage() {
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
   const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
-  const cachedSessions = cachedBootstrap?.attendanceHistorySessions ?? [];
-  const cachedSectionsById = cachedBootstrap?.sectionsById ?? {};
+  const cachedSessions = useMemo(() => cachedBootstrap?.attendanceHistorySessions ?? [], [cachedBootstrap]);
+  const cachedSectionsById = useMemo(() => cachedBootstrap?.sectionsById ?? {}, [cachedBootstrap]);
+  const offlineQueueState = useOfflineHistoryQueueItems(user?.uid);
 
   const {
     data,
@@ -62,11 +117,41 @@ export default function HistoryPage() {
   }, [data, hasNextPage]);
 
   const sessions = useMemo(() => data?.pages.flatMap((page) => page.sessions) ?? [], [data]);
-  const resolvedSessions = sessions.length > 0 ? sessions : cachedSessions;
-  const totalSessions = resolvedSessions.length;
+  const mergedHistoryItems = useMemo(() => {
+    const remoteItems: HistorySessionItem[] = (sessions.length > 0 ? sessions : cachedSessions).map((session) => ({
+      session,
+      source: "remote",
+    }));
+    const localItems: HistorySessionItem[] = offlineQueueState.items.map((item) => ({
+      session: buildLocalHistorySession(item),
+      source: "local",
+      queueStatus: item.status,
+    }));
+    const seenAttendanceIds = new Set<string>();
+    const merged = [...remoteItems, ...localItems].filter((item) => {
+      if (seenAttendanceIds.has(item.session.id)) {
+        return false;
+      }
 
-  const totalStudentsMarked = resolvedSessions.reduce((acc, session) => {
-    return acc + (session.records ? Object.keys(session.records).length : 0);
+      seenAttendanceIds.add(item.session.id);
+      return true;
+    });
+
+    return merged.sort((a, b) => {
+      if (a.session.date !== b.session.date) {
+        return b.session.date.localeCompare(a.session.date);
+      }
+
+      const aTime = a.session.lockedAt instanceof Date ? a.session.lockedAt.getTime() : 0;
+      const bTime = b.session.lockedAt instanceof Date ? b.session.lockedAt.getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [cachedSessions, offlineQueueState.items, sessions]);
+
+  const totalSessions = mergedHistoryItems.length;
+
+  const totalStudentsMarked = mergedHistoryItems.reduce((acc, item) => {
+    return acc + (item.session.records ? Object.keys(item.session.records).length : 0);
   }, 0);
 
   const fetchErrorMessage = fetchError
@@ -126,7 +211,7 @@ export default function HistoryPage() {
               </div>
             </div>
 
-            {!isOnline && resolvedSessions.length === 0 && (
+            {!isOnline && mergedHistoryItems.length === 0 && (
               <div
                 className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium"
                 style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
@@ -136,7 +221,7 @@ export default function HistoryPage() {
             )}
           </div>
 
-          {!isOnline && resolvedSessions.length === 0 && (
+          {!isOnline && mergedHistoryItems.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -160,7 +245,7 @@ export default function HistoryPage() {
           )}
 
           {/* Summary Stats */}
-          {(isOnline || resolvedSessions.length > 0) && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          {(isOnline || mergedHistoryItems.length > 0) && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <motion.div
               className="rounded-xl p-3 sm:p-4 border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -233,7 +318,7 @@ export default function HistoryPage() {
           )}
 
           {/* Empty State */}
-          {(isOnline || resolvedSessions.length > 0) && !isLoading && resolvedSessions.length === 0 && (
+          {(isOnline || mergedHistoryItems.length > 0) && !isLoading && mergedHistoryItems.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -257,9 +342,18 @@ export default function HistoryPage() {
           )}
 
           {/* Session Cards */}
-          {!isLoading && resolvedSessions.length > 0 && (
+          {!isLoading && mergedHistoryItems.length > 0 && (
             <div className="space-y-2 sm:space-y-3">
-              {!isOnline && (
+              {offlineQueueState.items.length > 0 && (
+                <div
+                  className="rounded-xl border px-3 py-2 text-xs font-medium"
+                  style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", color: "#1D4ED8" }}
+                >
+                  Local offline submissions appear here until sync finishes. Synced sessions are replaced by server history automatically.
+                </div>
+              )}
+
+              {!isOnline && offlineQueueState.items.length === 0 && (
                 <div
                   className="rounded-xl border px-3 py-2 text-xs font-medium"
                   style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", color: "#1D4ED8" }}
@@ -268,14 +362,20 @@ export default function HistoryPage() {
                 </div>
               )}
 
-              {resolvedSessions.map((session) => (
+              {mergedHistoryItems.map((item) => {
+                const localBadge = item.source === "local" && item.queueStatus ? getLocalBadge(item.queueStatus) : null;
+
+                return (
                 <AttendanceSessionCardWithSection
-                  key={session.id}
-                  session={session}
-                  fallbackSection={cachedSectionsById[session.sectionId]}
-                  onClick={() => setSelectedSession(session)}
+                  key={`${item.source}:${item.session.id}`}
+                  session={item.session}
+                  fallbackSection={cachedSectionsById[item.session.sectionId]}
+                  badgeLabel={localBadge?.label}
+                  badgeColor={localBadge?.color}
+                  onClick={() => setSelectedSession(item.session)}
                 />
-              ))}
+                );
+              })}
 
               {/* Load More Button */}
               {isOnline && hasNextPage && (
@@ -302,7 +402,7 @@ export default function HistoryPage() {
               )}
 
               {/* End of List Message */}
-              {(!isOnline || !hasNextPage) && resolvedSessions.length > 0 && (
+              {(!isOnline || !hasNextPage) && mergedHistoryItems.length > 0 && (
                 <div className="py-6 text-center">
                   <p className="text-sm" style={{ color: "#9CA3AF" }}>
                     {isOnline ? "You&apos;ve reached the end of your history" : "Cached history ends here"}
@@ -330,10 +430,14 @@ export default function HistoryPage() {
 function AttendanceSessionCardWithSection({
   session,
   fallbackSection,
+  badgeLabel,
+  badgeColor,
   onClick,
 }: {
   session: Attendance;
   fallbackSection?: Section | null;
+  badgeLabel?: string;
+  badgeColor?: { bg: string; text: string };
   onClick: () => void;
 }) {
   const { data: section } = useQuery({
@@ -344,10 +448,18 @@ function AttendanceSessionCardWithSection({
     enabled: !!session.sectionId,
   });
 
-  return <AttendanceSessionCard session={session} section={section ?? fallbackSection} onClick={onClick} />;
+  return (
+    <AttendanceSessionCard
+      session={session}
+      section={section ?? fallbackSection}
+      badgeLabel={badgeLabel}
+      badgeColor={badgeColor}
+      onClick={onClick}
+    />
+  );
 }
 
-function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionCardProps) {
+function AttendanceSessionCard({ session, section, badgeLabel, badgeColor, onClick }: AttendanceSessionCardProps) {
   const stats = calculateAttendanceStats(session.records);
   const attendanceRate = stats.total > 0
     ? Math.round(((stats.present + stats.late + stats.excused) / stats.total) * 100)
@@ -400,6 +512,14 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
             <span className="text-xs" style={{ color: "#6C5CE7" }}>
               {submittedBy}
             </span>
+            {badgeLabel && badgeColor && (
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: badgeColor.bg, color: badgeColor.text }}
+              >
+                {badgeLabel}
+              </span>
+            )}
             <span className="text-xs" style={{ color: "#9CA3AF" }}>
               •
             </span>
