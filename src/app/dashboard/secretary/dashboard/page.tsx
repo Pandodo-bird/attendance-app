@@ -136,9 +136,11 @@ function SecretaryDashboardContent() {
 
   const resolvedSectionsById = Object.keys(sectionsById).length > 0 ? sectionsById : cachedSectionsById;
 
+  const resolvedTodaySessions = isOnline ? todaySessions : cachedTodaySessions;
+
   const assignedSectionsCount = uniqueSectionIds.length;
   const expectedSessions = assignedSectionsCount;
-  const submittedSessions = todaySessions.length > 0 ? todaySessions.length : cachedTodaySessions.length;
+  const submittedSessions = resolvedTodaySessions.length;
   const pendingSessions = Math.max(0, expectedSessions - submittedSessions);
   const dailyCoverage =
     expectedSessions > 0 ? Math.round((submittedSessions / expectedSessions) * 100) : 0;
@@ -163,7 +165,7 @@ function SecretaryDashboardContent() {
       todaySessionsLoading ||
       recentHistoryLoading ||
       sectionsLoading
-    );
+    ) && resolvedAppointments.length === 0;
 
   return (
     <>
@@ -375,7 +377,7 @@ function SecretaryDashboardContent() {
                 const sectionName = section
                   ? `${section.gradeLevel} - ${section.sectionName}`
                   : "Loading...";
-                const hasSubmittedToday = todaySessions.some(
+                const hasSubmittedToday = resolvedTodaySessions.some(
                   (session) => session.sectionId === appointment.sectionId
                 );
 

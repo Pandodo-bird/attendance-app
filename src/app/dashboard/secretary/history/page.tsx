@@ -457,7 +457,7 @@ export default function HistoryPage() {
               {(!isOnline || !hasNextPage) && mergedHistoryItems.length > 0 && (
                 <div className="py-6 text-center">
                   <p className="text-sm" style={{ color: "#9CA3AF" }}>
-                    {isOnline ? "You&apos;ve reached the end of your history" : "Cached history ends here"}
+                    {isOnline ? "You've reached the end of your history" : "You are offline. Cached history for this device ends here."}
                   </p>
                 </div>
               )}
