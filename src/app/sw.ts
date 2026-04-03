@@ -37,7 +37,7 @@ const serwist = new Serwist({
     navigateFallback: "/~offline",
     navigateFallbackAllowlist: [/^\/dashboard\/secretary(?:\/.*)?$/],
   },
-  skipWaiting: true,
+  skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
@@ -63,6 +63,12 @@ const serwist = new Serwist({
       }),
     },
   ],
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 serwist.addEventListeners();

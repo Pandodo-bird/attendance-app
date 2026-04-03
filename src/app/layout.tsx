@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import TanStackQueryProvider from "@/contexts/TanStackQueryProvider";
+import { PwaUpdatePrompt } from "@/components/ui";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,7 +56,10 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <TanStackQueryProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              {children}
+              <PwaUpdatePrompt />
+            </AuthProvider>
           </TanStackQueryProvider>
         </ThemeProvider>
       </body>

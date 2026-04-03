@@ -30,7 +30,7 @@ const withSerwist = withSerwistInit({
   ],
   cacheOnNavigation: true,
   disable: process.env.NODE_ENV === "development",
-  register: true,
+  register: false,
   reloadOnOnline: false,
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
