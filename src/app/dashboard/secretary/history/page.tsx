@@ -118,8 +118,9 @@ export default function HistoryPage() {
   }, [data, hasNextPage]);
 
   const sessions = useMemo(() => data?.pages.flatMap((page) => page.sessions) ?? [], [data]);
+  const hasRemoteData = !isLoading && !!data;
   const mergedHistoryItems = useMemo(() => {
-    const remoteItems: HistorySessionItem[] = (sessions.length > 0 ? sessions : cachedSessions).map((session) => ({
+    const remoteItems: HistorySessionItem[] = (hasRemoteData ? sessions : cachedSessions).map((session) => ({
       session,
       source: "remote",
     }));
@@ -147,7 +148,7 @@ export default function HistoryPage() {
       const bTime = b.session.lockedAt instanceof Date ? b.session.lockedAt.getTime() : 0;
       return bTime - aTime;
     });
-  }, [cachedSessions, offlineQueueState.items, sessions]);
+  }, [cachedSessions, hasRemoteData, offlineQueueState.items, sessions]);
 
   const totalSessions = mergedHistoryItems.length;
 
@@ -211,15 +212,6 @@ export default function HistoryPage() {
                 </p>
               </div>
             </div>
-
-            {!isOnline && mergedHistoryItems.length === 0 && (
-              <div
-                className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium"
-                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
-              >
-                History is available only while online. Reconnect to view attendance history.
-              </div>
-            )}
           </div>
 
           {!isOnline && mergedHistoryItems.length === 0 && (
