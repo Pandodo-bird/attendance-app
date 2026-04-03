@@ -18,8 +18,6 @@ interface AlertPresentation {
   textColor: string;
   iconBg: string;
   iconColor: string;
-  buttonBg: string;
-  buttonText: string;
   Icon: typeof Info;
 }
 
@@ -28,40 +26,34 @@ function getPresentation(type: PopupAlertProps["type"]): AlertPresentation {
     case "error":
       return {
         title: "Action Needed",
-        bg: "#FFF7F7",
+        bg: "#FEF2F2",
         border: "#FECACA",
         titleColor: "#991B1B",
-        textColor: "#7F1D1D",
-        iconBg: "#FEE2E2",
+        textColor: "#B91C1C",
+        iconBg: "#FFFFFF",
         iconColor: "#DC2626",
-        buttonBg: "#FEE2E2",
-        buttonText: "#991B1B",
         Icon: AlertCircle,
       };
     case "success":
       return {
-        title: "Saved",
-        bg: "#F5FBF7",
-        border: "#BBF7D0",
+        title: "Success",
+        bg: "#ECFDF5",
+        border: "#A7F3D0",
         titleColor: "#065F46",
-        textColor: "#166534",
-        iconBg: "#DCFCE7",
-        iconColor: "#059669",
-        buttonBg: "#DCFCE7",
-        buttonText: "#065F46",
+        textColor: "#047857",
+        iconBg: "#FFFFFF",
+        iconColor: "#10B981",
         Icon: CheckCircle2,
       };
     case "info":
       return {
         title: "Heads Up",
-        bg: "#F8FAFF",
+        bg: "#EFF6FF",
         border: "#BFDBFE",
         titleColor: "#1D4ED8",
-        textColor: "#1E3A5F",
-        iconBg: "#DBEAFE",
+        textColor: "#1E40AF",
+        iconBg: "#FFFFFF",
         iconColor: "#2563EB",
-        buttonBg: "#DBEAFE",
-        buttonText: "#1D4ED8",
         Icon: Info,
       };
   }
@@ -85,45 +77,34 @@ export default function PopupAlert({ message, type, onClose, duration = 0 }: Pop
       className="fixed top-4 left-1/2 z-[100] w-[calc(100%-1.5rem)] max-w-2xl -translate-x-1/2 sm:top-6 sm:w-full"
     >
       <div
-        className="rounded-3xl border shadow-[0_18px_40px_rgba(15,23,42,0.12)] overflow-hidden"
+        className="rounded-2xl border shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
         style={{ backgroundColor: presentation.bg, borderColor: presentation.border }}
       >
-        <div className="flex items-start gap-3 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex items-start gap-3 px-4 py-3 sm:px-5 sm:py-4">
           <div
-            className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+            className="mt-0.5 h-9 w-9 shrink-0 flex items-center justify-center rounded-xl"
             style={{ backgroundColor: presentation.iconBg, color: presentation.iconColor }}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-4 w-4" />
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold sm:text-[15px]" style={{ color: presentation.titleColor }}>
+          <div className="min-w-0 flex-1 pr-8">
+            <p className="text-sm font-bold" style={{ color: presentation.titleColor }}>
               {presentation.title}
             </p>
-            <p className="mt-1 text-sm leading-6" style={{ color: presentation.textColor }}>
+            <p className="text-xs mt-0.5" style={{ color: presentation.textColor }}>
               {message}
             </p>
           </div>
 
           <button
             type="button"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl transition-colors"
-            style={{ backgroundColor: "rgba(255,255,255,0.8)", color: presentation.textColor }}
+            className="absolute top-3 right-3 p-1.5 rounded-lg shrink-0"
+            style={{ backgroundColor: presentation.iconBg, color: presentation.titleColor }}
             onClick={onClose}
             aria-label="Dismiss notification"
           >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-end border-t px-4 py-3 sm:px-5" style={{ borderColor: presentation.border }}>
-          <button
-            type="button"
-            className="rounded-2xl px-4 py-2 text-sm font-semibold transition-transform active:scale-[0.98]"
-            style={{ backgroundColor: presentation.buttonBg, color: presentation.buttonText }}
-            onClick={onClose}
-          >
-            Dismiss
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>

@@ -227,44 +227,40 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
 
             {syncStatus.lastMessage && dismissedMessage !== syncStatus.lastMessage && (
               <div
-                className="mb-4 rounded-2xl border px-4 py-3 flex items-start gap-3"
+                className="mb-4 rounded-2xl border px-4 py-3"
                 style={{
-                  backgroundColor: hasQueueIssues ? "#FEF2F2" : "#EFF6FF",
-                  borderColor: hasQueueIssues ? "#FECACA" : "#BFDBFE",
+                  backgroundColor: hasQueueIssues ? "#FEF2F2" : "#ECFDF5",
+                  borderColor: hasQueueIssues ? "#FECACA" : "#A7F3D0",
                 }}
               >
-                <div
-                  className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    backgroundColor: "#FFFFFF",
-                    color: hasQueueIssues ? "#991B1B" : "#1D4ED8",
-                  }}
-                >
-                  <AlertCircle className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-sm font-semibold"
-                    style={{ color: hasQueueIssues ? "#991B1B" : "#1D4ED8" }}
+                <div className="flex items-start gap-3">
+                  <div
+                    className="mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      color: hasQueueIssues ? "#991B1B" : "#065F46",
+                    }}
                   >
-                    {hasQueueIssues ? "Sync needs attention" : "Sync update"}
-                  </p>
-                  <p
-                    className="text-xs mt-1"
-                    style={{ color: hasQueueIssues ? "#991B1B" : "#1D4ED8" }}
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold" style={{ color: hasQueueIssues ? "#991B1B" : "#065F46" }}>
+                      {hasQueueIssues ? "Sync needs attention" : "Sync complete"}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: hasQueueIssues ? "#B91C1C" : "#047857" }}>
+                      {syncStatus.lastMessage}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedMessage(syncStatus.lastMessage)}
+                    className="p-1.5 rounded-lg shrink-0"
+                    style={{ backgroundColor: hasQueueIssues ? "#FEE2E2" : "#D1FAE5", color: hasQueueIssues ? "#991B1B" : "#065F46" }}
+                    aria-label="Dismiss sync update"
                   >
-                    {syncStatus.lastMessage}
-                  </p>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setDismissedMessage(syncStatus.lastMessage)}
-                  className="p-1 rounded-lg"
-                  style={{ color: hasQueueIssues ? "#991B1B" : "#1D4ED8" }}
-                  aria-label="Dismiss sync update"
-                >
-                  <X className="w-4 h-4" />
-                </button>
               </div>
             )}
 
