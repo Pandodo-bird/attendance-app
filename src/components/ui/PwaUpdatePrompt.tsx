@@ -2,13 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCcw, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSecretarySyncStatus } from "@/lib/syncManager";
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 1000;
 
 export default function PwaUpdatePrompt() {
+  const { user } = useAuth();
+  const syncStatus = useSecretarySyncStatus(user?.uid);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const refreshingRef = useRef(false);
   const applyTimeoutRef = useRef<number | null>(null);
+  const pendingPromptRef = useRef(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [isApplyingUpdate, setIsApplyingUpdate] = useState(false);
 
@@ -38,6 +43,13 @@ export default function PwaUpdatePrompt() {
       }
 
       registrationRef.current = registration;
+
+      if (syncStatus.isSyncing) {
+        pendingPromptRef.current = true;
+        return;
+      }
+
+      pendingPromptRef.current = false;
       setIsApplyingUpdate(false);
       setShowPrompt(true);
       registration.waiting.addEventListener("statechange", () => {
@@ -143,7 +155,28 @@ export default function PwaUpdatePrompt() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleWindowFocus);
     };
-  }, []);
+  }, [syncStatus.isSyncing]);
+
+  useEffect(() => {
+    if (isApplyingUpdate || syncStatus.isSyncing || !pendingPromptRef.current) {
+      return;
+    }
+
+    const registration = registrationRef.current;
+    if (!registration?.waiting) {
+      pendingPromptRef.current = false;
+      return;
+    }
+
+    pendingPromptRef.current = false;
+    const timeoutId = window.setTimeout(() => {
+      setShowPrompt(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isApplyingUpdate, syncStatus.isSyncing]);
 
   const handleDismiss = (): void => {
     if (isApplyingUpdate) {
@@ -194,12 +227,12 @@ export default function PwaUpdatePrompt() {
 
           <div className="min-w-0 flex-1 pr-8">
             <p className="text-sm font-bold" style={{ color: "#0F172A" }}>
-              {isApplyingUpdate ? "Updating App" : "Update Available"}
+              {isApplyingUpdate ? "Refreshing App" : "Refresh to Finish Update"}
             </p>
             <p className="mt-1 text-xs sm:text-sm" style={{ color: "#475569" }}>
               {isApplyingUpdate
-                ? "Applying the latest version now. The app will reload automatically once the update finishes."
-                : "A newer version of the app is ready. Updating will refresh the app and load the latest files."}
+                ? "Reloading into the latest version now. The app will refresh automatically once the update finishes."
+                : "A newer version is ready. Refresh the app to finish applying the update and load the latest files."}
             </p>
           </div>
 
@@ -236,7 +269,7 @@ export default function PwaUpdatePrompt() {
             onClick={handleApplyUpdate}
             disabled={isApplyingUpdate}
           >
-            {isApplyingUpdate ? "Applying update..." : "Update now"}
+            {isApplyingUpdate ? "Refreshing..." : "Refresh now"}
           </button>
         </div>
       </div>
