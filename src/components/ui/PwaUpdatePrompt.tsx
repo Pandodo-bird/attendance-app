@@ -29,7 +29,6 @@ export default function PwaUpdatePrompt() {
     const handleWorkerStateChange = (worker: ServiceWorker): void => {
       if (worker.state === "activating" || worker.state === "activated") {
         clearApplyTimeout();
-        setShowPrompt(false);
       }
     };
 
@@ -112,7 +111,6 @@ export default function PwaUpdatePrompt() {
       }
 
       clearApplyTimeout();
-      setShowPrompt(false);
       refreshingRef.current = true;
       window.location.reload();
     };
@@ -163,11 +161,9 @@ export default function PwaUpdatePrompt() {
     }
 
     setIsApplyingUpdate(true);
-    setShowPrompt(false);
     waitingWorker.addEventListener("statechange", () => {
       if (waitingWorker.state === "activating" || waitingWorker.state === "activated") {
         clearApplyTimeout();
-        setShowPrompt(false);
       }
     });
     waitingWorker.postMessage({ type: "SKIP_WAITING" });
@@ -198,35 +194,41 @@ export default function PwaUpdatePrompt() {
 
           <div className="min-w-0 flex-1 pr-8">
             <p className="text-sm font-bold" style={{ color: "#0F172A" }}>
-              Update Available
+              {isApplyingUpdate ? "Updating App" : "Update Available"}
             </p>
             <p className="mt-1 text-xs sm:text-sm" style={{ color: "#475569" }}>
-              A newer version of the app is ready. Updating will refresh the app and load the latest files.
+              {isApplyingUpdate
+                ? "Applying the latest version now. The app will reload automatically once the update finishes."
+                : "A newer version of the app is ready. Updating will refresh the app and load the latest files."}
             </p>
           </div>
 
-          <button
-            type="button"
-            className="absolute right-3 top-3 rounded-lg p-1.5"
-            style={{ backgroundColor: "#F8FAFC", color: "#475569" }}
-            onClick={handleDismiss}
-            aria-label="Dismiss update prompt"
-            disabled={isApplyingUpdate}
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {!isApplyingUpdate ? (
+            <button
+              type="button"
+              className="absolute right-3 top-3 rounded-lg p-1.5"
+              style={{ backgroundColor: "#F8FAFC", color: "#475569" }}
+              onClick={handleDismiss}
+              aria-label="Dismiss update prompt"
+              disabled={isApplyingUpdate}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t px-4 py-3 sm:px-5" style={{ borderColor: "#E2E8F0" }}>
-          <button
-            type="button"
-            className="rounded-xl px-3 py-2 text-xs font-semibold sm:text-sm"
-            style={{ backgroundColor: "#F8FAFC", color: "#334155" }}
-            onClick={handleDismiss}
-            disabled={isApplyingUpdate}
-          >
-            Later
-          </button>
+          {!isApplyingUpdate ? (
+            <button
+              type="button"
+              className="rounded-xl px-3 py-2 text-xs font-semibold sm:text-sm"
+              style={{ backgroundColor: "#F8FAFC", color: "#334155" }}
+              onClick={handleDismiss}
+              disabled={isApplyingUpdate}
+            >
+              Later
+            </button>
+          ) : null}
           <button
             type="button"
             className="rounded-xl px-3 py-2 text-xs font-semibold text-white sm:text-sm"
@@ -234,7 +236,7 @@ export default function PwaUpdatePrompt() {
             onClick={handleApplyUpdate}
             disabled={isApplyingUpdate}
           >
-            {isApplyingUpdate ? "Updating..." : "Update now"}
+            {isApplyingUpdate ? "Applying update..." : "Update now"}
           </button>
         </div>
       </div>
