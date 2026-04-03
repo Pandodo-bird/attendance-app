@@ -136,7 +136,9 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
         ? `${pendingDateCount} locally saved date${pendingDateCount > 1 ? "s" : ""}. Teachers cannot see them until sync finishes.`
       : syncStatus.pendingCount > 0
         ? `${syncStatus.pendingCount} pending sync${syncStatus.pendingCount > 1 ? "s" : ""}`
-        : "All secretary attendance is up to date";
+        : !isOnline
+          ? "Working offline — no unsynced records"
+          : "All attendance synced";
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
