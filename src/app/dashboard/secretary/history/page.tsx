@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, ChevronRight, FileText, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
+import { Calendar, Clock, ChevronRight, FileText, RefreshCw, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
-import { mergeSecretaryBootstrapCache, readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
+import { readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
+import { mergeSecretaryHistoryCache, readSecretaryHistoryCache } from "@/lib/secretaryOfflineHistory";
 import { OfflineAttendanceQueueItem, useOfflineHistoryQueueItems } from "@/lib/offlineQueue";
 import { PopupAlert } from "@/components/ui";
 
@@ -76,9 +77,17 @@ export default function HistoryPage() {
   const { isOnline } = useNetworkStatus();
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
+  const [cachedSessions, setCachedSessions] = useState<Attendance[]>([]);
+  const [historyCacheLoaded, setHistoryCacheLoaded] = useState<boolean>(false);
   const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
-  const cachedSessions = useMemo(() => cachedBootstrap?.attendanceHistorySessions ?? [], [cachedBootstrap]);
   const cachedSectionsById = useMemo(() => cachedBootstrap?.sectionsById ?? {}, [cachedBootstrap]);
+  const currentSchoolYear = useMemo(() => {
+    const schoolYears = Array.from(
+      new Set((cachedBootstrap?.appointments ?? []).map((appointment) => appointment.schoolYear).filter(Boolean))
+    ).sort();
+
+    return schoolYears.at(-1) ?? null;
+  }, [cachedBootstrap]);
   const offlineQueueState = useOfflineHistoryQueueItems(user?.uid);
 
   const {
@@ -88,6 +97,8 @@ export default function HistoryPage() {
     isFetchingNextPage,
     fetchNextPage,
     error: fetchError,
+    refetch,
+    isRefetching,
   } = useInfiniteQuery({
     queryKey: ["attendanceHistory", user?.uid],
     queryFn: async ({ pageParam }: { pageParam: number }) => {
@@ -110,6 +121,36 @@ export default function HistoryPage() {
   const previousTotalRef = useRef<number>(-1);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadCachedHistory = async () => {
+      await Promise.resolve();
+      if (cancelled) {
+        return;
+      }
+
+      if (!user?.uid || !currentSchoolYear) {
+        setCachedSessions([]);
+        setHistoryCacheLoaded(true);
+        return;
+      }
+
+      setHistoryCacheLoaded(false);
+      const sessions = await readSecretaryHistoryCache(user.uid, currentSchoolYear);
+      if (!cancelled) {
+        setCachedSessions(sessions);
+        setHistoryCacheLoaded(true);
+      }
+    };
+
+    void loadCachedHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSchoolYear, user?.uid]);
+
+  useEffect(() => {
     const currentTotal = data?.pages.flatMap(p => p.sessions).length || 0;
     
     if (currentTotal !== previousTotalRef.current) {
@@ -119,6 +160,7 @@ export default function HistoryPage() {
 
   const sessions = useMemo(() => data?.pages.flatMap((page) => page.sessions) ?? [], [data]);
   const hasRemoteData = !isLoading && !!data;
+  const isPageLoading = (!!user?.uid && !historyCacheLoaded) || (isOnline && isLoading);
   const mergedHistoryItems = useMemo(() => {
     const remoteItems: HistorySessionItem[] = (hasRemoteData ? sessions : cachedSessions).map((session) => ({
       session,
@@ -167,18 +209,22 @@ export default function HistoryPage() {
   }, [fetchError]);
 
   useEffect(() => {
-    if (!user?.uid || sessions.length === 0) {
+    if (!user?.uid || !currentSchoolYear || sessions.length === 0) {
       return;
     }
 
-    mergeSecretaryBootstrapCache(user.uid, {
-      attendanceHistorySessions: sessions,
-    });
-  }, [sessions, user?.uid]);
+    void mergeSecretaryHistoryCache(user.uid, currentSchoolYear, sessions);
+  }, [currentSchoolYear, sessions, user?.uid]);
 
   const handleLoadMore = () => {
     if (hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
+    }
+  };
+
+  const handleRefresh = () => {
+    if (isOnline) {
+      void refetch();
     }
   };
 
@@ -212,9 +258,21 @@ export default function HistoryPage() {
                 </p>
               </div>
             </div>
+            {isOnline && (
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isLoading || isRefetching}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#D1D5DB", color: "#1E3A5F" }}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isRefetching ? "animate-spin" : ""}`} />
+                {isLoading || isRefetching ? "Refreshing..." : "Refresh History"}
+              </button>
+            )}
           </div>
 
-          {!isOnline && mergedHistoryItems.length === 0 && (
+          {!isOnline && !isPageLoading && mergedHistoryItems.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -238,7 +296,7 @@ export default function HistoryPage() {
           )}
 
           {/* Summary Stats */}
-          {(isOnline || mergedHistoryItems.length > 0) && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
+          {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <motion.div
               className="rounded-xl p-3 sm:p-4 border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -301,7 +359,7 @@ export default function HistoryPage() {
           </div>}
 
           {/* Loading State */}
-          {isOnline && isLoading && (
+          {isPageLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-[#1e3a5f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -311,7 +369,7 @@ export default function HistoryPage() {
           )}
 
           {/* Empty State */}
-          {(isOnline || mergedHistoryItems.length > 0) && !isLoading && mergedHistoryItems.length === 0 && (
+          {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && mergedHistoryItems.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -335,7 +393,7 @@ export default function HistoryPage() {
           )}
 
           {/* Session Cards */}
-          {!isLoading && mergedHistoryItems.length > 0 && (
+          {!isPageLoading && mergedHistoryItems.length > 0 && (
             <div className="space-y-2 sm:space-y-3">
               {offlineQueueState.items.length > 0 && (
                 <div

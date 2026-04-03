@@ -1,10 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { useEffect, useState } from "react";
 
-import type { AttendanceStatus } from "@/lib/firestore";
+import type { Attendance, AttendanceStatus } from "@/lib/firestore";
 
-const DATABASE_NAME = "attendance-offline-sync";
-const DATABASE_VERSION = 1;
+export const DATABASE_NAME = "attendance-offline-sync";
+export const DATABASE_VERSION = 2;
 const MAX_QUEUE_STORAGE_BYTES = 50 * 1024 * 1024;
 const SYNC_LEASE_TTL_MS = 30 * 1000;
 const STALE_SYNCING_THRESHOLD_MS = SYNC_LEASE_TTL_MS * 2;
@@ -84,7 +84,14 @@ interface QueueMetaRecord {
   value: string;
 }
 
-interface OfflineQueueDatabase extends DBSchema {
+export interface SecretaryHistoryCacheRecord {
+  uid: string;
+  schoolYear: string;
+  sessions: Attendance[];
+  updatedAt: number;
+}
+
+export interface OfflineQueueDatabase extends DBSchema {
   queue: {
     key: string;
     value: OfflineAttendanceQueueItem;
@@ -112,6 +119,10 @@ interface OfflineQueueDatabase extends DBSchema {
     key: string;
     value: QueueMetaRecord;
   };
+  historyBootstrap: {
+    key: string;
+    value: SecretaryHistoryCacheRecord;
+  };
 }
 
 export class OfflineStorageCapError extends Error {
@@ -121,7 +132,7 @@ export class OfflineStorageCapError extends Error {
   }
 }
 
-function getDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
+export function getOfflineDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
   return openDB<OfflineQueueDatabase>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(database) {
       if (!database.objectStoreNames.contains("queue")) {
@@ -146,8 +157,16 @@ function getDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
       if (!database.objectStoreNames.contains("meta")) {
         database.createObjectStore("meta", { keyPath: "key" });
       }
+
+      if (!database.objectStoreNames.contains("historyBootstrap")) {
+        database.createObjectStore("historyBootstrap", { keyPath: "uid" });
+      }
     },
   });
+}
+
+function getDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
+  return getOfflineDb();
 }
 
 function getDraftKey(uid: string, attendanceId: string): string {
