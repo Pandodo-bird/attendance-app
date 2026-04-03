@@ -354,10 +354,10 @@ export default function HistoryPage() {
                 <Calendar className="w-8 h-8" style={{ color: "#6B7280" }} />
               </div>
               <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
-                History Unavailable Offline
+                No Attendance History
               </h3>
               <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
-                Go online to load and view attendance history.
+                No cached history is available on this device yet.
               </p>
             </motion.div>
           )}
@@ -400,15 +400,6 @@ export default function HistoryPage() {
           {!isPageLoading && mergedHistoryItems.length > 0 && (
             <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               <div className="space-y-2 sm:space-y-3 pb-4">
-              {offlineQueueState.items.length > 0 && (
-                <div
-                  className="rounded-xl border px-3 py-2 text-xs font-medium"
-                  style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
-                >
-                  Locally saved attendance appears here with an amber highlight until sync finishes. Synced sessions are replaced by server history automatically.
-                </div>
-              )}
-
               {!isOnline && offlineQueueState.items.length === 0 && (
                 <div
                   className="rounded-xl border px-3 py-2 text-xs font-medium"

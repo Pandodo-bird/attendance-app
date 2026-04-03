@@ -156,13 +156,13 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           ${isOpen ? "translate-x-0 w-64" : "-translate-x-full w-0"}
         `}
         style={{
-          backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB",
-          borderColor: isOnline ? "#E5E7EB" : "#FDE68A"
+          backgroundColor: "#FFFFFF",
+          borderColor: "#E5E7EB"
         }}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
-          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}>
+          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "#E5E7EB" }}>
             <div
               className="w-9 h-9 rounded flex items-center justify-center shrink-0"
               style={{ backgroundColor: "#1e3a5f" }}
@@ -176,7 +176,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
                 </h1>
                 <span
                   className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
-                  style={{ backgroundColor: isOnline ? "#E2E8F0" : "#FDE68A", color: "#475569" }}
+                  style={{ backgroundColor: "#E2E8F0", color: "#475569" }}
                 >
                   {APP_VERSION}
                 </span>
@@ -209,7 +209,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           </nav>
 
           {/* User Profile & Logout */}
-          <div className="p-4 shrink-0 border-t" style={{ borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}>
+          <div className="p-4 shrink-0 border-t" style={{ borderColor: "#E5E7EB" }}>
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-10 h-10 rounded flex items-center justify-center font-semibold text-base shrink-0"
@@ -251,7 +251,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
       {/* Mobile Bottom Navigation */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
-        style={{ backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB", borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}
+        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
       >
         <div className="flex min-h-16 items-center justify-around">
           {mainNavItems.map((item) => {
