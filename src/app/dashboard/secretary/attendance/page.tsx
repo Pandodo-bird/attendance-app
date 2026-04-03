@@ -960,25 +960,25 @@ export default function SecretaryAttendancePage() {
 
               {sessionSubmitted && !isEditing && (
                 <div
-                  className="rounded-xl p-4 sm:p-6 mb-4 sm:mb-6"
+                  className="rounded-xl p-3 sm:p-6 mb-3 sm:mb-6"
                   style={{
                     backgroundColor: queuedSubmission ? "#FEF3C7" : "#D1FAE5",
                     border: `1px solid ${queuedSubmission ? "#FDE68A" : "#A7F3D0"}`,
                   }}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center"
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0"
                         style={{ backgroundColor: queuedSubmission ? "#F59E0B" : "#10B981" }}
                       >
                         <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#FFFFFF" }} />
                       </div>
-                      <div>
-                        <p className="text-sm sm:text-base font-bold" style={{ color: queuedSubmission ? "#92400E" : "#065F46" }}>
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base font-bold leading-tight" style={{ color: queuedSubmission ? "#92400E" : "#065F46" }}>
                           {completionTitle}
                         </p>
-                        <p className="text-xs sm:text-sm" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
+                        <p className="text-[11px] sm:text-sm leading-snug" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
                           {completionDescription}
                         </p>
                       </div>
@@ -1001,52 +1001,52 @@ export default function SecretaryAttendancePage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#10B981" }}>
+                  <div className="grid grid-cols-5 gap-1.5 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#10B981" }}>
                         {presentCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Present
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#F59E0B" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#F59E0B" }}>
                         {lateCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Late
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#EF4444" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#EF4444" }}>
                         {absentCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Absent
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#2563EB" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#2563EB" }}>
                         {excusedCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Excused
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center col-span-3 sm:col-span-1" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1e3a5f" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#1e3a5f" }}>
                         {attendanceRecords.length}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Total
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
+                  <div className="flex items-start gap-2 text-[11px] sm:text-xs leading-snug" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>
+                    <span className="min-w-0 break-words">
                       {completionTimestampLabel} {formatSessionTimestamp(
                         (existingSession?.lockedAt ?? existingSession?.createdAt) as Date | string | { toDate?: () => Date } | undefined
                       )}
@@ -1069,7 +1069,7 @@ export default function SecretaryAttendancePage() {
                 className="flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden border"
                 style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               >
-                <div className="hidden md:block">
+                <div className="hidden min-h-0 flex-1 flex-col md:flex">
                   <div
                     className="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold uppercase tracking-wide"
                     style={{ backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}
