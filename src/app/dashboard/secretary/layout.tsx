@@ -110,15 +110,15 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   const showOfflineBanner = !isOnline;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F5F3FA" }}>
-      <div className="flex min-h-screen">
+    <div className="h-dvh overflow-hidden" style={{ backgroundColor: "#F5F3FA" }}>
+      <div className="flex h-full min-h-0">
         <SecretarySidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />
 
         <main
-          className={`flex-1 min-h-screen flex flex-col transition-all duration-300 ${
+          className={`flex-1 flex min-h-0 flex-col overflow-hidden transition-all duration-300 ${
             isSidebarOpen ? "lg:ml-64" : "lg:ml-0"
           }`}
         >
@@ -132,7 +132,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
             {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div className="px-3 sm:px-4 lg:px-8 pt-16 lg:pt-4 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col px-3 pt-16 sm:px-4 lg:px-8 lg:pt-4">
             {showOfflineBanner && (
               <div
                 className="mb-4 rounded-2xl border px-4 py-3"
@@ -235,7 +235,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
               </div>
             )}
 
-            <div className="pb-16 lg:pb-4">{children}</div>
+            <div className="flex min-h-0 flex-1 flex-col pb-16 lg:pb-4">{children}</div>
           </div>
         </main>
       </div>

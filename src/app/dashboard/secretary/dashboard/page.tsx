@@ -231,18 +231,18 @@ function SecretaryDashboardContent() {
     ) && resolvedAppointments.length === 0;
 
   return (
-    <>
-        <SecretaryHeader
-          title="Dashboard"
-          stats={[
-            { label: "APPOINTMENTS", value: resolvedAppointments.length },
-            { label: "SECTIONS", value: assignedSectionsCount },
-            { label: "TODAY", value: submittedSessions },
-          ]}
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <SecretaryHeader
+        title="Dashboard"
+        stats={[
+          { label: "APPOINTMENTS", value: resolvedAppointments.length },
+          { label: "SECTIONS", value: assignedSectionsCount },
+          { label: "TODAY", value: submittedSessions },
+        ]}
       />
 
       <motion.div
-        className="px-3 sm:px-4 lg:px-8 pb-8 space-y-4 sm:space-y-6"
+        className="flex-1 min-h-0 overflow-y-auto px-3 pb-8 sm:px-4 lg:px-8 space-y-4 sm:space-y-6"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
@@ -589,6 +589,6 @@ function SecretaryDashboardContent() {
           </motion.div>
         )}
       </motion.div>
-    </>
+    </div>
   );
 }

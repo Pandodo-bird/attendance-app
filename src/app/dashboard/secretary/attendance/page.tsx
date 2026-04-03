@@ -839,8 +839,8 @@ export default function SecretaryAttendancePage() {
 
   if (!selectedAppointment) {
     return (
-      <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: "#F8FAFC" }}>
-        <main className="p-3 sm:p-4 md:p-6 lg:p-8">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ backgroundColor: "#F8FAFC" }}>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="max-w-2xl mx-auto text-center pt-20">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -861,7 +861,7 @@ export default function SecretaryAttendancePage() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden" style={{ backgroundColor: "#F8FAFC" }}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ backgroundColor: "#F8FAFC" }}>
       {error && (
         <PopupAlert 
           message={error} 
@@ -878,48 +878,50 @@ export default function SecretaryAttendancePage() {
         />
       )}
 
-      <main className="overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-4 sm:mb-6">
-            <div className="flex items-center gap-3 mb-2 min-w-0">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+          <div className="sticky top-0 z-10 shrink-0 bg-[#F8FAFC] pb-4 sm:pb-6">
+            {/* Page Header */}
+            <div className="mb-4 sm:mb-6">
+              <div className="flex items-center gap-3 mb-2 min-w-0">
               <div
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: "#1e3a5f" }}
               >
                 <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div className="min-w-0">
+                <div className="min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold" style={{ color: "#1F1F1F" }}>
                   Attendance
                 </h1>
                 <p className="text-xs break-words" style={{ color: "#6B7280" }}>
                   {sectionDisplayName} • {sectionStudents.length} students
                 </p>
+                </div>
               </div>
             </div>
 
+            <AttendanceHeader
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              hasSessionToday={hasSessionToday}
+              sessionSubmitted={sessionSubmitted}
+              isEditing={isEditing}
+              onStartSession={handleStartSession}
+              startDisabled={!hasLoadedStudents}
+              completedLabel={completedLabel}
+              syncLabel={headerSyncLabel}
+              syncLabelColor={headerSyncLabelColor}
+              canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
+              onSyncNow={() => void syncStatus.syncNow()}
+              syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
+              isSyncing={syncStatus.isSyncing}
+            />
           </div>
-
-          <AttendanceHeader
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-            hasSessionToday={hasSessionToday}
-            sessionSubmitted={sessionSubmitted}
-            isEditing={isEditing}
-            onStartSession={handleStartSession}
-            startDisabled={!hasLoadedStudents}
-            completedLabel={completedLabel}
-            syncLabel={headerSyncLabel}
-            syncLabelColor={headerSyncLabelColor}
-            canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
-            onSyncNow={() => void syncStatus.syncNow()}
-            syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
-            isSyncing={syncStatus.isSyncing}
-          />
 
           {hasSessionToday || sessionSubmitted ? (
             <motion.div
+              className="flex min-h-0 flex-1 flex-col"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
@@ -1064,7 +1066,7 @@ export default function SecretaryAttendancePage() {
               )}
 
               <div
-                className="rounded-2xl overflow-hidden border"
+                className="flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden border"
                 style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               >
                 <div className="hidden md:block">
@@ -1083,33 +1085,37 @@ export default function SecretaryAttendancePage() {
                     </div>
                   </div>
 
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="divide-y divide-[#E5E7EB]">
+                      {paginatedStudents.map((record, index) => (
+                        <StudentAttendanceRow
+                          key={record.lrn}
+                          lrn={record.lrn}
+                          studentName={record.studentName}
+                          status={record.status}
+                          index={index}
+                          isEditable={canEditAttendance}
+                          onStatusChange={handleStatusChange}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
                   <div className="divide-y divide-[#E5E7EB]">
                     {paginatedStudents.map((record, index) => (
-                      <StudentAttendanceRow
+                      <MobileStudentAttendanceCard
                         key={record.lrn}
                         lrn={record.lrn}
                         studentName={record.studentName}
                         status={record.status}
-                        index={index}
                         isEditable={canEditAttendance}
                         onStatusChange={handleStatusChange}
+                        index={index}
                       />
                     ))}
                   </div>
-                </div>
-
-                <div className="md:hidden divide-y divide-[#E5E7EB]">
-                  {paginatedStudents.map((record, index) => (
-                    <MobileStudentAttendanceCard
-                      key={record.lrn}
-                      lrn={record.lrn}
-                      studentName={record.studentName}
-                      status={record.status}
-                      isEditable={canEditAttendance}
-                      onStatusChange={handleStatusChange}
-                      index={index}
-                    />
-                  ))}
                 </div>
               </div>
 

@@ -229,7 +229,7 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ backgroundColor: "#F8FAFC" }}>
       {fetchErrorMessage && dismissedFetchError !== fetchErrorMessage && (
         <PopupAlert
           message={fetchErrorMessage}
@@ -238,10 +238,11 @@ export default function HistoryPage() {
         />
       )}
 
-      <main className="p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-4 sm:mb-6">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+          <div className="sticky top-0 z-10 shrink-0 bg-[#F8FAFC] pb-4 sm:pb-6">
+            {/* Page Header */}
+            <div className="mb-4 sm:mb-6">
             <div className="flex items-center gap-3 mb-1">
               <div
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
@@ -270,6 +271,69 @@ export default function HistoryPage() {
                 {isLoading || isRefetching ? "Refreshing..." : "Refresh History"}
               </button>
             )}
+            </div>
+
+            {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <motion.div
+                className="rounded-xl p-3 sm:p-4 border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0, duration: 0.25 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E6DEFF" }}>
+                    <Calendar className="w-3 h-3" style={{ color: "#493598" }} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                    Sessions
+                  </p>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                  {totalSessions}
+                </p>
+              </motion.div>
+
+              <motion.div
+                className="rounded-xl p-3 sm:p-4 border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05, duration: 0.25 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#D4F0E8" }}>
+                    <Users className="w-3 h-3" style={{ color: "#00695C" }} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                    Records
+                  </p>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                  {totalStudentsMarked}
+                </p>
+              </motion.div>
+
+              <motion.div
+                className="rounded-xl p-3 sm:p-4 border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.25 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFE5D0" }}>
+                    <Clock className="w-3 h-3" style={{ color: "#C45C00" }} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                    Avg/Session
+                  </p>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                  {totalSessions > 0 ? Math.round(totalStudentsMarked / totalSessions) : 0}
+                </p>
+              </motion.div>
+            </div>}
           </div>
 
           {!isOnline && !isPageLoading && mergedHistoryItems.length === 0 && (
@@ -294,69 +358,6 @@ export default function HistoryPage() {
               </p>
             </motion.div>
           )}
-
-          {/* Summary Stats */}
-          {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <motion.div
-              className="rounded-xl p-3 sm:p-4 border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0, duration: 0.25 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E6DEFF" }}>
-                  <Calendar className="w-3 h-3" style={{ color: "#493598" }} />
-                </div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                  Sessions
-                </p>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                {totalSessions}
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="rounded-xl p-3 sm:p-4 border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, duration: 0.25 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#D4F0E8" }}>
-                  <Users className="w-3 h-3" style={{ color: "#00695C" }} />
-                </div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                  Records
-                </p>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                {totalStudentsMarked}
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="rounded-xl p-3 sm:p-4 border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.25 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFE5D0" }}>
-                  <Clock className="w-3 h-3" style={{ color: "#C45C00" }} />
-                </div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                  Avg/Session
-                </p>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                {totalSessions > 0 ? Math.round(totalStudentsMarked / totalSessions) : 0}
-              </p>
-            </motion.div>
-          </div>}
 
           {/* Loading State */}
           {isPageLoading && (
@@ -394,7 +395,8 @@ export default function HistoryPage() {
 
           {/* Session Cards */}
           {!isPageLoading && mergedHistoryItems.length > 0 && (
-            <div className="space-y-2 sm:space-y-3">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-2 sm:space-y-3 pb-4">
               {offlineQueueState.items.length > 0 && (
                 <div
                   className="rounded-xl border px-3 py-2 text-xs font-medium"
@@ -459,8 +461,9 @@ export default function HistoryPage() {
                   <p className="text-sm" style={{ color: "#9CA3AF" }}>
                     {isOnline ? "You've reached the end of your history" : "You are offline. Cached history for this device ends here."}
                   </p>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

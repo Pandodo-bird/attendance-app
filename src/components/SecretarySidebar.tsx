@@ -250,10 +250,10 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
 
       {/* Mobile Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 lg:hidden border-t"
+        className="fixed bottom-0 left-0 right-0 z-30 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
         style={{ backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB", borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}
       >
-        <div className="flex items-center justify-around h-16">
+        <div className="flex min-h-16 items-center justify-around">
           {mainNavItems.map((item) => {
             const active = isActive(item.href);
             return (
