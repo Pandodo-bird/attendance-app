@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { useNetworkStatus } from "@/lib/networkStatus";
 import { APP_VERSION } from "@/lib/appVersion";
 
 interface SecretarySidebarProps {
@@ -23,7 +22,6 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const { isOnline } = useNetworkStatus();
   const [indicatorTop, setIndicatorTop] = useState(0);
   const [indicatorOpacity, setIndicatorOpacity] = useState(0);
   const navContainerRef = useRef<HTMLDivElement>(null);
@@ -109,16 +107,16 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
         onClick={() => handleNavClick(href)}
         className="w-full flex items-center gap-3 px-4 py-3.5 transition-colors relative"
         style={{
-          backgroundColor: active ? (isOnline ? "#F1F5F9" : "#FEF3C7") : "transparent",
+          backgroundColor: active ? "#F1F5F9" : "transparent",
         }}
         onMouseEnter={(e) => {
           if (!active) {
-            e.currentTarget.style.backgroundColor = isOnline ? "#F8FAFC" : "#FFFBEB";
+            e.currentTarget.style.backgroundColor = "#F8FAFC";
           }
         }}
         onMouseLeave={(e) => {
           if (!active) {
-            e.currentTarget.style.backgroundColor = active ? (isOnline ? "#F1F5F9" : "#FEF3C7") : "transparent";
+            e.currentTarget.style.backgroundColor = active ? "#F1F5F9" : "transparent";
           }
         }}
       >
@@ -156,13 +154,13 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           ${isOpen ? "translate-x-0 w-64" : "-translate-x-full w-0"}
         `}
         style={{
-          backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB",
-          borderColor: isOnline ? "#E5E7EB" : "#FDE68A"
+          backgroundColor: "#FFFFFF",
+          borderColor: "#E5E7EB"
         }}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
-          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}>
+          <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "#E5E7EB" }}>
             <div
               className="w-9 h-9 rounded flex items-center justify-center shrink-0"
               style={{ backgroundColor: "#1e3a5f" }}
@@ -176,7 +174,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
                 </h1>
                 <span
                   className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
-                  style={{ backgroundColor: isOnline ? "#E2E8F0" : "#FDE68A", color: "#475569" }}
+                  style={{ backgroundColor: "#E2E8F0", color: "#475569" }}
                 >
                   {APP_VERSION}
                 </span>
@@ -209,7 +207,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
           </nav>
 
           {/* User Profile & Logout */}
-          <div className="p-4 shrink-0 border-t" style={{ borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}>
+          <div className="p-4 shrink-0 border-t" style={{ borderColor: "#E5E7EB" }}>
             <div className="flex items-center gap-3 mb-4">
               <div
                 className="w-10 h-10 rounded flex items-center justify-center font-semibold text-base shrink-0"
@@ -251,7 +249,7 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
       {/* Mobile Bottom Navigation */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
-        style={{ backgroundColor: isOnline ? "#FFFFFF" : "#FFFBEB", borderColor: isOnline ? "#E5E7EB" : "#FDE68A" }}
+        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
       >
         <div className="flex min-h-16 items-center justify-around">
           {mainNavItems.map((item) => {
