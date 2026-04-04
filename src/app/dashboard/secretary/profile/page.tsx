@@ -288,7 +288,7 @@ function ProfileContent() {
             </div>
             <div>
               <h3 className="text-sm font-bold" style={{ color: "#1F1F1F" }}>
-                EduAttend Pro
+                SchoolSync
               </h3>
               <p className="text-xs" style={{ color: "#6B7280" }}>
                 Secretary Portal

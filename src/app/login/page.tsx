@@ -4,13 +4,15 @@ import { useState, FormEvent } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, KeyRound, Mail } from "lucide-react";
+import { KeyRound, Mail } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
   const { signIn } = useAuth();
   const router = useRouter();
 
@@ -61,70 +63,124 @@ export default function LoginPage() {
             <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full bg-sky-200/20 blur-2xl pointer-events-none" />
             <div className="absolute bottom-8 -left-8 h-36 w-36 rounded-full bg-blue-100/20 blur-xl pointer-events-none" />
 
-            <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm">
-                <BookOpen size={18} color="#FFFFFF" />
-                <span className="font-headline text-sm font-semibold text-white tracking-wide">EduAttend Pro</span>
-              </div>
-
-              <div className="mt-8 flex justify-center">
+            <div className="relative z-10 flex flex-col items-center h-full">
+              <motion.button
+                layout
+                onClick={() => setShowFeatures(!showFeatures)}
+                className="relative cursor-pointer focus:outline-none"
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.94 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
                 <div
-                  className="rounded-3xl p-4 sm:p-5"
+                  className="absolute inset-0 rounded-full blur-3xl pointer-events-none"
                   style={{
-                    backgroundColor: "rgba(255,255,255,0.10)",
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    backdropFilter: "blur(8px)",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+                    background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)",
+                    transform: "scale(1.5)",
                   }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/icons/app-icon-512.png"
-                    alt="EduAttend Pro"
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl"
-                  />
-                </div>
-              </div>
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/icon-transparent.png" alt="SchoolSync" className="relative w-44 h-44" />
+              </motion.button>
 
-              <h1 className="font-headline mt-7 text-4xl font-bold leading-tight text-white">
-                School Attendance Management
-              </h1>
-              <p className="font-body mt-4 text-sm max-w-sm text-blue-100/95">
-                Manage attendance records, class lists, and daily logs in one place.
-              </p>
-
-              <div className="mt-7 grid grid-cols-2 gap-3 max-w-md">
-                <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
-                  <p className="text-xs font-semibold text-white">Attendance Recording</p>
-                  <p className="mt-1 text-[11px] text-blue-100">Log daily student attendance</p>
-                </div>
-                <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 backdrop-blur-sm">
-                  <p className="text-xs font-semibold text-white">Reports &amp; Analytics</p>
-                  <p className="mt-1 text-[11px] text-blue-100">View attendance summaries and trends</p>
-                </div>
-              </div>
+              <AnimatePresence>
+                {!showFeatures && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-6 text-center"
+                  >
+                    <p className="text-2xl font-bold text-white">SchoolSync</p>
+                    <p className="mt-2 text-xl font-semibold text-blue-100/90">Attendance Management System</p>
+                    <p className="mt-3 text-sm text-blue-100/80 max-w-sm mx-auto leading-relaxed">
+                      Track daily attendance, manage class lists, and analyze attendance trends for your school.
+                    </p>
+                    <p className="mt-5 text-xs text-blue-100/50">
+                      Click icon to see features
+                    </p>
+                  </motion.div>
+                )}
+                {showFeatures && (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, y: 16, height: 0 }}
+                    animate={{ opacity: 1, y: 0, height: "auto" }}
+                    exit={{ opacity: 0, y: 16, height: 0 }}
+                    transition={{ duration: 0.35, ease: "easeInOut" }}
+                    className="overflow-hidden mt-6"
+                  >
+                    <div className="space-y-4 max-w-md w-full text-left">
+                      <motion.div
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.05, duration: 0.2 }}
+                        className="flex items-start gap-3"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-sky-300 mt-2 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-white">Role-based access</p>
+                          <p className="mt-1 text-xs text-blue-100">Separate teacher and secretary portals with scoped permissions</p>
+                        </div>
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1, duration: 0.2 }}
+                        className="flex items-start gap-3"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-sky-300 mt-2 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-white">Offline attendance</p>
+                          <p className="mt-1 text-xs text-blue-100">Secretaries can record attendance without internet; data syncs when reconnected</p>
+                        </div>
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.15, duration: 0.2 }}
+                        className="flex items-start gap-3"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-sky-300 mt-2 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-white">Analytics &amp; reports</p>
+                          <p className="mt-1 text-xs text-blue-100">Pre-computed student summaries, monthly trends, and semester exports</p>
+                        </div>
+                      </motion.div>
+                      <motion.div
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2, duration: 0.2 }}
+                        className="flex items-start gap-3"
+                      >
+                        <div className="w-2 h-2 rounded-full bg-sky-300 mt-2 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-white">Audit trail</p>
+                          <p className="mt-1 text-xs text-blue-100">Every attendance change is logged with timestamps and override tracking</p>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            <div className="relative z-10 mt-6 flex items-center gap-3 text-xs text-blue-100">
-              <span className="px-3 py-1 rounded-full border border-white/20 bg-white/10">Teacher Access</span>
-              <span className="px-3 py-1 rounded-full border border-white/20 bg-white/10">Secretary Access</span>
-            </div>
           </section>
 
           <section className="p-5 sm:p-8 lg:p-10">
-            <div className="mb-6 sm:mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg lg:hidden mb-4" style={{ backgroundColor: "#EEF2FF", color: "#1e3a5f" }}>
+            <div className="mb-6 sm:mb-8 lg:hidden">
+              <div className="flex flex-col items-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/icons/app-icon-512.png" alt="EduAttend Pro" className="w-5 h-5 rounded" />
-                <span className="font-headline text-sm font-semibold">EduAttend Pro</span>
+                <img src="/icons/icon-transparent.png" alt="SchoolSync" className="w-14 h-14 rounded-2xl shadow-sm" />
+                <h2 className="font-headline mt-4 text-2xl font-bold leading-tight" style={{ color: "#1c1a22" }}>
+                  SchoolSync
+                </h2>
+                <p className="font-body mt-1 text-sm" style={{ color: "#6B7280" }}>
+                  Sign in to continue.
+                </p>
               </div>
-              <h2 className="font-headline text-2xl sm:text-3xl font-bold leading-tight" style={{ color: "#1c1a22" }}>
-                Welcome Back
-              </h2>
-              <p className="font-body mt-1 text-sm" style={{ color: "#6B7280" }}>
-                Sign in to continue.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2 lg:hidden">
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
                 <span
                   className="px-2.5 py-1 rounded-full text-xs font-semibold"
                   style={{ backgroundColor: "#F1F5F9", color: "#1e3a5f" }}
@@ -138,6 +194,19 @@ export default function LoginPage() {
                   Secretary Portal
                 </span>
               </div>
+            </div>
+
+            <div className="hidden lg:block mb-6 sm:mb-8">
+              <div className="flex justify-center mb-5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/icon-transparent.png" alt="SchoolSync" className="w-16 h-16" />
+              </div>
+              <h2 className="font-headline text-2xl sm:text-3xl font-bold leading-tight text-center" style={{ color: "#1c1a22" }}>
+                Welcome Back
+              </h2>
+              <p className="font-body mt-1 text-sm text-center" style={{ color: "#6B7280" }}>
+                Sign in to continue.
+              </p>
             </div>
 
             {error && (

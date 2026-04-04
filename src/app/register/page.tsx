@@ -105,7 +105,7 @@ export default function RegisterPage() {
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/20 bg-white/10 backdrop-blur-sm">
                 <BookOpen size={18} color="#FFFFFF" />
-                <span className="font-headline text-sm font-semibold text-white tracking-wide">EduAttend Pro</span>
+                <span className="font-headline text-sm font-semibold text-white tracking-wide">SchoolSync</span>
               </div>
               <h1 className="font-headline mt-8 text-4xl font-bold leading-tight text-white">
                 School Attendance Management
@@ -136,7 +136,7 @@ export default function RegisterPage() {
             <div className="mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg lg:hidden mb-5" style={{ backgroundColor: "#EEF2FF", color: "#1e3a5f" }}>
                 <BookOpen size={18} />
-                <span className="font-headline text-sm font-semibold">EduAttend Pro</span>
+                <span className="font-headline text-sm font-semibold">SchoolSync</span>
               </div>
               <h2 className="font-headline text-3xl font-bold" style={{ color: "#1c1a22" }}>Create Account</h2>
               <p className="font-body mt-2 text-sm" style={{ color: "#6B7280" }}>
