@@ -101,7 +101,13 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
   }, [isOnline, user?.uid]);
 
   return (
-    <div className="h-dvh overflow-hidden" style={{ backgroundColor: "#F5F3FA" }}>
+    <div
+      className="h-dvh overflow-hidden"
+      style={{
+        backgroundColor: "#F5F3FA",
+        ["--secretary-mobile-nav-offset" as string]: "calc(4.75rem + env(safe-area-inset-bottom))",
+      }}
+    >
       <div className="flex h-full min-h-0">
         <SecretarySidebar
           isOpen={isSidebarOpen}
@@ -124,7 +130,7 @@ export default function SecretaryLayout({ children }: SecretaryLayoutProps) {
           </button>
 
           <div className="flex min-h-0 flex-1 flex-col px-3 pt-4 sm:px-4 lg:px-8 lg:pt-4">
-            <div className="flex min-h-0 flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-4">{children}</div>
+            <div className="flex min-h-0 flex-1 flex-col pb-[var(--secretary-mobile-nav-offset)] lg:pb-4">{children}</div>
           </div>
         </main>
       </div>

@@ -245,7 +245,11 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
       {/* Mobile Bottom Navigation */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderColor: "#E5E7EB",
+          minHeight: "var(--secretary-mobile-nav-offset, calc(4.75rem + env(safe-area-inset-bottom)))",
+        }}
       >
         <div className="flex min-h-16 items-center justify-around">
           {mainNavItems.map((item) => {
