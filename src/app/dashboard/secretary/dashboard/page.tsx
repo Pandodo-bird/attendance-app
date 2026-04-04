@@ -244,7 +244,7 @@ function SecretaryDashboardContent() {
       />
 
       <motion.div
-        className="flex-1 min-h-0 overflow-y-auto px-3 pb-8 sm:px-4 lg:px-8 space-y-4 sm:space-y-6"
+        className="flex-1 min-h-0 overflow-y-auto px-3 pb-[calc(var(--secretary-mobile-nav-offset)+1rem)] sm:px-4 lg:px-8 lg:pb-8 space-y-4 sm:space-y-6"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}

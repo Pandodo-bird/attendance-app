@@ -879,7 +879,7 @@ export default function SecretaryAttendancePage() {
         />
       )}
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden p-3 sm:p-4 md:p-6 lg:p-8">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden p-3 pb-[var(--secretary-mobile-nav-offset)] sm:p-4 md:p-6 lg:p-8 lg:pb-8">
         <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
           <div className="sticky top-0 z-10 shrink-0 bg-[#F8FAFC] pb-4 sm:pb-6">
             {/* Page Header */}
@@ -923,7 +923,7 @@ export default function SecretaryAttendancePage() {
 
           {hasSessionToday || sessionSubmitted ? (
             <motion.div
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex min-h-0 flex-1 flex-col pb-[calc(var(--secretary-mobile-nav-offset)+0.5rem)] lg:pb-0"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
