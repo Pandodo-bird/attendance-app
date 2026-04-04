@@ -9,6 +9,14 @@ const listeners = new Set<(isOnline: boolean) => void>();
 
 let lastKnownIsOnline = true;
 
+function getBrowserReportedOnline(): boolean {
+  if (typeof navigator === "undefined") {
+    return true;
+  }
+
+  return navigator.onLine;
+}
+
 function setLastKnownIsOnline(nextIsOnline: boolean): void {
   lastKnownIsOnline = nextIsOnline;
   listeners.forEach((listener) => listener(nextIsOnline));
@@ -19,7 +27,7 @@ async function probeNetwork(): Promise<boolean> {
     return true;
   }
 
-  if (!navigator.onLine) {
+  if (!getBrowserReportedOnline()) {
     return false;
   }
 
@@ -35,7 +43,8 @@ async function probeNetwork(): Promise<boolean> {
 
     return response.ok;
   } catch {
-    return false;
+    // Keep the optimistic browser-reported state on transient probe failures.
+    return getBrowserReportedOnline();
   } finally {
     window.clearTimeout(timeoutId);
   }
@@ -46,7 +55,7 @@ export function getIsOnline(): boolean {
     return lastKnownIsOnline;
   }
 
-  return lastKnownIsOnline;
+  return lastKnownIsOnline && getBrowserReportedOnline();
 }
 
 export async function refreshNetworkStatus(): Promise<boolean> {
@@ -67,7 +76,7 @@ export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void):
 export function useNetworkStatus(): { isOnline: boolean } {
   const [isOnline, setIsOnline] = useState<boolean>(() => {
     if (typeof navigator !== "undefined") {
-      return lastKnownIsOnline && navigator.onLine;
+      return lastKnownIsOnline && getBrowserReportedOnline();
     }
     return lastKnownIsOnline;
   });
