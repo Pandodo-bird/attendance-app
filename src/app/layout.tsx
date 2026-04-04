@@ -25,8 +25,8 @@ export const metadata: Metadata = {
   description: "Web-based attendance management system with offline-capable secretary attendance.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icons/attendance icon.svg",
-    apple: "/icons/attendance icon.svg",
+    icon: [{ url: "/icons/attendance icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icons/app-icon-192.png", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,
