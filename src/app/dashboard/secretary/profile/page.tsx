@@ -6,6 +6,7 @@ import SecretaryHeader from "@/components/SecretaryHeader";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
 import { User, Mail, Calendar, Shield, BookOpen, Building2 } from "lucide-react";
+import { APP_VERSION } from "@/lib/appVersion";
 
 export default function ProfilePage() {
   return (
@@ -295,7 +296,7 @@ function ProfileContent() {
             </div>
           </div>
           <p className="text-xs" style={{ color: "#9CA3AF" }}>
-            Attendance Management System v1.0
+            Attendance Management System {APP_VERSION}
           </p>
         </div>
       </motion.div>

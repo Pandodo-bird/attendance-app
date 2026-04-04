@@ -66,6 +66,26 @@ export default function LoginPage() {
                 <BookOpen size={18} color="#FFFFFF" />
                 <span className="font-headline text-sm font-semibold text-white tracking-wide">EduAttend Pro</span>
               </div>
+
+              <div className="mt-8 flex justify-center">
+                <div
+                  className="rounded-3xl p-4 sm:p-5"
+                  style={{
+                    backgroundColor: "rgba(255,255,255,0.10)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    backdropFilter: "blur(8px)",
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/icons/app-icon-512.png"
+                    alt="EduAttend Pro"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl"
+                  />
+                </div>
+              </div>
+
               <h1 className="font-headline mt-7 text-4xl font-bold leading-tight text-white">
                 School Attendance Management
               </h1>
@@ -94,7 +114,8 @@ export default function LoginPage() {
           <section className="p-5 sm:p-8 lg:p-10">
             <div className="mb-6 sm:mb-8">
               <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg lg:hidden mb-4" style={{ backgroundColor: "#EEF2FF", color: "#1e3a5f" }}>
-                <BookOpen size={18} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/app-icon-512.png" alt="EduAttend Pro" className="w-5 h-5 rounded" />
                 <span className="font-headline text-sm font-semibold">EduAttend Pro</span>
               </div>
               <h2 className="font-headline text-2xl sm:text-3xl font-bold leading-tight" style={{ color: "#1c1a22" }}>
