@@ -25,8 +25,17 @@ export const metadata: Metadata = {
   description: "Web-based attendance management system with offline-capable secretary attendance.",
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: [{ url: "/icons/attendance icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/app-icon-192.png", type: "image/png" }],
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
