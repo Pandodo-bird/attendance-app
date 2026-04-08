@@ -9,12 +9,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   buildSectionAttendanceId,
   buildSectionSlug,
+  calculateAttendanceStats,
   getAttendanceSession,
   getTeacherSections,
   getSectionStudents,
   getSectionSummariesBySection,
   StudentSummary,
-  calculateClassAnalytics,
 } from "@/lib/firestore";
 import { ClassAnalytics, MonthlyTrendChart, StudentSummaryCard } from "@/components/teacher/attendance";
 import { motion } from "framer-motion";
@@ -120,7 +120,11 @@ function AttendanceContent() {
     ? buildSectionAttendanceId(todayDateKey, buildSectionSlug(selectedSection.gradeLevel, selectedSection.sectionName))
     : null;
 
-  const { data: todaysSession } = useQuery({
+  const {
+    data: todaysSession,
+    isLoading: todaysSessionLoading,
+    isFetching: todaysSessionFetching,
+  } = useQuery({
     queryKey: ["teacherAttendanceSession", todayAttendanceId],
     queryFn: () => getAttendanceSession(todayAttendanceId!),
     enabled: !!todayAttendanceId,
@@ -128,21 +132,8 @@ function AttendanceContent() {
     gcTime: 5 * 60 * 1000,
   });
 
-  const todaysSummary = ((): { present: number; late: number; absent: number; excused: number } => {
-    const records = todaysSession?.records ? Object.values(todaysSession.records) : [];
-    return records.reduce(
-      (acc, record) => {
-        if (record.status === "present") acc.present += 1;
-        else if (record.status === "late") acc.late += 1;
-        else if (record.status === "absent") acc.absent += 1;
-        else if (record.status === "excused") acc.excused += 1;
-        return acc;
-      },
-      { present: 0, late: 0, absent: 0, excused: 0 }
-    );
-  })();
-
-  const analytics = calculateClassAnalytics(summaries);
+  const todaysSummary = calculateAttendanceStats(todaysSession?.records);
+  const todaySummaryLoading = !!effectiveSectionId && (todaysSessionLoading || todaysSessionFetching);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -291,6 +282,7 @@ function AttendanceContent() {
                   summaries={summaries}
                   todayDate={todayDate}
                   todayStats={todaysSummary}
+                  todayStatsLoading={todaySummaryLoading}
                 />
 
                 {/* Monthly Trend Chart */}
