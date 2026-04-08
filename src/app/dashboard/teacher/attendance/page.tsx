@@ -7,10 +7,12 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  buildSectionAttendanceId,
+  buildSectionSlug,
+  getAttendanceSession,
   getTeacherSections,
   getSectionStudents,
   getSectionSummariesBySection,
-  getTeacherAttendance,
   StudentSummary,
   calculateClassAnalytics,
 } from "@/lib/firestore";
@@ -114,31 +116,31 @@ function AttendanceContent() {
   const todayDate = new Date();
   const todayDateKey = formatLocalDateKey(todayDate);
 
-  const { data: todaysSessions = [] } = useQuery({
-    queryKey: ["teacherAttendanceToday", user?.uid, todayDateKey],
-    queryFn: () => getTeacherAttendance(user?.uid || "", todayDateKey),
-    enabled: !!user?.uid,
+  const todayAttendanceId = selectedSection
+    ? buildSectionAttendanceId(todayDateKey, buildSectionSlug(selectedSection.gradeLevel, selectedSection.sectionName))
+    : null;
+
+  const { data: todaysSession } = useQuery({
+    queryKey: ["teacherAttendanceSession", todayAttendanceId],
+    queryFn: () => getAttendanceSession(todayAttendanceId!),
+    enabled: !!todayAttendanceId,
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 
-  const todaysSectionSessions = todaysSessions.filter(
-    (session) => session.sectionId === effectiveSectionId
-  );
-
-  const todaysSummary = todaysSectionSessions.reduce(
-    (acc, session) => {
-      const records = session.records ? Object.values(session.records) : [];
-      records.forEach((record) => {
+  const todaysSummary = ((): { present: number; late: number; absent: number; excused: number } => {
+    const records = todaysSession?.records ? Object.values(todaysSession.records) : [];
+    return records.reduce(
+      (acc, record) => {
         if (record.status === "present") acc.present += 1;
         else if (record.status === "late") acc.late += 1;
         else if (record.status === "absent") acc.absent += 1;
         else if (record.status === "excused") acc.excused += 1;
-      });
-      return acc;
-    },
-    { present: 0, late: 0, absent: 0, excused: 0 }
-  );
+        return acc;
+      },
+      { present: 0, late: 0, absent: 0, excused: 0 }
+    );
+  })();
 
   const analytics = calculateClassAnalytics(summaries);
 

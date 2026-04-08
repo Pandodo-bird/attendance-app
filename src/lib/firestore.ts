@@ -193,6 +193,30 @@ export function invalidateCache(_pattern: string): void {
 export function clearAllCaches(): void {
 }
 
+const SECTION_ACCESS_CACHE_TTL_MS = 30 * 60 * 1000;
+
+const secretarySectionAccessCache = new Map<
+  string,
+  {
+    sectionIds: string[];
+    cachedAt: number;
+  }
+>();
+
+function buildSecretarySectionAccessCacheKey(secretaryUid: string, activeOnly: boolean): string {
+  return `${secretaryUid}_${activeOnly ? "active" : "all"}`;
+}
+
+function clearSecretarySectionAccessCache(secretaryUid?: string): void {
+  if (!secretaryUid) {
+    secretarySectionAccessCache.clear();
+    return;
+  }
+
+  secretarySectionAccessCache.delete(buildSecretarySectionAccessCacheKey(secretaryUid, false));
+  secretarySectionAccessCache.delete(buildSecretarySectionAccessCacheKey(secretaryUid, true));
+}
+
 function normalizeSectionSlugPart(value: string): string {
   return value.replace(/\s+/g, "-");
 }
@@ -379,6 +403,14 @@ async function getAccessibleSectionIdsForSecretary(
   secretaryUid: string,
   activeOnly = false
 ): Promise<string[]> {
+  const cacheKey = buildSecretarySectionAccessCacheKey(secretaryUid, activeOnly);
+  const cached = secretarySectionAccessCache.get(cacheKey);
+  const now = Date.now();
+
+  if (cached && now - cached.cachedAt < SECTION_ACCESS_CACHE_TTL_MS) {
+    return cached.sectionIds;
+  }
+
   const appointmentsRef = collection(db, "appointments");
   const constraints = [where("secretaryUid", "==", secretaryUid)];
 
@@ -393,9 +425,16 @@ async function getAccessibleSectionIdsForSecretary(
   });
   const snapshot = await getDocs(q);
 
-  return Array.from(
+  const sectionIds = Array.from(
     new Set(snapshot.docs.map((appointmentDoc) => appointmentDoc.data().sectionId as string))
   );
+
+  secretarySectionAccessCache.set(cacheKey, {
+    sectionIds,
+    cachedAt: now,
+  });
+
+  return sectionIds;
 }
 
 async function getAttendanceBySectionIds(
@@ -975,6 +1014,7 @@ export async function createAppointment(
   await setDoc(appointmentRef, appointmentData);
   invalidateCache(`appointments_teacher_${teacherId}`);
   invalidateCache(`appointments_secretary_${secretaryUid}`);
+  clearSecretarySectionAccessCache(secretaryUid);
 
   return appointmentRef.id;
 }
@@ -993,6 +1033,7 @@ export async function updateAppointmentStatus(
   
   if (teacherId) invalidateCache(`appointments_teacher_${teacherId}`);
   if (secretaryUid) invalidateCache(`appointments_secretary_${secretaryUid}`);
+  clearSecretarySectionAccessCache(secretaryUid);
 }
 
 /**
@@ -1008,6 +1049,7 @@ export async function deleteAppointment(
   
   if (teacherId) invalidateCache(`appointments_teacher_${teacherId}`);
   if (secretaryUid) invalidateCache(`appointments_secretary_${secretaryUid}`);
+  clearSecretarySectionAccessCache(secretaryUid);
 }
 
 // ==================== Attendance Functions ====================
@@ -1095,6 +1137,13 @@ export async function getSecretaryAttendanceForDate(
   }
 
   return attendance;
+}
+
+export async function getSecretaryAttendanceHistory(
+  secretaryUid: string,
+): Promise<Attendance[]> {
+  const accessibleSectionIds = await getAccessibleSectionIdsForSecretary(secretaryUid);
+  return getAttendanceBySectionIds(accessibleSectionIds);
 }
 
 /**
@@ -1636,8 +1685,7 @@ export async function getSecretaryAttendanceHistoryPaginated(
   limitCount: number = 10,
   offset: number = 0
 ): Promise<{ sessions: Attendance[]; nextOffset: number | null; hasMore: boolean }> {
-  const accessibleSectionIds = await getAccessibleSectionIdsForSecretary(secretaryUid);
-  const allSessions = await getAttendanceBySectionIds(accessibleSectionIds);
+  const allSessions = await getSecretaryAttendanceHistory(secretaryUid);
   const sessions = allSessions.slice(offset, offset + limitCount);
   const nextOffset = offset + limitCount < allSessions.length ? offset + limitCount : null;
 

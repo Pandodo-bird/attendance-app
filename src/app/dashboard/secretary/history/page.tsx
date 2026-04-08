@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Clock, ChevronRight, FileText, RefreshCw, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
+import { useQuery } from "@tanstack/react-query";
+import { getSecretaryAttendanceHistory, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
 import { readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
 import { readSecretaryHistoryCache, replaceSecretaryHistoryCache } from "@/lib/secretaryOfflineHistory";
 import { OfflineAttendanceQueueItem, useOfflineHistoryQueueItems } from "@/lib/offlineQueue";
@@ -80,6 +80,7 @@ export default function HistoryPage() {
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
   const [cachedSessions, setCachedSessions] = useState<Attendance[]>([]);
   const [historyCacheLoaded, setHistoryCacheLoaded] = useState<boolean>(false);
+  const [visibleCount, setVisibleCount] = useState<number>(10);
   const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
   const cachedSectionsById = useMemo(() => cachedBootstrap?.sectionsById ?? {}, [cachedBootstrap]);
   const currentSchoolYear = useMemo(() => {
@@ -94,32 +95,16 @@ export default function HistoryPage() {
   const {
     data,
     isLoading,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
     error: fetchError,
     refetch,
     isRefetching,
-  } = useInfiniteQuery({
+  } = useQuery({
     queryKey: ["attendanceHistory", user?.uid],
-    queryFn: async ({ pageParam }: { pageParam: number }) => {
-      const result = await getSecretaryAttendanceHistoryPaginated(
-        user?.uid || "",
-        10,
-        pageParam
-      );
-      return result;
-    },
+    queryFn: () => getSecretaryAttendanceHistory(user?.uid || ""),
     enabled: !!user?.uid && isOnline,
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
-      return lastPage.hasMore ? lastPage.nextOffset ?? undefined : undefined;
-    },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
-
-  const previousTotalRef = useRef<number>(-1);
 
   useEffect(() => {
     let cancelled = false;
@@ -151,17 +136,11 @@ export default function HistoryPage() {
     };
   }, [currentSchoolYear, user?.uid]);
 
-  useEffect(() => {
-    const currentTotal = data?.pages.flatMap(p => p.sessions).length || 0;
-    
-    if (currentTotal !== previousTotalRef.current) {
-      previousTotalRef.current = currentTotal;
-    }
-  }, [data, hasNextPage]);
-
-  const sessions = useMemo(() => data?.pages.flatMap((page) => page.sessions) ?? [], [data]);
+  const allRemoteSessions = useMemo(() => data ?? [], [data]);
+  const sessions = useMemo(() => allRemoteSessions.slice(0, visibleCount), [allRemoteSessions, visibleCount]);
+  const hasNextPage = visibleCount < allRemoteSessions.length;
   const hasRemoteHistoryResult = data !== undefined;
-  const hasRemoteData = !isLoading && !!data;
+  const hasRemoteData = !isLoading && hasRemoteHistoryResult;
   const isPageLoading = (!!user?.uid && !historyCacheLoaded) || (isOnline && isLoading);
   const mergedHistoryItems = useMemo(() => {
     const remoteItems: HistorySessionItem[] = (hasRemoteData ? sessions : cachedSessions).map((session) => ({
@@ -219,13 +198,14 @@ export default function HistoryPage() {
   }, [currentSchoolYear, hasRemoteHistoryResult, sessions, user?.uid]);
 
   const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (hasNextPage) {
+      setVisibleCount((prev) => prev + 10);
     }
   };
 
   const handleRefresh = () => {
     if (isOnline) {
+      setVisibleCount(10);
       void refetch();
     }
   };
@@ -430,21 +410,13 @@ export default function HistoryPage() {
                 <div className="py-6 text-center">
                   <button
                     onClick={handleLoadMore}
-                    disabled={isFetchingNextPage}
                     className="w-full px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      backgroundColor: isFetchingNextPage ? "#9CA3AF" : "#1e3a5f",
+                      backgroundColor: "#1e3a5f",
                       color: "#FFFFFF",
                     }}
                   >
-                    {isFetchingNextPage ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Loading...
-                      </span>
-                    ) : (
-                      "Load More"
-                    )}
+                    Load More
                   </button>
                 </div>
               )}
