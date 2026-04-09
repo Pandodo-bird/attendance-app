@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import AuthGuard from "@/components/AuthGuard";
 import TeacherHeader from "@/components/TeacherHeader";
 import { DailyRecordDetailsModal, type PendingOverridePayload } from "@/components/teacher/secretary-records";
@@ -17,13 +17,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import {
   AttendanceStatus,
+  AttendanceHistoryCursor,
   buildSectionAttendanceId,
   buildSectionSlug,
   calculateAttendanceStats,
   getAttendanceSession,
   getTeacherAttendance,
   getTeacherAppointments,
-  getTeacherAttendanceSessions,
+  getTeacherSectionAttendanceHistoryPaginated,
+  getTeacherSecretaryAttendanceHistoryPaginated,
   getTeacherSections,
   getUserProfilesBatch,
   getSectionStudents,
@@ -52,7 +54,7 @@ interface SecretaryCardItem {
 }
 
 import type { SessionWithStats } from "@/components/teacher/secretary-records";
-import type { Appointment, Attendance } from "@/lib/firestore";
+import type { Appointment } from "@/lib/firestore";
 
 interface StudentAttendance {
   lrn: string;
@@ -63,6 +65,8 @@ interface StudentAttendance {
 }
 
 type WorkspaceView = "teacher-attendance" | "secretaries" | "section-history";
+const SECTION_HISTORY_PAGE_SIZE = 10;
+const SECRETARY_HISTORY_PAGE_SIZE = 10;
 
 const EMPTY_TEACHER_STUDENTS: Array<{
   lrn: string;
@@ -115,7 +119,8 @@ function SecretariesContent() {
   const [editableSessionIds, setEditableSessionIds] = useState<Record<string, boolean>>({});
   const [pendingOverride, setPendingOverride] = useState<PendingOverridePayload | null>(null);
   const [selectedSecretaryUid, setSelectedSecretaryUid] = useState<string | null>(null);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [selectedSectionHistorySectionId, setSelectedSectionHistorySectionId] = useState<string | null>(null);
+  const [selectedSessionSnapshot, setSelectedSessionSnapshot] = useState<SessionWithStats | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [shouldRefreshAfterClose, setShouldRefreshAfterClose] = useState(false);
   const [selectedTeacherAttendanceSectionId, setSelectedTeacherAttendanceSectionId] = useState<string | null>(null);
@@ -138,10 +143,6 @@ function SecretariesContent() {
   const attendanceWindowStart = formatLocalDateInputValue(recentWindowStart);
   const teacherName = user?.displayName?.trim() || "Teacher";
 
-  const filterByDateWindow = (sessions: Attendance[]): Attendance[] => {
-    return sessions.filter((session) => session.date >= attendanceWindowStart && session.date <= today);
-  };
-
   const { data: sections = [] } = useQuery({
     queryKey: ["sections", user?.uid],
     queryFn: () => getTeacherSections(user?.uid || ""),
@@ -158,30 +159,9 @@ function SecretariesContent() {
     gcTime: 60 * 60 * 1000,
   });
 
-  const needsFullAttendanceHistory =
-    activeWorkspace === "section-history" ||
-    (activeWorkspace === "secretaries" && selectedSecretaryUid !== null);
-
   const needsTodayAttendance =
     activeWorkspace === "teacher-attendance" ||
     activeWorkspace === "secretaries";
-
-  const {
-    data: rawAttendanceSessions = [],
-    isLoading: isLoadingAttendanceHistory,
-    error: attendanceHistoryError,
-  } = useQuery({
-    queryKey: ["teacherAttendanceSessions", user?.uid, attendanceWindowStart, today],
-    queryFn: () =>
-      getTeacherAttendanceSessions(
-        user?.uid || "",
-        attendanceWindowStart,
-        today
-      ),
-    enabled: !!user?.uid && needsFullAttendanceHistory,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 20 * 60 * 1000,
-  });
 
   const {
     data: todayAttendanceSessions = [],
@@ -195,18 +175,13 @@ function SecretariesContent() {
     gcTime: 5 * 60 * 1000,
   });
 
-  const attendanceSessions = needsFullAttendanceHistory
-    ? filterByDateWindow(rawAttendanceSessions)
-    : todayAttendanceSessions;
-
-  const isLoadingAttendance = needsFullAttendanceHistory
-    ? isLoadingAttendanceHistory
-    : isLoadingTodayAttendance;
-
-  const attendanceError = needsFullAttendanceHistory
-    ? attendanceHistoryError
-    : todayAttendanceError;
+  const attendanceSessions = todayAttendanceSessions;
+  const isLoadingAttendance = isLoadingTodayAttendance;
+  const attendanceError = todayAttendanceError;
   const activeSections = sections.filter((section) => section.status === "active");
+  const selectedSectionHistorySection = selectedSectionHistorySectionId
+    ? activeSections.find((section) => section.id === selectedSectionHistorySectionId) ?? null
+    : null;
   const filteredActiveSections = activeSections.filter((section) => {
     if (!searchQuery.trim()) return true;
 
@@ -326,33 +301,131 @@ function SecretariesContent() {
     refetchOnMount: false,
   });
 
-  const filteredSessions = attendanceSessions.filter((session) => {
-    if (!searchQuery.trim()) return true;
+  const {
+    data: secretaryHistoryPages,
+    isLoading: isLoadingSecretaryHistory,
+    isFetching: isFetchingSecretaryHistory,
+    error: secretaryHistoryError,
+    hasNextPage: secretaryHistoryHasNextPage,
+    fetchNextPage: fetchNextSecretaryHistoryPage,
+    isFetchingNextPage: isFetchingNextSecretaryHistoryPage,
+  } = useInfiniteQuery({
+    queryKey: [
+      "teacherSecretaryAttendanceHistory",
+      user?.uid,
+      selectedSecretaryUid,
+      attendanceWindowStart,
+      today,
+    ],
+    queryFn: ({ pageParam }) =>
+      getTeacherSecretaryAttendanceHistoryPaginated(user?.uid || "", selectedSecretaryUid || "", {
+        startDate: attendanceWindowStart,
+        endDate: today,
+        pageSize: SECRETARY_HISTORY_PAGE_SIZE,
+        cursor: (pageParam as AttendanceHistoryCursor | null) ?? null,
+      }),
+    initialPageParam: null as AttendanceHistoryCursor | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: activeWorkspace === "secretaries" && !!user?.uid && !!selectedSecretaryUid,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+  });
+
+  const selectedSecretaryHistorySessions = secretaryHistoryPages?.pages.flatMap((page) => page.sessions) ?? [];
+  const filteredSelectedSecretarySessions = selectedSecretaryHistorySessions
+    .filter((session) => {
+      if (!searchQuery.trim()) return true;
+      const normalizedSearch = searchQuery.toLowerCase();
+      const profile = session.secretaryUid ? secretaryProfiles.get(session.secretaryUid) : undefined;
+      const secretaryName = profile?.displayName ?? "";
+      const sectionLabel = sectionLabelById.get(session.sectionId) ?? "";
+      const recorderLabel = session.submittedByRole ?? session.createdByRole ?? "";
+
+      return (
+        secretaryName.toLowerCase().includes(normalizedSearch) ||
+        (session.secretaryLrn ?? "").toLowerCase().includes(normalizedSearch) ||
+        session.date.toLowerCase().includes(normalizedSearch) ||
+        sectionLabel.toLowerCase().includes(normalizedSearch) ||
+        recorderLabel.toLowerCase().includes(normalizedSearch)
+      );
+    })
+    .map((session) => {
+      const recorderName = session.createdByRole === "teacher"
+        ? teacherName
+        : secretaryProfiles.get(session.createdByUid ?? session.secretaryUid ?? "")?.displayName ?? `Secretary ${session.secretaryLrn ?? ""}`;
+      const stats = calculateAttendanceStats(session.records);
+
+      return {
+        ...session,
+        presentCount: stats.present,
+        lateCount: stats.late,
+        absentCount: stats.absent,
+        excusedCount: stats.excused,
+        totalStudents: stats.total,
+        recorderName,
+        sectionLabel: sectionLabelById.get(session.sectionId) ?? session.sectionId,
+        sectionSlug: sectionSlugById.get(session.sectionId) ?? "",
+      } satisfies SessionWithStats;
+    });
+
+  const filteredSectionHistorySections = activeSections.filter((section) => {
+    if (!searchQuery.trim()) {
+      return true;
+    }
+
     const normalizedSearch = searchQuery.toLowerCase();
-    const profile = session.secretaryUid ? secretaryProfiles.get(session.secretaryUid) : undefined;
-    const secretaryName = profile?.displayName ?? "";
-    const sectionLabel = sectionLabelById.get(session.sectionId) ?? "";
-    const recorderLabel = session.submittedByRole ?? session.createdByRole ?? "";
+    const sectionLabel = `${section.gradeLevel} - ${section.sectionName}`.toLowerCase();
 
     return (
-      secretaryName.toLowerCase().includes(normalizedSearch) ||
-      (session.secretaryLrn ?? "").toLowerCase().includes(normalizedSearch) ||
-      session.date.toLowerCase().includes(normalizedSearch) ||
-      sectionLabel.toLowerCase().includes(normalizedSearch) ||
-      recorderLabel.toLowerCase().includes(normalizedSearch)
+      sectionLabel.includes(normalizedSearch) ||
+      section.schoolYear.toLowerCase().includes(normalizedSearch)
     );
   });
 
-  const groupedBySecretaryMap = new Map<string, SecretaryGroupedRecords>();
-  const sessionsWithStats: SessionWithStats[] = [];
-  filteredSessions.forEach((session) => {
+  const {
+    data: sectionHistoryPages,
+    isLoading: isLoadingSectionHistory,
+    isFetching: isFetchingSectionHistory,
+    error: sectionHistoryError,
+    hasNextPage: sectionHistoryHasNextPage,
+    fetchNextPage: fetchNextSectionHistoryPage,
+    isFetchingNextPage: isFetchingNextSectionHistoryPage,
+  } = useInfiniteQuery({
+    queryKey: [
+      "teacherSectionAttendanceHistory",
+      user?.uid,
+      selectedSectionHistorySectionId,
+      sectionHistoryStartDate,
+      sectionHistoryEndDate,
+    ],
+    queryFn: ({ pageParam }) =>
+      getTeacherSectionAttendanceHistoryPaginated(user?.uid || "", selectedSectionHistorySectionId || "", {
+        startDate: sectionHistoryStartDate || undefined,
+        endDate: sectionHistoryEndDate || undefined,
+        pageSize: SECTION_HISTORY_PAGE_SIZE,
+        cursor: (pageParam as AttendanceHistoryCursor | null) ?? null,
+      }),
+    initialPageParam: null as AttendanceHistoryCursor | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    enabled: activeWorkspace === "section-history" && !!user?.uid && !!selectedSectionHistorySectionId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+  });
+
+  const sectionHistorySessions = sectionHistoryPages?.pages.flatMap((page) => page.sessions) ?? [];
+  const selectedSectionHistorySessions: SessionWithStats[] = sectionHistorySessions.map((session) => {
     const recorderName = session.createdByRole === "teacher"
       ? teacherName
       : secretaryProfiles.get(session.createdByUid ?? session.secretaryUid ?? "")?.displayName ?? `Secretary ${session.secretaryLrn ?? ""}`;
-    const sectionLabel = sectionLabelById.get(session.sectionId) ?? session.sectionId;
-    const sectionSlug = sectionSlugById.get(session.sectionId) ?? "";
     const stats = calculateAttendanceStats(session.records);
-    const sessionWithStats: SessionWithStats = {
+    const sectionLabel = selectedSectionHistorySection
+      ? `${selectedSectionHistorySection.gradeLevel} - ${selectedSectionHistorySection.sectionName}`
+      : sectionLabelById.get(session.sectionId) ?? session.sectionId;
+    const sectionSlug = selectedSectionHistorySection
+      ? buildSectionSlug(selectedSectionHistorySection.gradeLevel, selectedSectionHistorySection.sectionName)
+      : sectionSlugById.get(session.sectionId) ?? "";
+
+    return {
       ...session,
       presentCount: stats.present,
       lateCount: stats.late,
@@ -362,112 +435,80 @@ function SecretariesContent() {
       recorderName,
       sectionLabel,
       sectionSlug,
-    };
-    sessionsWithStats.push(sessionWithStats);
-
-    const groupKey = session.secretaryUid ?? `teacher-${session.sectionId}`;
-    const existingGroup = groupedBySecretaryMap.get(groupKey);
-    if (existingGroup) {
-      existingGroup.sessions.push(sessionWithStats);
-      return;
-    }
-
-    groupedBySecretaryMap.set(groupKey, {
-      secretaryUid: groupKey,
-      secretaryLrn: session.secretaryLrn ?? "Teacher",
-      secretaryName: recorderName,
-      sessions: [sessionWithStats],
-    });
-  });
-
-  const groupedRecords = Array.from(groupedBySecretaryMap.values()).sort((a, b) => {
-    const aLatestDate = a.sessions[0]?.date ?? "";
-    const bLatestDate = b.sessions[0]?.date ?? "";
-    return bLatestDate.localeCompare(aLatestDate);
-  });
-
-  groupedRecords.forEach((group) => {
-    group.sessions.sort((a, b) => b.date.localeCompare(a.date));
-  });
-
-  const sharedSectionGroups = activeSections
-    .map((section) => {
-      const sectionSessions = sessionsWithStats.filter((session) => session.sectionId === section.id);
-
-      return {
-        secretaryUid: `section-${section.id}`,
-        secretaryLrn: "Shared",
-        secretaryName: `${section.gradeLevel} - ${section.sectionName}`,
-        sessions: [...sectionSessions].sort((a, b) => b.date.localeCompare(a.date)),
-      } satisfies SecretaryGroupedRecords;
-    })
-    .filter((group) => group.sessions.length > 0);
-
-  const filteredSharedSectionGroups = sharedSectionGroups.map((group) => {
-    const filteredSessions = group.sessions.filter((session) => {
-      if (sectionHistoryStartDate && session.date < sectionHistoryStartDate) return false;
-      if (sectionHistoryEndDate && session.date > sectionHistoryEndDate) return false;
-      return true;
-    });
-    return { ...group, sessions: filteredSessions };
-  }).filter((group) => {
-    if (group.sessions.length === 0) return false;
-
-    if (!searchQuery.trim()) return true;
-
-    const normalizedSearch = searchQuery.toLowerCase();
-
-    return (
-      group.secretaryName.toLowerCase().includes(normalizedSearch) ||
-      group.sessions.some((session) =>
-        session.date.toLowerCase().includes(normalizedSearch) ||
-        session.sectionLabel.toLowerCase().includes(normalizedSearch) ||
-        session.recorderName.toLowerCase().includes(normalizedSearch)
-      )
-    );
+    } satisfies SessionWithStats;
   });
 
   useEffect(() => {
+    if (activeWorkspace !== "secretaries") {
+      return;
+    }
+
     if (!selectedSecretaryUid) {
-      setSelectedSessionId(null);
+      setSelectedSessionSnapshot(null);
       return;
     }
 
     const selectionStillVisible =
-      secretaryCards.some((card) => card.secretaryUid === selectedSecretaryUid) ||
-      groupedRecords.some((group) => group.secretaryUid === selectedSecretaryUid) ||
-      filteredSharedSectionGroups.some((group) => group.secretaryUid === selectedSecretaryUid);
+      secretaryCards.some((card) => card.secretaryUid === selectedSecretaryUid);
 
     if (!selectionStillVisible) {
       setSelectedSecretaryUid(null);
-      setSelectedSessionId(null);
+      setSelectedSessionSnapshot(null);
     }
-  }, [filteredSharedSectionGroups, groupedRecords, secretaryCards, selectedSecretaryUid]);
+  }, [activeWorkspace, secretaryCards, selectedSecretaryUid]);
+
+  useEffect(() => {
+    if (activeWorkspace !== "section-history") {
+      return;
+    }
+
+    if (!selectedSectionHistorySectionId) {
+      setSelectedSessionSnapshot(null);
+      return;
+    }
+
+    const sectionStillVisible = filteredSectionHistorySections.some(
+      (section) => section.id === selectedSectionHistorySectionId
+    );
+
+    if (!sectionStillVisible && activeWorkspace === "section-history") {
+      setSelectedSectionHistorySectionId(null);
+      setSelectedSessionSnapshot(null);
+    }
+  }, [activeWorkspace, filteredSectionHistorySections, selectedSectionHistorySectionId]);
 
   const selectedSecretaryRecordsGroup = selectedSecretaryUid
-    ? groupedRecords.find((group) => group.secretaryUid === selectedSecretaryUid) ??
-      (() => {
+    ? (() => {
         const appointment = activeAppointmentBySecretary.get(selectedSecretaryUid);
         if (!appointment) return null;
+
         return {
           secretaryUid: appointment.secretaryUid,
           secretaryLrn: appointment.secretaryLrn,
           secretaryName:
             secretaryProfiles.get(appointment.secretaryUid)?.displayName ?? `Secretary ${appointment.secretaryLrn}`,
-          sessions: [],
+          sessions: filteredSelectedSecretarySessions,
         } satisfies SecretaryGroupedRecords;
       })()
     : null;
 
-  const selectedSectionHistoryGroup = selectedSecretaryUid
-    ? filteredSharedSectionGroups.find((group) => group.secretaryUid === selectedSecretaryUid) ?? null
+  const selectedSectionHistoryGroup = selectedSectionHistorySection
+    ? {
+        secretaryUid: `section-${selectedSectionHistorySection.id}`,
+        secretaryLrn: "Shared",
+        secretaryName: `${selectedSectionHistorySection.gradeLevel} - ${selectedSectionHistorySection.sectionName}`,
+        sessions: selectedSectionHistorySessions,
+      } satisfies SecretaryGroupedRecords
     : null;
 
   const selectedRecordsGroup = activeWorkspace === "section-history"
     ? selectedSectionHistoryGroup
     : selectedSecretaryRecordsGroup;
 
-  const selectedSession = selectedRecordsGroup?.sessions.find((session) => session.id === selectedSessionId) ?? null;
+  const handleSelectSession = (sessionId: string): void => {
+    const session = selectedRecordsGroup?.sessions.find((item) => item.id === sessionId) ?? null;
+    setSelectedSessionSnapshot(session);
+  };
 
   useEffect(() => {
     setTeacherSelectedDate(today);
@@ -535,15 +576,12 @@ function SecretariesContent() {
     }
   }, [teacherExistingSession]);
 
-  const sectionHistorySessionCount = filteredSharedSectionGroups.reduce(
-    (count, group) => count + group.sessions.length,
-    0
-  );
+  const sectionHistorySessionCount = selectedSectionHistorySessions.length;
   const searchPlaceholder =
     activeWorkspace === "teacher-attendance"
       ? "Search sections by grade, name, or school year..."
       : activeWorkspace === "section-history"
-        ? "Search section history by section, date, or recorder..."
+        ? "Search sections by grade, name, or school year..."
         : selectedSecretaryRecordsGroup
           ? "Search records by date, section, or recorder..."
           : "Search secretaries by name, LRN, or section...";
@@ -561,7 +599,7 @@ function SecretariesContent() {
     setActiveWorkspace("teacher-attendance");
     setSelectedTeacherAttendanceSectionId(sectionId);
     setSelectedSecretaryUid(null);
-    setSelectedSessionId(null);
+    setSelectedSessionSnapshot(null);
   };
 
   const getTodaySessionStatusForSection = (sectionId: string): "none" | "open" | "locked" => {
@@ -745,6 +783,8 @@ function SecretariesContent() {
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["teacherAttendanceSessions", user.uid] }),
+        queryClient.invalidateQueries({ queryKey: ["teacherSectionAttendanceHistory", user.uid] }),
+        queryClient.invalidateQueries({ queryKey: ["teacherSecretaryAttendanceHistory", user.uid] }),
         queryClient.invalidateQueries({ queryKey: ["studentSummaries"] }),
         queryClient.invalidateQueries({ queryKey: ["teacherAttendanceToday", user.uid] }),
       ]);
@@ -769,11 +809,11 @@ function SecretariesContent() {
           activeWorkspace={activeWorkspace}
           onWorkspaceChange={(workspace) => {
             setActiveWorkspace(workspace);
-            setSelectedSessionId(null);
+            setSelectedSessionSnapshot(null);
           }}
           activeSectionsCount={activeSections.length}
           activeSecretaryCount={activeSecretaryCount}
-          sharedSectionGroupsCount={filteredSharedSectionGroups.length}
+          sharedSectionGroupsCount={filteredSectionHistorySections.length}
         />
 
         {isLoadingAttendance ? (
@@ -823,25 +863,33 @@ function SecretariesContent() {
             onClearSubmitError={() => setTeacherSubmitError(null)}
           />
         ) : activeWorkspace === "section-history" ? (
-          <SectionHistoryWorkspace
-            filteredSharedSectionGroups={filteredSharedSectionGroups}
-            selectedSectionHistoryGroup={selectedSectionHistoryGroup}
-            sectionHistorySessionCount={sectionHistorySessionCount}
-            sectionHistoryStartDate={sectionHistoryStartDate}
-            sectionHistoryEndDate={sectionHistoryEndDate}
-            showDateFilter={showDateFilter}
-            today={today}
-            editableSessionIds={editableSessionIds}
-            onSelectSection={(groupUid) => {
-              setActiveWorkspace("section-history");
-              setSelectedSecretaryUid(groupUid);
-              setSelectedSessionId(null);
-            }}
-            onBackToHistory={() => {
-              setSelectedSecretaryUid(null);
-              setSelectedSessionId(null);
-            }}
-            onSelectSession={setSelectedSessionId}
+           <SectionHistoryWorkspace
+             filteredSections={filteredSectionHistorySections}
+             selectedSection={selectedSectionHistorySection}
+             selectedSectionHistoryGroup={selectedSectionHistoryGroup}
+             sectionHistorySessionCount={sectionHistorySessionCount}
+             sectionHistoryStartDate={sectionHistoryStartDate}
+             sectionHistoryEndDate={sectionHistoryEndDate}
+             showDateFilter={showDateFilter}
+             today={today}
+             editableSessionIds={editableSessionIds}
+             isLoadingSectionHistory={isLoadingSectionHistory || isFetchingSectionHistory}
+             sectionHistoryErrorMessage={sectionHistoryError instanceof Error ? sectionHistoryError.message : null}
+             hasMoreSectionHistory={Boolean(sectionHistoryHasNextPage)}
+             isFetchingNextPage={isFetchingNextSectionHistoryPage}
+             onLoadMoreSectionHistory={() => {
+               void fetchNextSectionHistoryPage();
+             }}
+             onSelectSection={(sectionId) => {
+               setActiveWorkspace("section-history");
+               setSelectedSectionHistorySectionId(sectionId);
+               setSelectedSessionSnapshot(null);
+             }}
+             onBackToHistory={() => {
+               setSelectedSectionHistorySectionId(null);
+               setSelectedSessionSnapshot(null);
+             }}
+             onSelectSession={handleSelectSession}
             onToggleDateFilter={() => setShowDateFilter(true)}
             onStartDateChange={setSectionHistoryStartDate}
             onEndDateChange={setSectionHistoryEndDate}
@@ -858,28 +906,37 @@ function SecretariesContent() {
             activeSecretaryCount={activeSecretaryCount}
             today={today}
             getTodaySessionStatusForSection={getTodaySessionStatusForSection}
+            isLoadingSelectedSecretaryHistory={isLoadingSecretaryHistory || isFetchingSecretaryHistory}
+            selectedSecretaryHistoryErrorMessage={secretaryHistoryError instanceof Error ? secretaryHistoryError.message : null}
+            hasMoreSelectedSecretaryHistory={Boolean(secretaryHistoryHasNextPage)}
+            isFetchingNextSecretaryHistoryPage={isFetchingNextSecretaryHistoryPage}
+            onLoadMoreSelectedSecretaryHistory={() => {
+              void fetchNextSecretaryHistoryPage();
+            }}
             onSelectSecretary={(secretaryUid) => {
               setActiveWorkspace("secretaries");
               setSelectedSecretaryUid(secretaryUid);
-              setSelectedSessionId(null);
+              setSelectedSessionSnapshot(null);
             }}
             onBackToSecretaries={() => {
               setSelectedSecretaryUid(null);
-              setSelectedSessionId(null);
+              setSelectedSessionSnapshot(null);
             }}
-            onSelectSession={setSelectedSessionId}
+             onSelectSession={handleSelectSession}
             onAppointSecretary={() => setShowRegisterModal(true)}
           />
         )}
       </div>
 
       <DailyRecordDetailsModal
-        isOpen={Boolean(selectedSession)}
+        isOpen={Boolean(selectedSessionSnapshot)}
         today={today}
-        session={selectedSession}
+        session={selectedSessionSnapshot}
         editableSessionIds={editableSessionIds}
         savingRecordKey={savingRecordKey}
-        onClose={() => setSelectedSessionId(null)}
+        onClose={() => {
+          setSelectedSessionSnapshot(null);
+        }}
         onToggleSessionEditing={toggleSessionEditing}
         onSetPendingOverride={(payload) => setPendingOverride(payload)}
       />

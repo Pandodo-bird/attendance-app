@@ -213,6 +213,12 @@ await deleteSection(...);
 queryClient.invalidateQueries({ queryKey: ['sections', uid] });
 ```
 
+**Pagination Patterns:**
+- Use `useInfiniteQuery` for history/detail views that load additional pages on demand
+- Prefer Firestore-backed pagination (`orderBy` + `limit` + `startAfter`) over fetching a large result set and slicing it in the client
+- Keep page sizes small for `attendance` documents because each session can include a full `records` map
+- When a paginated view changes selection or date filters, reset the selected session/detail state to avoid stale modal state
+
 ### Diagnostic Firestore Logging
 
 For debugging TanStack Query cache behavior, all Firestore fetch functions include diagnostic logs:
@@ -278,7 +284,7 @@ Note: The old `getCachedData`/`setCachedData` functions in `firestore.ts` are no
 /dashboard/teacher/students          # Students CRUD
 /dashboard/teacher/secretaries       # Secretary management
 /dashboard/teacher/attendance        # Attendance analytics (ClassAnalytics, MonthlyTrendChart, StudentSummaryCard)
-/dashboard/teacher/reports           # Reports & exports
+/dashboard/teacher/reports           # Redirects to /dashboard/teacher/secretaries
 /dashboard/teacher/settings          # Teacher settings
 /dashboard/secretary                 # Secretary layout
 /dashboard/secretary/dashboard       # Secretary home
@@ -620,9 +626,17 @@ Free tier (Spark plan) is safe up to ~10 active sections simultaneously.
 - `getUserProfilesBatch(uids)` — batch fetches user profiles (batches of 10 due to Firestore `in` query limit)
 
 ### Secretary Attendance History
-- `getSecretaryAttendanceHistoryPaginated()` uses Firestore `orderBy("date", "desc")` + `limit()` + `startAfter()` for cursor-based pagination
-- Returns `{ sessions, lastVisible, hasMore }` for the history page
-- Requires composite index: `attendance` collection on `secretaryUid` + `date` (descending)
+- Secretary role history pages still read attendance through section-access queries, so history-heavy secretary views should be treated as optimization targets when read volume grows
+
+### Teacher Records History Pagination
+- Teacher-side shared section history in `/dashboard/teacher/secretaries` uses `getTeacherSectionAttendanceHistoryPaginated()`
+- Query shape: `teacherId == ?`, `sectionId == ?`, optional date range, `orderBy("date", "desc")`, `orderBy(documentId(), "desc")`, `limit()`, `startAfter()`
+- Requires composite index: `attendance` collection on `teacherId` + `sectionId` + `date (desc)`
+
+### Teacher Secretary Records Pagination
+- Teacher-side secretary session history in `/dashboard/teacher/secretaries` uses `getTeacherSecretaryAttendanceHistoryPaginated()`
+- Query shape: `teacherId == ?`, `secretaryUid == ?`, date window, `orderBy("date", "desc")`, `orderBy(documentId(), "desc")`, `limit()`, `startAfter()`
+- Requires composite index: `attendance` collection on `teacherId` + `secretaryUid` + `date (desc)`
 
 ### Animations
 
@@ -775,6 +789,7 @@ The secretary attendance flow is fully offline-capable. The layer consists of:
 - Probes `/api/network-status` endpoint (4s timeout, 15s interval)
 - More reliable than `navigator.onLine` alone
 - Hook: `useNetworkStatus()` returns `{ isOnline }`
+- Repeated `GET /api/network-status ... 204` entries in `npm run dev` logs are expected and indicate successful connectivity probes, not errors
 
 **Bootstrap Cache (`src/lib/secretaryOfflineBootstrap.ts`)**
 - localStorage cache of secretary's appointments, sections, and students
