@@ -13,12 +13,14 @@ interface ClassAnalyticsProps {
     absent: number;
     excused: number;
   };
+  todayStatsLoading?: boolean;
 }
 
 export default function ClassAnalytics({
   summaries,
   todayDate = new Date(),
   todayStats,
+  todayStatsLoading = false,
 }: ClassAnalyticsProps) {
   const analytics = calculateAnalytics(summaries);
 
@@ -148,7 +150,7 @@ export default function ClassAnalytics({
               Present
             </p>
             <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#166534" }}>
-              {todayStats?.present ?? 0}
+              {todayStatsLoading ? "-" : (todayStats?.present ?? 0)}
             </p>
           </div>
           <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#FFFBEB", borderColor: "#FDE68A" }}>
@@ -156,7 +158,7 @@ export default function ClassAnalytics({
               Late
             </p>
             <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#92400E" }}>
-              {todayStats?.late ?? 0}
+              {todayStatsLoading ? "-" : (todayStats?.late ?? 0)}
             </p>
           </div>
           <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#FEF2F2", borderColor: "#FECACA" }}>
@@ -164,7 +166,7 @@ export default function ClassAnalytics({
               Absent
             </p>
             <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#991B1B" }}>
-              {todayStats?.absent ?? 0}
+              {todayStatsLoading ? "-" : (todayStats?.absent ?? 0)}
             </p>
           </div>
           <div className="rounded-lg border px-3 py-2" style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }}>
@@ -172,10 +174,16 @@ export default function ClassAnalytics({
               Excused
             </p>
             <p className="mt-1 text-2xl font-semibold leading-none" style={{ color: "#1D4ED8" }}>
-              {todayStats?.excused ?? 0}
+              {todayStatsLoading ? "-" : (todayStats?.excused ?? 0)}
             </p>
           </div>
         </div>
+
+        {todayStatsLoading && (
+          <p className="mt-3 text-xs" style={{ color: "#64748B" }}>
+            Loading today&apos;s session totals...
+          </p>
+        )}
       </motion.div>
     </div>
   );
