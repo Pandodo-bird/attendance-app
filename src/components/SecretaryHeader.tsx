@@ -1,6 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
+import SecretaryStatusStrip from "@/components/SecretaryStatusStrip";
 
 interface SecretaryHeaderProps {
   title: string;
@@ -39,7 +40,7 @@ export default function SecretaryHeader({
               className="text-sm font-bold"
               style={{ color: "#1e3a5f" }}
             >
-              EduAttend Pro
+              SchoolSync
             </h2>
             <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
               Secretary Portal
@@ -94,6 +95,9 @@ export default function SecretaryHeader({
               ))}
             </div>
           )}
+          <div className="w-full">
+            <SecretaryStatusStrip />
+          </div>
         </div>
       </section>
     </div>

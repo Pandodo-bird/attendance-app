@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
+import { APP_VERSION } from "@/lib/appVersion";
 
 interface SecretarySidebarProps {
   onClose?: () => void;
@@ -160,16 +161,20 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
           <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "#E5E7EB" }}>
-            <div
-              className="w-9 h-9 rounded flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "#1e3a5f" }}
-            >
-              <ClipboardCheck className="w-5 h-5 text-white" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/icon-transparent.png" alt="SchoolSync" className="w-9 h-9 rounded shrink-0" />
             <div className="overflow-hidden">
-              <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#1F1F1F" }}>
-                EduAttend Pro
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#1F1F1F" }}>
+                  SchoolSync
+                </h1>
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+                  style={{ backgroundColor: "#E2E8F0", color: "#475569" }}
+                >
+                  {APP_VERSION}
+                </span>
+              </div>
               <p className="text-xs" style={{ color: "#6B6B6B" }}>Secretary Portal</p>
             </div>
           </div>
@@ -239,10 +244,14 @@ export default function SecretarySidebar({ onClose, isOpen = true }: SecretarySi
 
       {/* Mobile Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 lg:hidden border-t"
-        style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+        className="fixed bottom-0 left-0 right-0 z-30 border-t pb-[env(safe-area-inset-bottom)] lg:hidden"
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderColor: "#E5E7EB",
+          minHeight: "var(--secretary-mobile-nav-offset, calc(4.75rem + env(safe-area-inset-bottom)))",
+        }}
       >
-        <div className="flex items-center justify-around h-16">
+        <div className="flex min-h-16 items-center justify-around">
           {mainNavItems.map((item) => {
             const active = isActive(item.href);
             return (

@@ -12,12 +12,15 @@ import {
   markQueueItemFailed,
   markQueueItemSynced,
   markQueueItemSyncing,
+  recoverStaleSyncingQueueItems,
   releaseSyncLease,
+  renewSyncLease,
   subscribeToOfflineQueueChanges,
   type OfflineQueueFailureCode,
 } from "@/lib/offlineQueue";
 
 const RETRY_INTERVAL_MS = 30 * 1000;
+const LEASE_RENEW_INTERVAL_MS = 10 * 1000;
 
 interface SyncStatusSnapshot {
   isOnline: boolean;
@@ -196,6 +199,7 @@ class SecretarySyncController {
   stop = async (): Promise<void> => undefined;
 
   async refreshSummary(): Promise<void> {
+    await recoverStaleSyncingQueueItems(this.uid);
     const isOnline = await refreshNetworkStatus();
     const summary = await getQueueSummary(this.uid);
     this.setState({
@@ -214,6 +218,8 @@ class SecretarySyncController {
       return;
     }
 
+    await recoverStaleSyncingQueueItems(this.uid);
+
     const hasLease = await acquireSyncLease(this.uid, this.ownerId);
     if (!hasLease) {
       await this.refreshSummary();
@@ -221,9 +227,14 @@ class SecretarySyncController {
     }
 
     this.running = true;
+    let leaseRenewIntervalId: number | null = null;
     this.setState({ isOnline: true, isSyncing: true, lastMessage: trigger === "manual" ? null : this.state.lastMessage });
 
     try {
+      leaseRenewIntervalId = window.setInterval(() => {
+        void renewSyncLease(this.uid, this.ownerId);
+      }, LEASE_RENEW_INTERVAL_MS);
+
       const pendingItems = await listPendingQueueItems(this.uid);
       const summary: SyncRunSummary = {
         synced: 0,
@@ -282,6 +293,9 @@ class SecretarySyncController {
         this.setState({ lastMessage: nextMessage });
       }
     } finally {
+      if (leaseRenewIntervalId !== null) {
+        window.clearInterval(leaseRenewIntervalId);
+      }
       this.running = false;
       this.setState({ isSyncing: false, isOnline: await refreshNetworkStatus() });
       await releaseSyncLease(this.uid, this.ownerId);

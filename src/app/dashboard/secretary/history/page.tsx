@@ -1,18 +1,76 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Clock, ChevronRight, FileText, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
+import { Calendar, Clock, ChevronRight, FileText, RefreshCw, X, Users, CheckCircle, XCircle, FileBadge } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNetworkStatus } from "@/lib/networkStatus";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { getSecretaryAttendanceHistoryPaginated, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
+import { useQuery } from "@tanstack/react-query";
+import { getSecretaryAttendanceHistory, calculateAttendanceStats, Attendance, getSectionById, Section } from "@/lib/firestore";
+import { readSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
+import { readSecretaryHistoryCache, replaceSecretaryHistoryCache } from "@/lib/secretaryOfflineHistory";
+import { OfflineAttendanceQueueItem, useOfflineHistoryQueueItems } from "@/lib/offlineQueue";
+import SecretaryStatusStrip from "@/components/SecretaryStatusStrip";
 import { PopupAlert } from "@/components/ui";
 
 interface AttendanceSessionCardProps {
   session: Attendance;
   section?: Section | null;
+  badgeLabel?: string;
+  badgeColor?: { bg: string; text: string };
+  isOfflinePending?: boolean;
   onClick: () => void;
+}
+
+interface HistorySessionItem {
+  session: Attendance;
+  source: "remote" | "local";
+  queueStatus?: OfflineAttendanceQueueItem["status"];
+}
+
+function buildLocalHistorySession(item: OfflineAttendanceQueueItem): Attendance {
+  const records = Object.fromEntries(
+    item.students.map((student) => [
+      student.lrn,
+      {
+        studentName: student.studentName,
+        status: student.status,
+        timeRecorded: new Date(item.updatedAt),
+        recordedByUid: item.secretaryUid,
+      },
+    ])
+  );
+
+  return {
+    id: item.attendanceId,
+    sectionId: item.sectionId,
+    teacherId: item.teacherId,
+    secretaryUid: item.secretaryUid,
+    date: item.date,
+    schoolYear: item.schoolYear,
+    status: "locked",
+    records,
+    createdAt: new Date(item.createdAt),
+    lockedAt: new Date(item.updatedAt),
+    submittedByUid: item.secretaryUid,
+    submittedByRole: "secretary",
+  };
+}
+
+function getLocalBadge(status: OfflineAttendanceQueueItem["status"]): { label: string; color: { bg: string; text: string } } {
+  if (status === "syncing") {
+    return { label: "Syncing", color: { bg: "#DBEAFE", text: "#1D4ED8" } };
+  }
+
+  if (status === "failed") {
+    return { label: "Retrying", color: { bg: "#FEF3C7", text: "#92400E" } };
+  }
+
+  if (status === "needs_review") {
+    return { label: "Needs Review", color: { bg: "#FEE2E2", text: "#991B1B" } };
+  }
+
+  return { label: "Offline — Pending Sync", color: { bg: "#FEF3C7", text: "#92400E" } };
 }
 
 export default function HistoryPage() {
@@ -20,48 +78,105 @@ export default function HistoryPage() {
   const { isOnline } = useNetworkStatus();
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
+  const [cachedSessions, setCachedSessions] = useState<Attendance[]>([]);
+  const [historyCacheLoaded, setHistoryCacheLoaded] = useState<boolean>(false);
+  const [visibleCount, setVisibleCount] = useState<number>(10);
+  const cachedBootstrap = useMemo(() => readSecretaryBootstrapCache(user?.uid), [user?.uid]);
+  const cachedSectionsById = useMemo(() => cachedBootstrap?.sectionsById ?? {}, [cachedBootstrap]);
+  const currentSchoolYear = useMemo(() => {
+    const schoolYears = Array.from(
+      new Set((cachedBootstrap?.appointments ?? []).map((appointment) => appointment.schoolYear).filter(Boolean))
+    ).sort();
+
+    return schoolYears.at(-1) ?? null;
+  }, [cachedBootstrap]);
+  const offlineQueueState = useOfflineHistoryQueueItems(user?.uid);
 
   const {
     data,
     isLoading,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
     error: fetchError,
-  } = useInfiniteQuery({
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["attendanceHistory", user?.uid],
-    queryFn: async ({ pageParam }: { pageParam: number }) => {
-      const result = await getSecretaryAttendanceHistoryPaginated(
-        user?.uid || "",
-        10,
-        pageParam
-      );
-      return result;
-    },
+    queryFn: () => getSecretaryAttendanceHistory(user?.uid || ""),
     enabled: !!user?.uid && isOnline,
-    initialPageParam: 0,
-    getNextPageParam: (lastPage) => {
-      return lastPage.hasMore ? lastPage.nextOffset ?? undefined : undefined;
-    },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
 
-  const previousTotalRef = useRef<number>(-1);
-
   useEffect(() => {
-    const currentTotal = data?.pages.flatMap(p => p.sessions).length || 0;
-    
-    if (currentTotal !== previousTotalRef.current) {
-      previousTotalRef.current = currentTotal;
-    }
-  }, [data, hasNextPage]);
+    let cancelled = false;
 
-  const sessions = data?.pages.flatMap(page => page.sessions) || [];
-  const totalSessions = sessions.length;
+    const loadCachedHistory = async () => {
+      await Promise.resolve();
+      if (cancelled) {
+        return;
+      }
 
-  const totalStudentsMarked = sessions.reduce((acc, session) => {
-    return acc + (session.records ? Object.keys(session.records).length : 0);
+      if (!user?.uid || !currentSchoolYear) {
+        setCachedSessions([]);
+        setHistoryCacheLoaded(true);
+        return;
+      }
+
+      setHistoryCacheLoaded(false);
+      const sessions = await readSecretaryHistoryCache(user.uid, currentSchoolYear);
+      if (!cancelled) {
+        setCachedSessions(sessions);
+        setHistoryCacheLoaded(true);
+      }
+    };
+
+    void loadCachedHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentSchoolYear, user?.uid]);
+
+  const allRemoteSessions = useMemo(() => data ?? [], [data]);
+  const sessions = useMemo(() => allRemoteSessions.slice(0, visibleCount), [allRemoteSessions, visibleCount]);
+  const hasNextPage = visibleCount < allRemoteSessions.length;
+  const hasRemoteHistoryResult = data !== undefined;
+  const hasRemoteData = !isLoading && hasRemoteHistoryResult;
+  const isPageLoading = (!!user?.uid && !historyCacheLoaded) || (isOnline && isLoading);
+  const mergedHistoryItems = useMemo(() => {
+    const remoteItems: HistorySessionItem[] = (hasRemoteData ? sessions : cachedSessions).map((session) => ({
+      session,
+      source: "remote",
+    }));
+    const localItems: HistorySessionItem[] = offlineQueueState.items.map((item) => ({
+      session: buildLocalHistorySession(item),
+      source: "local",
+      queueStatus: item.status,
+    }));
+    const seenAttendanceIds = new Set<string>();
+    const merged = [...remoteItems, ...localItems].filter((item) => {
+      if (seenAttendanceIds.has(item.session.id)) {
+        return false;
+      }
+
+      seenAttendanceIds.add(item.session.id);
+      return true;
+    });
+
+    return merged.sort((a, b) => {
+      if (a.session.date !== b.session.date) {
+        return b.session.date.localeCompare(a.session.date);
+      }
+
+      const aTime = a.session.lockedAt instanceof Date ? a.session.lockedAt.getTime() : 0;
+      const bTime = b.session.lockedAt instanceof Date ? b.session.lockedAt.getTime() : 0;
+      return bTime - aTime;
+    });
+  }, [cachedSessions, hasRemoteData, offlineQueueState.items, sessions]);
+
+  const totalSessions = mergedHistoryItems.length;
+
+  const totalStudentsMarked = mergedHistoryItems.reduce((acc, item) => {
+    return acc + (item.session.records ? Object.keys(item.session.records).length : 0);
   }, 0);
 
   const fetchErrorMessage = fetchError
@@ -74,14 +189,29 @@ export default function HistoryPage() {
     }
   }, [fetchError]);
 
+  useEffect(() => {
+    if (!user?.uid || !currentSchoolYear || !hasRemoteHistoryResult) {
+      return;
+    }
+
+    void replaceSecretaryHistoryCache(user.uid, currentSchoolYear, sessions);
+  }, [currentSchoolYear, hasRemoteHistoryResult, sessions, user?.uid]);
+
   const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
+    if (hasNextPage) {
+      setVisibleCount((prev) => prev + 10);
+    }
+  };
+
+  const handleRefresh = () => {
+    if (isOnline) {
+      setVisibleCount(10);
+      void refetch();
     }
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ backgroundColor: "#F8FAFC" }}>
       {fetchErrorMessage && dismissedFetchError !== fetchErrorMessage && (
         <PopupAlert
           message={fetchErrorMessage}
@@ -90,10 +220,11 @@ export default function HistoryPage() {
         />
       )}
 
-      <main className="p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-4 sm:mb-6">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pb-[var(--secretary-mobile-nav-offset)] sm:p-4 md:p-6 lg:p-8 lg:pb-8">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+          <div className="sticky top-0 z-10 shrink-0 bg-[#F8FAFC] pb-4 sm:pb-6">
+            {/* Page Header */}
+            <div className="mb-4 sm:mb-6">
             <div className="flex items-center gap-3 mb-1">
               <div
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
@@ -110,18 +241,85 @@ export default function HistoryPage() {
                 </p>
               </div>
             </div>
-
-            {!isOnline && (
-              <div
-                className="mt-3 rounded-xl border px-3 py-2 text-xs font-medium"
-                style={{ backgroundColor: "#FEF3C7", borderColor: "#FDE68A", color: "#92400E" }}
+            {isOnline && (
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isLoading || isRefetching}
+                className="mt-3 inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#D1D5DB", color: "#1E3A5F" }}
               >
-                History is available only while online. Reconnect to view attendance history.
-              </div>
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading || isRefetching ? "animate-spin" : ""}`} />
+                {isLoading || isRefetching ? "Refreshing..." : "Refresh History"}
+              </button>
             )}
+            <SecretaryStatusStrip />
+            </div>
+
+            {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <motion.div
+                className="rounded-xl p-3 sm:p-4 border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0, duration: 0.25 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E6DEFF" }}>
+                    <Calendar className="w-3 h-3" style={{ color: "#493598" }} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                    Sessions
+                  </p>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                  {totalSessions}
+                </p>
+              </motion.div>
+
+              <motion.div
+                className="rounded-xl p-3 sm:p-4 border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05, duration: 0.25 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#D4F0E8" }}>
+                    <Users className="w-3 h-3" style={{ color: "#00695C" }} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                    Records
+                  </p>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                  {totalStudentsMarked}
+                </p>
+              </motion.div>
+
+              <motion.div
+                className="rounded-xl p-3 sm:p-4 border"
+                style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.25 }}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFE5D0" }}>
+                    <Clock className="w-3 h-3" style={{ color: "#C45C00" }} />
+                  </div>
+                  <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
+                    Avg/Session
+                  </p>
+                </div>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
+                  {totalSessions > 0 ? Math.round(totalStudentsMarked / totalSessions) : 0}
+                </p>
+              </motion.div>
+            </div>}
           </div>
 
-          {!isOnline && (
+          {!isOnline && !isPageLoading && mergedHistoryItems.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -136,79 +334,16 @@ export default function HistoryPage() {
                 <Calendar className="w-8 h-8" style={{ color: "#6B7280" }} />
               </div>
               <h3 className="text-base sm:text-lg font-semibold mb-2" style={{ color: "#1F1F1F" }}>
-                History Unavailable Offline
+                No Attendance History
               </h3>
               <p className="text-xs sm:text-sm" style={{ color: "#6B7280" }}>
-                Go online to load and view attendance history.
+                No cached history is available on this device yet.
               </p>
             </motion.div>
           )}
 
-          {/* Summary Stats */}
-          {isOnline && <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <motion.div
-              className="rounded-xl p-3 sm:p-4 border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0, duration: 0.25 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#E6DEFF" }}>
-                  <Calendar className="w-3 h-3" style={{ color: "#493598" }} />
-                </div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                  Sessions
-                </p>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                {totalSessions}
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="rounded-xl p-3 sm:p-4 border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05, duration: 0.25 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#D4F0E8" }}>
-                  <Users className="w-3 h-3" style={{ color: "#00695C" }} />
-                </div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                  Records
-                </p>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                {totalStudentsMarked}
-              </p>
-            </motion.div>
-
-            <motion.div
-              className="rounded-xl p-3 sm:p-4 border"
-              style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.25 }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#FFE5D0" }}>
-                  <Clock className="w-3 h-3" style={{ color: "#C45C00" }} />
-                </div>
-                <p className="text-[10px] sm:text-xs font-semibold uppercase" style={{ color: "#6B7280" }}>
-                  Avg/Session
-                </p>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1F1F1F" }}>
-                {totalSessions > 0 ? Math.round(totalStudentsMarked / totalSessions) : 0}
-              </p>
-            </motion.div>
-          </div>}
-
           {/* Loading State */}
-          {isOnline && isLoading && (
+          {isPageLoading && (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">
                 <div className="w-8 h-8 border-2 border-[#1e3a5f] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -218,7 +353,7 @@ export default function HistoryPage() {
           )}
 
           {/* Empty State */}
-          {isOnline && !isLoading && sessions.length === 0 && (
+          {(isOnline || mergedHistoryItems.length > 0) && !isPageLoading && mergedHistoryItems.length === 0 && (
             <motion.div
               className="rounded-2xl p-6 sm:p-12 text-center border"
               style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
@@ -242,48 +377,59 @@ export default function HistoryPage() {
           )}
 
           {/* Session Cards */}
-          {isOnline && !isLoading && sessions.length > 0 && (
-            <div className="space-y-2 sm:space-y-3">
-              {sessions.map((session) => (
+          {!isPageLoading && mergedHistoryItems.length > 0 && (
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <div className="space-y-2 sm:space-y-3 pb-[calc(var(--secretary-mobile-nav-offset)+1rem)] lg:pb-4">
+              {!isOnline && offlineQueueState.items.length === 0 && (
+                <div
+                  className="rounded-xl border px-3 py-2 text-xs font-medium"
+                  style={{ backgroundColor: "#EFF6FF", borderColor: "#BFDBFE", color: "#1D4ED8" }}
+                >
+                  Showing cached history from this device. New history will load after reconnecting.
+                </div>
+              )}
+
+              {mergedHistoryItems.map((item) => {
+                const localBadge = item.source === "local" && item.queueStatus ? getLocalBadge(item.queueStatus) : null;
+
+                return (
                 <AttendanceSessionCardWithSection
-                  key={session.id}
-                  session={session}
-                  onClick={() => setSelectedSession(session)}
+                  key={`${item.source}:${item.session.id}`}
+                  session={item.session}
+                  fallbackSection={cachedSectionsById[item.session.sectionId]}
+                  badgeLabel={localBadge?.label}
+                  badgeColor={localBadge?.color}
+                  isOfflinePending={item.source === "local"}
+                  onClick={() => setSelectedSession(item.session)}
                 />
-              ))}
+                );
+              })}
 
               {/* Load More Button */}
-              {hasNextPage && (
+              {isOnline && hasNextPage && (
                 <div className="py-6 text-center">
                   <button
                     onClick={handleLoadMore}
-                    disabled={isFetchingNextPage}
                     className="w-full px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     style={{
-                      backgroundColor: isFetchingNextPage ? "#9CA3AF" : "#1e3a5f",
+                      backgroundColor: "#1e3a5f",
                       color: "#FFFFFF",
                     }}
                   >
-                    {isFetchingNextPage ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        Loading...
-                      </span>
-                    ) : (
-                      "Load More"
-                    )}
+                    Load More
                   </button>
                 </div>
               )}
 
               {/* End of List Message */}
-              {!hasNextPage && sessions.length > 0 && (
+              {(!isOnline || !hasNextPage) && mergedHistoryItems.length > 0 && (
                 <div className="py-6 text-center">
                   <p className="text-sm" style={{ color: "#9CA3AF" }}>
-                    You&apos;ve reached the end of your history
+                    {isOnline ? "You've reached the end of your history" : "You are offline. Cached history for this device ends here."}
                   </p>
-                </div>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -304,9 +450,17 @@ export default function HistoryPage() {
 
 function AttendanceSessionCardWithSection({
   session,
+  fallbackSection,
+  badgeLabel,
+  badgeColor,
+  isOfflinePending,
   onClick,
 }: {
   session: Attendance;
+  fallbackSection?: Section | null;
+  badgeLabel?: string;
+  badgeColor?: { bg: string; text: string };
+  isOfflinePending?: boolean;
   onClick: () => void;
 }) {
   const { data: section } = useQuery({
@@ -317,10 +471,19 @@ function AttendanceSessionCardWithSection({
     enabled: !!session.sectionId,
   });
 
-  return <AttendanceSessionCard session={session} section={section} onClick={onClick} />;
+  return (
+    <AttendanceSessionCard
+      session={session}
+      section={section ?? fallbackSection}
+      badgeLabel={badgeLabel}
+      badgeColor={badgeColor}
+      isOfflinePending={isOfflinePending}
+      onClick={onClick}
+    />
+  );
 }
 
-function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionCardProps) {
+function AttendanceSessionCard({ session, section, badgeLabel, badgeColor, isOfflinePending, onClick }: AttendanceSessionCardProps) {
   const stats = calculateAttendanceStats(session.records);
   const attendanceRate = stats.total > 0
     ? Math.round(((stats.present + stats.late + stats.excused) / stats.total) * 100)
@@ -340,12 +503,15 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
     <motion.div
       onClick={onClick}
       className="rounded-xl p-3 sm:p-4 cursor-pointer border"
-      style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
+      style={{
+        backgroundColor: isOfflinePending ? "#FEF3C7" : "#FFFFFF",
+        borderColor: isOfflinePending ? "#FDE68A" : "#E5E7EB",
+      }}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0, duration: 0.2 }}
       whileHover={{
-        borderColor: "#D1D5DB",
+        borderColor: isOfflinePending ? "#FCD34D" : "#D1D5DB",
         boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
       }}
       whileTap={{ scale: 0.99 }}
@@ -373,6 +539,14 @@ function AttendanceSessionCard({ session, section, onClick }: AttendanceSessionC
             <span className="text-xs" style={{ color: "#6C5CE7" }}>
               {submittedBy}
             </span>
+            {badgeLabel && badgeColor && (
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: badgeColor.bg, color: badgeColor.text }}
+              >
+                {badgeLabel}
+              </span>
+            )}
             <span className="text-xs" style={{ color: "#9CA3AF" }}>
               •
             </span>

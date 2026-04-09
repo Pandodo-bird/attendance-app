@@ -21,6 +21,7 @@ import {
   buildSectionSlug,
   calculateAttendanceStats,
   getAttendanceSession,
+  getTeacherAttendance,
   getTeacherAppointments,
   getTeacherAttendanceSessions,
   getTeacherSections,
@@ -157,10 +158,18 @@ function SecretariesContent() {
     gcTime: 60 * 60 * 1000,
   });
 
+  const needsFullAttendanceHistory =
+    activeWorkspace === "section-history" ||
+    (activeWorkspace === "secretaries" && selectedSecretaryUid !== null);
+
+  const needsTodayAttendance =
+    activeWorkspace === "teacher-attendance" ||
+    activeWorkspace === "secretaries";
+
   const {
     data: rawAttendanceSessions = [],
-    isLoading: isLoadingAttendance,
-    error: attendanceError,
+    isLoading: isLoadingAttendanceHistory,
+    error: attendanceHistoryError,
   } = useQuery({
     queryKey: ["teacherAttendanceSessions", user?.uid, attendanceWindowStart, today],
     queryFn: () =>
@@ -169,12 +178,34 @@ function SecretariesContent() {
         attendanceWindowStart,
         today
       ),
-    enabled: !!user?.uid,
+    enabled: !!user?.uid && needsFullAttendanceHistory,
     staleTime: 10 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
   });
 
-  const attendanceSessions = filterByDateWindow(rawAttendanceSessions);
+  const {
+    data: todayAttendanceSessions = [],
+    isLoading: isLoadingTodayAttendance,
+    error: todayAttendanceError,
+  } = useQuery({
+    queryKey: ["teacherAttendanceToday", user?.uid, today],
+    queryFn: () => getTeacherAttendance(user?.uid || "", today),
+    enabled: !!user?.uid && needsTodayAttendance,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+
+  const attendanceSessions = needsFullAttendanceHistory
+    ? filterByDateWindow(rawAttendanceSessions)
+    : todayAttendanceSessions;
+
+  const isLoadingAttendance = needsFullAttendanceHistory
+    ? isLoadingAttendanceHistory
+    : isLoadingTodayAttendance;
+
+  const attendanceError = needsFullAttendanceHistory
+    ? attendanceHistoryError
+    : todayAttendanceError;
   const activeSections = sections.filter((section) => section.status === "active");
   const filteredActiveSections = activeSections.filter((section) => {
     if (!searchQuery.trim()) return true;

@@ -17,15 +17,20 @@ This file provides guidance to agents when working with code in this repository.
 | State/Cache | TanStack Query (React Query) |
 | Compiler | React Compiler (babel-plugin-react-compiler) |
 | Linting | ESLint (nextjs + typescript configs) |
+| PWA/Service Worker | Serwist (`@serwist/next` + `serwist`) |
+| Offline Storage | idb (IndexedDB wrapper) |
+| Server-side Auth | Firebase Admin SDK (`firebase-admin`) |
 
 ## Commands
 
 ```bash
-npm run dev      # Start Next.js dev server
-npm run build    # Production build
+npm run dev      # Start Next.js dev server (--webpack required for Serwist)
+npm run build    # Production build (--webpack required for Serwist)
 npm run start    # Start production server
 npm run lint     # Run ESLint
 ```
+
+Note: `--webpack` flag is required because Serwist does not support Turbopack. The `reactCompiler` and `turbopack` options are set in `next.config.ts` but `--webpack` overrides Turbopack at the CLI level.
 
 Note: No test framework is currently configured. Tests should use `console.log` debugging or manual verification.
 
@@ -736,6 +741,50 @@ useEffect(() => {
 - Toggles `dark` class on `document.documentElement` for Tailwind dark mode
 - Usage: `const { isDark, toggleTheme } = useTheme()`
 
+### PWA / Offline Layer
+
+The secretary attendance flow is fully offline-capable. The layer consists of:
+
+**Service Worker (`src/app/sw.ts`)**
+- Source file compiled by Serwist during `next build` → outputs `public/sw.js` (build artifact, gitignored)
+- Precaches all static assets + secretary route documents
+- Runtime caching: `NetworkFirst` for secretary pages (5s timeout), `CacheFirst` for static shell
+- Configured in `next.config.ts` via `withSerwistInit`
+
+**PWA Manifest (`src/app/manifest.ts`)**
+- Next.js `MetadataRoute.Manifest` type
+- Starts at `/dashboard/secretary/dashboard`
+- Icons in `/public/icons/app-icon-{192,512}.svg`
+
+**Offline Storage (`src/lib/offlineQueue.ts`)**
+- IndexedDB via `idb` library — stores attendance drafts and sync queue
+- Database: `attendance-offline-sync` with stores: `queue`, `drafts`, `syncLeases`, `meta`
+- Queue statuses: `pending` → `syncing` → `synced` / `failed` / `needs_review`
+- Failure codes: `transient`, `failed_auth`, `failed_permission`, `validation`, `locked`, `conflict`, `storage_cap`
+- 50MB storage cap with automatic pruning of old synced items
+- Hooks: `useOfflineQueueSummary(uid)`, `useOfflineQueuedDates(uid)`
+
+**Sync Manager (`src/lib/syncManager.ts`)**
+- `SecretarySyncController` class — manages retry loop (30s interval) per secretary
+- Sync lease mechanism prevents duplicate sync across tabs
+- Error classification: auth errors break loop, transient errors retry
+- Hook: `useSecretarySyncStatus(uid)` returns `{ isOnline, isSyncing, pendingCount, ... }`
+- Exported: `syncSecretaryQueueNow(uid)`, `stopSecretarySync(uid)`
+
+**Network Status (`src/lib/networkStatus.ts`)**
+- Probes `/api/network-status` endpoint (4s timeout, 15s interval)
+- More reliable than `navigator.onLine` alone
+- Hook: `useNetworkStatus()` returns `{ isOnline }`
+
+**Bootstrap Cache (`src/lib/secretaryOfflineBootstrap.ts`)**
+- localStorage cache of secretary's appointments, sections, and students
+- Used to render attendance page immediately when offline
+- Key: `secretary-attendance-bootstrap:{uid}`
+
+**Offline Fallback (`src/app/~offline/page.tsx`)**
+- Shown by service worker when navigating to uncached pages while offline
+- Links to cached secretary routes
+
 ## Component Structure
 
 ```
@@ -800,6 +849,54 @@ src/components/
     ├── PopupAlert.tsx                  # Alert/notification component
     ├── PageTransition.tsx              # Page transition wrapper (Framer Motion)
     └── StaggeredCard.tsx              # Staggered card entrance animation
+
+src/lib/
+├── firebase.ts                         # Firebase client config (web SDK)
+├── firebase-admin.ts                   # Firebase Admin SDK (server-side only)
+├── firestore.ts                        # All Firestore CRUD + analytics functions
+├── networkStatus.ts                    # Network probe + useNetworkStatus hook
+├── offlineQueue.ts                     # IndexedDB draft/queue + useOfflineQueueSummary hook
+├── secretaryOfflineBootstrap.ts        # localStorage bootstrap cache for offline renders
+└── syncManager.ts                      # SecretarySyncController + useSecretarySyncStatus hook
+
+src/contexts/
+├── AuthContext.tsx                      # Firebase Auth state + role loading
+├── TanStackQueryProvider.tsx            # QueryClient provider (default 5min stale, 10min gc)
+└── ThemeContext.tsx                     # Dark mode toggle + localStorage persistence
+
+src/hooks/
+└── useRequireRole.tsx                  # Route guard hook (redirects if wrong role)
+
+src/app/
+├── sw.ts                               # Serwist service worker source (compiles to public/sw.js)
+├── manifest.ts                         # PWA manifest (MetadataRoute.Manifest)
+├── ~offline/
+│   └── page.tsx                        # Offline fallback page
+├── api/
+│   ├── create-secretary/route.ts       # Server-side secretary account creation
+│   ├── network-status/route.ts         # Health check endpoint for connection probing
+│   └── register-teacher/route.ts       # Server-side teacher registration
+├── dashboard/
+│   ├── page.tsx                        # Role-based redirect
+│   ├── teacher/
+│   │   ├── layout.tsx
+│   │   ├── dashboard/page.tsx
+│   │   ├── sections/page.tsx
+│   │   ├── students/page.tsx
+│   │   ├── secretaries/page.tsx
+│   │   ├── attendance/page.tsx
+│   │   ├── reports/page.tsx
+│   │   └── settings/page.tsx
+│   └── secretary/
+│       ├── layout.tsx
+│       ├── page.tsx
+│       ├── dashboard/page.tsx
+│       ├── attendance/page.tsx
+│       ├── history/page.tsx
+│       └── profile/page.tsx
+├── login/page.tsx
+├── register/page.tsx
+└── page.tsx                            # Landing / redirect
 ```
 
 ## Import Patterns
@@ -821,6 +918,11 @@ import { useRequireRole } from "@/hooks/useRequireRole";
 // Contexts
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+
+// Offline hooks
+import { useNetworkStatus } from "@/lib/networkStatus";
+import { useSecretarySyncStatus } from "@/lib/syncManager";
+import { useOfflineQueueSummary } from "@/lib/offlineQueue";
 ```
 
 ## Linting

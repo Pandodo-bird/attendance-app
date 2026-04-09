@@ -6,6 +6,7 @@ import SecretaryHeader from "@/components/SecretaryHeader";
 import { RoleGuard } from "@/hooks/useRequireRole";
 import { motion } from "framer-motion";
 import { User, Mail, Calendar, Shield, BookOpen, Building2 } from "lucide-react";
+import { APP_VERSION } from "@/lib/appVersion";
 
 export default function ProfilePage() {
   return (
@@ -96,7 +97,7 @@ function ProfileContent() {
   const formattedDate = toDisplayDate(secretaryProfile?.createdAt);
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <SecretaryHeader
         title="Profile"
         stats={[
@@ -106,7 +107,7 @@ function ProfileContent() {
       />
 
       <motion.div
-        className="px-3 sm:px-4 lg:px-8 pb-8 space-y-4 sm:space-y-6"
+        className="flex-1 min-h-0 overflow-y-auto px-3 pb-[calc(var(--secretary-mobile-nav-offset)+1rem)] sm:px-4 lg:px-8 lg:pb-8 space-y-4 sm:space-y-6"
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
@@ -287,7 +288,7 @@ function ProfileContent() {
             </div>
             <div>
               <h3 className="text-sm font-bold" style={{ color: "#1F1F1F" }}>
-                EduAttend Pro
+                SchoolSync
               </h3>
               <p className="text-xs" style={{ color: "#6B7280" }}>
                 Secretary Portal
@@ -295,10 +296,10 @@ function ProfileContent() {
             </div>
           </div>
           <p className="text-xs" style={{ color: "#9CA3AF" }}>
-            Attendance Management System v1.0
+            Attendance Management System {APP_VERSION}
           </p>
         </div>
       </motion.div>
-    </>
+    </div>
   );
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
+import { APP_VERSION } from "@/lib/appVersion";
 
 interface TeacherSidebarProps {
   onClose?: () => void;
@@ -174,16 +175,20 @@ export default function TeacherSidebar({ onClose, isOpen = true }: TeacherSideba
         <div className="flex flex-col h-full overflow-hidden">
           {/* Logo */}
           <div className="p-4 flex items-center gap-3 shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
-            <div
-              className="w-9 h-9 rounded flex items-center justify-center shrink-0"
-              style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
-            >
-              <BookOpen className="w-5 h-5 text-white" />
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/app-icon-512.png" alt="SchoolSync" className="w-9 h-9 rounded shrink-0" />
             <div className="overflow-hidden">
-              <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#FFFFFF" }}>
-                EduAttend Pro
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold text-base leading-tight whitespace-nowrap" style={{ color: "#FFFFFF" }}>
+                  SchoolSync
+                </h1>
+                <span
+                  className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+                  style={{ backgroundColor: "rgba(255,255,255,0.16)", color: "#E2E8F0" }}
+                >
+                  {APP_VERSION}
+                </span>
+              </div>
               <p className="text-xs" style={{ color: "#C7D5E6" }}>Teacher Portal</p>
             </div>
           </div>

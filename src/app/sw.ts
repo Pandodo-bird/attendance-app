@@ -33,7 +33,11 @@ function isCachedSecretaryDocument(pathname: string): boolean {
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
+  precacheOptions: {
+    navigateFallback: "/~offline",
+    navigateFallbackAllowlist: [/^\/dashboard\/secretary(?:\/.*)?$/],
+  },
+  skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
@@ -59,6 +63,12 @@ const serwist = new Serwist({
       }),
     },
   ],
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 serwist.addEventListeners();

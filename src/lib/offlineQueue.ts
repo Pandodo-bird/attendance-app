@@ -1,12 +1,13 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { useEffect, useState } from "react";
 
-import type { AttendanceStatus } from "@/lib/firestore";
+import type { Attendance, AttendanceStatus } from "@/lib/firestore";
 
-const DATABASE_NAME = "attendance-offline-sync";
-const DATABASE_VERSION = 1;
+export const DATABASE_NAME = "attendance-offline-sync";
+export const DATABASE_VERSION = 2;
 const MAX_QUEUE_STORAGE_BYTES = 50 * 1024 * 1024;
 const SYNC_LEASE_TTL_MS = 30 * 1000;
+const STALE_SYNCING_THRESHOLD_MS = SYNC_LEASE_TTL_MS * 2;
 const QUEUE_EVENT_NAME = "attendance-offline-queue-changed";
 
 export type OfflineQueueItemStatus = "pending" | "syncing" | "synced" | "failed" | "needs_review";
@@ -83,7 +84,14 @@ interface QueueMetaRecord {
   value: string;
 }
 
-interface OfflineQueueDatabase extends DBSchema {
+export interface SecretaryHistoryCacheRecord {
+  uid: string;
+  schoolYear: string;
+  sessions: Attendance[];
+  updatedAt: number;
+}
+
+export interface OfflineQueueDatabase extends DBSchema {
   queue: {
     key: string;
     value: OfflineAttendanceQueueItem;
@@ -111,6 +119,10 @@ interface OfflineQueueDatabase extends DBSchema {
     key: string;
     value: QueueMetaRecord;
   };
+  historyBootstrap: {
+    key: string;
+    value: SecretaryHistoryCacheRecord;
+  };
 }
 
 export class OfflineStorageCapError extends Error {
@@ -120,7 +132,7 @@ export class OfflineStorageCapError extends Error {
   }
 }
 
-function getDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
+export function getOfflineDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
   return openDB<OfflineQueueDatabase>(DATABASE_NAME, DATABASE_VERSION, {
     upgrade(database) {
       if (!database.objectStoreNames.contains("queue")) {
@@ -145,8 +157,16 @@ function getDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
       if (!database.objectStoreNames.contains("meta")) {
         database.createObjectStore("meta", { keyPath: "key" });
       }
+
+      if (!database.objectStoreNames.contains("historyBootstrap")) {
+        database.createObjectStore("historyBootstrap", { keyPath: "uid" });
+      }
     },
   });
+}
+
+function getDb(): Promise<IDBPDatabase<OfflineQueueDatabase>> {
+  return getOfflineDb();
 }
 
 function getDraftKey(uid: string, attendanceId: string): string {
@@ -196,6 +216,10 @@ async function pruneSyncedItemsToFit(db: IDBPDatabase<OfflineQueueDatabase>, uid
 
 export function buildOfflineOperationId(uid: string, attendanceId: string): string {
   return `${uid}:${attendanceId}:submit`;
+}
+
+function isQueueItemStaleSyncing(item: OfflineAttendanceQueueItem, now: number = Date.now()): boolean {
+  return item.status === "syncing" && now - item.updatedAt >= STALE_SYNCING_THRESHOLD_MS;
 }
 
 export async function getQueueStorageUsage(uid: string): Promise<number> {
@@ -313,9 +337,14 @@ export async function getLatestQueueItemForSession(uid: string, attendanceId: st
 export async function listPendingQueueItems(uid: string): Promise<OfflineAttendanceQueueItem[]> {
   const db = await getDb();
   const items = await db.getAllFromIndex("queue", "by-uid", uid);
+  const now = Date.now();
 
   return items
-    .filter((item) => item.status === "pending" || (item.status === "failed" && item.failureCode === "transient"))
+    .filter((item) => (
+      item.status === "pending" ||
+      (item.status === "failed" && item.failureCode === "transient") ||
+      isQueueItemStaleSyncing(item, now)
+    ))
     .sort((a, b) => {
       if (a.sessionKey === b.sessionKey) {
         return a.createdAt - b.createdAt;
@@ -404,10 +433,11 @@ export async function getQueueSummary(uid: string): Promise<{
   needsReview: number;
 }> {
   const items = await listQueueItems(uid);
+  const now = Date.now();
 
   return items.reduce(
     (summary, item) => {
-      if (item.status === "pending") {
+      if (item.status === "pending" || isQueueItemStaleSyncing(item, now)) {
         summary.pending += 1;
       } else if (item.status === "syncing") {
         summary.syncing += 1;
@@ -442,6 +472,24 @@ export async function acquireSyncLease(uid: string, ownerId: string): Promise<bo
   return true;
 }
 
+export async function renewSyncLease(uid: string, ownerId: string): Promise<boolean> {
+  const db = await getDb();
+  const key = getSyncLeaseKey(uid);
+  const existing = await db.get("syncLeases", key);
+
+  if (!existing || existing.ownerId !== ownerId) {
+    return false;
+  }
+
+  await db.put("syncLeases", {
+    key,
+    ownerId,
+    expiresAt: Date.now() + SYNC_LEASE_TTL_MS,
+  });
+
+  return true;
+}
+
 export async function releaseSyncLease(uid: string, ownerId: string): Promise<void> {
   const db = await getDb();
   const key = getSyncLeaseKey(uid);
@@ -468,6 +516,32 @@ export async function clearQueueUiForUser(uid: string): Promise<void> {
   await transaction.objectStore("syncLeases").delete(getSyncLeaseKey(uid));
   await transaction.done;
   dispatchQueueChange(uid);
+}
+
+export async function recoverStaleSyncingQueueItems(uid: string): Promise<number> {
+  const db = await getDb();
+  const items = await db.getAllFromIndex("queue", "by-uid", uid);
+  const staleItems = items.filter((item) => isQueueItemStaleSyncing(item));
+
+  if (staleItems.length === 0) {
+    return 0;
+  }
+
+  const transaction = db.transaction("queue", "readwrite");
+  const now = Date.now();
+
+  for (const item of staleItems) {
+    await transaction.store.put({
+      ...item,
+      status: "pending",
+      updatedAt: now,
+      lastError: item.lastError ?? "Recovered after an interrupted sync attempt.",
+    });
+  }
+
+  await transaction.done;
+  dispatchQueueChange(uid);
+  return staleItems.length;
 }
 
 export function subscribeToOfflineQueueChanges(callback: (uid?: string) => void): () => void {
@@ -579,4 +653,47 @@ export function useOfflineQueuedDates(uid?: string): {
   }, [uid]);
 
   return uid ? state : { dates: [], loaded: true };
+}
+
+export function useOfflineHistoryQueueItems(uid?: string): {
+  items: OfflineAttendanceQueueItem[];
+  loaded: boolean;
+} {
+  const [state, setState] = useState<{ items: OfflineAttendanceQueueItem[]; loaded: boolean }>({
+    items: [],
+    loaded: !uid,
+  });
+
+  useEffect(() => {
+    if (!uid) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadItems = async () => {
+      const items = await listQueueItems(uid);
+      const visibleItems = items.filter(
+        (item) => item.status === "pending" || item.status === "syncing" || item.status === "failed" || item.status === "needs_review"
+      );
+
+      if (!cancelled) {
+        setState({ items: visibleItems, loaded: true });
+      }
+    };
+
+    void loadItems();
+    const unsubscribe = subscribeToOfflineQueueChanges((changedUid) => {
+      if (!changedUid || changedUid === uid) {
+        void loadItems();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [uid]);
+
+  return uid ? state : { items: [], loaded: true };
 }

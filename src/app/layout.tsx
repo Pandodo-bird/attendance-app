@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import TanStackQueryProvider from "@/contexts/TanStackQueryProvider";
+import { PwaUpdatePrompt } from "@/components/ui";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,6 +24,19 @@ export const metadata: Metadata = {
   },
   description: "Web-based attendance management system with offline-capable secretary attendance.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/app-icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/app-icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -55,7 +69,10 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <TanStackQueryProvider>
-            <AuthProvider>{children}</AuthProvider>
+            <AuthProvider>
+              {children}
+              <PwaUpdatePrompt />
+            </AuthProvider>
           </TanStackQueryProvider>
         </ThemeProvider>
       </body>

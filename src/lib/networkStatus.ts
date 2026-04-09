@@ -5,12 +5,46 @@ import { useEffect, useState } from "react";
 const NETWORK_PROBE_URL = "/api/network-status";
 const NETWORK_PROBE_TIMEOUT_MS = 4000;
 const NETWORK_RECHECK_INTERVAL_MS = 15000;
+const NETWORK_STATUS_STORAGE_KEY = "schoolsync:last-known-online-status";
 const listeners = new Set<(isOnline: boolean) => void>();
 
 let lastKnownIsOnline = true;
 
+function readPersistedOnlineStatus(): boolean | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const storedValue = window.localStorage.getItem(NETWORK_STATUS_STORAGE_KEY);
+  if (storedValue === "true") {
+    return true;
+  }
+  if (storedValue === "false") {
+    return false;
+  }
+
+  return null;
+}
+
+function writePersistedOnlineStatus(isOnline: boolean): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(NETWORK_STATUS_STORAGE_KEY, String(isOnline));
+}
+
+function getBrowserReportedOnline(): boolean {
+  if (typeof navigator === "undefined") {
+    return true;
+  }
+
+  return navigator.onLine;
+}
+
 function setLastKnownIsOnline(nextIsOnline: boolean): void {
   lastKnownIsOnline = nextIsOnline;
+  writePersistedOnlineStatus(nextIsOnline);
   listeners.forEach((listener) => listener(nextIsOnline));
 }
 
@@ -19,7 +53,7 @@ async function probeNetwork(): Promise<boolean> {
     return true;
   }
 
-  if (!navigator.onLine) {
+  if (!getBrowserReportedOnline()) {
     return false;
   }
 
@@ -35,6 +69,8 @@ async function probeNetwork(): Promise<boolean> {
 
     return response.ok;
   } catch {
+    // Desktop PWAs can keep navigator.onLine=true after connectivity drops.
+    // A failed probe should still flip the app into offline mode so status UI is accurate.
     return false;
   } finally {
     window.clearTimeout(timeoutId);
@@ -46,7 +82,12 @@ export function getIsOnline(): boolean {
     return lastKnownIsOnline;
   }
 
-  return lastKnownIsOnline;
+  const persistedStatus = readPersistedOnlineStatus();
+  if (persistedStatus !== null) {
+    lastKnownIsOnline = persistedStatus;
+  }
+
+  return lastKnownIsOnline && getBrowserReportedOnline();
 }
 
 export async function refreshNetworkStatus(): Promise<boolean> {
@@ -65,7 +106,7 @@ export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void):
 }
 
 export function useNetworkStatus(): { isOnline: boolean } {
-  const [isOnline, setIsOnline] = useState<boolean>(getIsOnline);
+  const [isOnline, setIsOnline] = useState<boolean>(() => getIsOnline());
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +121,10 @@ export function useNetworkStatus(): { isOnline: boolean } {
     const handleOnline = () => {
       void refreshOnlineState();
     };
-    const handleOffline = () => setIsOnline(false);
+    const handleOffline = () => {
+      setLastKnownIsOnline(false);
+      setIsOnline(false);
+    };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void refreshOnlineState();

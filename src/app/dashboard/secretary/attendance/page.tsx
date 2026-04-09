@@ -41,6 +41,7 @@ import { useSecretarySyncStatus } from "@/lib/syncManager";
 import { StudentAttendanceRow } from "@/components/secretary/attendance";
 import { BulkAttendanceActions } from "@/components/secretary/attendance";
 import { AttendanceHeader } from "@/components/secretary/attendance";
+import SecretaryStatusStrip from "@/components/SecretaryStatusStrip";
 import { PopupAlert } from "@/components/ui";
 
 type AttendanceStatus = "present" | "late" | "absent" | "excused";
@@ -54,6 +55,7 @@ interface StudentAttendance {
 }
 
 const STUDENTS_PER_PAGE = 10;
+const DRAFT_SAVE_DEBOUNCE_MS = 300;
 const getDisplayEndIndex = (end: number, total: number): number => Math.min(end, total);
 
 function formatLocalDateInputValue(date: Date): string {
@@ -255,6 +257,7 @@ export default function SecretaryAttendancePage() {
       sectionsById: {
         [resolvedSection.id]: resolvedSection,
       },
+      attendanceHistorySessions: undefined,
       studentsBySectionId: sectionStudentsQuery.length > 0
         ? {
             [selectedAppointment.sectionId]: sectionStudentsQuery,
@@ -318,7 +321,7 @@ export default function SecretaryAttendancePage() {
       cancelled = true;
       unsubscribe();
     };
-  }, [attendanceId, user?.uid]);
+  }, [attendanceId, queryClient, user?.uid]);
 
   useEffect(() => {
     if (user?.uid && selectedAppointment?.schoolYear) {
@@ -334,15 +337,16 @@ export default function SecretaryAttendancePage() {
         return a.firstName.localeCompare(b.firstName);
       });
 
-      setAttendanceRecords(
-        sortedStudents.map((student) => ({
+      setAttendanceRecords((prev) => {
+        const existingStatuses = new Map(prev.map((r) => [r.lrn, r.status]));
+        return sortedStudents.map((student) => ({
           lrn: student.lrn,
           studentName: `${student.lastName}, ${student.firstName} ${student.middleName}`,
           lastName: student.lastName,
           firstName: student.firstName,
-          status: null,
-        }))
-      );
+          status: existingStatuses.get(student.lrn) ?? null,
+        }));
+      });
     }
   }, [sectionStudents]);
 
@@ -446,7 +450,7 @@ export default function SecretaryAttendancePage() {
         }))
       );
     }
-  }, [existingSession, localDraft, localSessionLoaded, queuedSubmission]);
+  }, [existingSession, isOnline, localDraft, localSessionLoaded, queuedSubmission]);
 
   useEffect(() => {
     if (
@@ -468,19 +472,25 @@ export default function SecretaryAttendancePage() {
       status: record.status,
     }));
 
-    void saveAttendanceDraft({
-      uid: user.uid,
-      attendanceId,
-      sectionId: selectedAppointment.sectionId,
-      sectionSlug,
-      date: selectedDate,
-      schoolYear: selectedAppointment.schoolYear,
-      teacherId: selectedAppointment.teacherId,
-      secretaryUid: selectedAppointment.secretaryUid,
-      students: draftStudents,
-      hasSessionStarted: true,
-      lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
-    });
+    const timeoutId = window.setTimeout(() => {
+      void saveAttendanceDraft({
+        uid: user.uid,
+        attendanceId,
+        sectionId: selectedAppointment.sectionId,
+        sectionSlug,
+        date: selectedDate,
+        schoolYear: selectedAppointment.schoolYear,
+        teacherId: selectedAppointment.teacherId,
+        secretaryUid: selectedAppointment.secretaryUid,
+        students: draftStudents,
+        hasSessionStarted: true,
+        lastKnownRemoteChangeAt: getAttendanceLastRemoteChangeAt(existingSession),
+      });
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [
     attendanceId,
     attendanceRecords,
@@ -806,6 +816,9 @@ export default function SecretaryAttendancePage() {
 
   const completionTimestampLabel = existingSession?.status === "locked" ? "Locked on" : queuedSubmission ? "Saved locally on" : "Saved on";
   const headerSyncLabel = sessionSyncLabel === completedLabel ? undefined : sessionSyncLabel;
+  const headerSyncLabelColor = queuedSubmission
+    ? { bg: "#FEF3C7", text: "#92400E" }
+    : undefined;
 
   const presentCount = attendanceRecords.filter(r => r.status === "present").length;
   const lateCount = attendanceRecords.filter(r => r.status === "late").length;
@@ -827,8 +840,8 @@ export default function SecretaryAttendancePage() {
 
   if (!selectedAppointment) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
-        <main className="p-3 sm:p-4 md:p-6 lg:p-8">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ backgroundColor: "#F8FAFC" }}>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="max-w-2xl mx-auto text-center pt-20">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -849,7 +862,7 @@ export default function SecretaryAttendancePage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F8FAFC" }}>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" style={{ backgroundColor: "#F8FAFC" }}>
       {error && (
         <PopupAlert 
           message={error} 
@@ -866,47 +879,51 @@ export default function SecretaryAttendancePage() {
         />
       )}
 
-      <main className="p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Page Header */}
-          <div className="mb-4 sm:mb-6">
-            <div className="flex items-center gap-3 mb-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden overflow-x-hidden p-3 pb-[var(--secretary-mobile-nav-offset)] sm:p-4 md:p-6 lg:p-8 lg:pb-8">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col">
+          <div className="sticky top-0 z-10 shrink-0 bg-[#F8FAFC] pb-4 sm:pb-6">
+            {/* Page Header */}
+            <div className="mb-4 sm:mb-6">
+              <div className="flex items-center gap-3 mb-2 min-w-0">
               <div
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: "#1e3a5f" }}
               >
                 <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
-              <div>
+                <div className="min-w-0">
                 <h1 className="text-lg sm:text-xl font-bold" style={{ color: "#1F1F1F" }}>
                   Attendance
                 </h1>
-                <p className="text-xs" style={{ color: "#6B7280" }}>
+                <p className="text-xs break-words" style={{ color: "#6B7280" }}>
                   {sectionDisplayName} • {sectionStudents.length} students
                 </p>
+                </div>
               </div>
             </div>
 
+            <AttendanceHeader
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              hasSessionToday={hasSessionToday}
+              sessionSubmitted={sessionSubmitted}
+              isEditing={isEditing}
+              onStartSession={handleStartSession}
+              startDisabled={!hasLoadedStudents}
+              completedLabel={completedLabel}
+              syncLabel={headerSyncLabel}
+              syncLabelColor={headerSyncLabelColor}
+              canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
+              onSyncNow={() => void syncStatus.syncNow()}
+              syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
+              isSyncing={syncStatus.isSyncing}
+            />
+            <SecretaryStatusStrip />
           </div>
-
-          <AttendanceHeader
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-            hasSessionToday={hasSessionToday}
-            sessionSubmitted={sessionSubmitted}
-            isEditing={isEditing}
-            onStartSession={handleStartSession}
-            startDisabled={!hasLoadedStudents}
-            completedLabel={completedLabel}
-            syncLabel={headerSyncLabel}
-            canSync={Boolean(queuedSubmission || syncStatus.pendingCount > 0 || syncStatus.failedCount > 0 || syncStatus.needsReviewCount > 0)}
-            onSyncNow={() => void syncStatus.syncNow()}
-            syncDisabled={!syncStatus.isOnline || syncStatus.isSyncing}
-            isSyncing={syncStatus.isSyncing}
-          />
 
           {hasSessionToday || sessionSubmitted ? (
             <motion.div
+              className="flex min-h-0 flex-1 flex-col pb-[calc(var(--secretary-mobile-nav-offset)+0.5rem)] lg:pb-0"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
@@ -945,22 +962,25 @@ export default function SecretaryAttendancePage() {
 
               {sessionSubmitted && !isEditing && (
                 <div
-                  className="rounded-xl p-4 sm:p-6 mb-4 sm:mb-6"
-                  style={{ backgroundColor: "#D1FAE5", border: "1px solid #A7F3D0" }}
+                  className="rounded-xl p-3 sm:p-6 mb-3 sm:mb-6"
+                  style={{
+                    backgroundColor: queuedSubmission ? "#FEF3C7" : "#D1FAE5",
+                    border: `1px solid ${queuedSubmission ? "#FDE68A" : "#A7F3D0"}`,
+                  }}
                 >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3 mb-3 sm:mb-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: "#10B981" }}
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: queuedSubmission ? "#F59E0B" : "#10B981" }}
                       >
                         <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#FFFFFF" }} />
                       </div>
-                      <div>
-                        <p className="text-sm sm:text-base font-bold" style={{ color: "#065F46" }}>
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base font-bold leading-tight" style={{ color: queuedSubmission ? "#92400E" : "#065F46" }}>
                           {completionTitle}
                         </p>
-                        <p className="text-xs sm:text-sm" style={{ color: "#047857" }}>
+                        <p className="text-[11px] sm:text-sm leading-snug" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
                           {completionDescription}
                         </p>
                       </div>
@@ -969,12 +989,12 @@ export default function SecretaryAttendancePage() {
                       <button
                         onClick={handleEnableEditing}
                         className="flex w-full sm:w-auto justify-center items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                        style={{ backgroundColor: "#10B981", color: "#FFFFFF" }}
+                        style={{ backgroundColor: queuedSubmission ? "#F59E0B" : "#10B981", color: "#FFFFFF" }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#059669";
+                          e.currentTarget.style.backgroundColor = queuedSubmission ? "#D97706" : "#059669";
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "#10B981";
+                          e.currentTarget.style.backgroundColor = queuedSubmission ? "#F59E0B" : "#10B981";
                         }}
                       >
                         <Edit2 className="w-4 h-4" />
@@ -983,52 +1003,52 @@ export default function SecretaryAttendancePage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#10B981" }}>
+                  <div className="grid grid-cols-5 gap-1.5 sm:gap-3 mb-3 sm:mb-4">
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#10B981" }}>
                         {presentCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Present
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#F59E0B" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#F59E0B" }}>
                         {lateCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Late
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#EF4444" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#EF4444" }}>
                         {absentCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Absent
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#2563EB" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#2563EB" }}>
                         {excusedCount}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Excused
                       </p>
                     </div>
-                    <div className="rounded-lg p-2 sm:p-3 text-center col-span-3 sm:col-span-1" style={{ backgroundColor: "#FFFFFF" }}>
-                      <p className="text-xl sm:text-2xl font-bold" style={{ color: "#1e3a5f" }}>
+                    <div className="rounded-lg p-1.5 sm:p-3 text-center" style={{ backgroundColor: "#FFFFFF" }}>
+                      <p className="text-base sm:text-2xl font-bold leading-none" style={{ color: "#1e3a5f" }}>
                         {attendanceRecords.length}
                       </p>
-                      <p className="text-xs font-medium" style={{ color: "#6B7280" }}>
+                      <p className="text-[10px] sm:text-xs font-medium leading-tight" style={{ color: "#6B7280" }}>
                         Total
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs" style={{ color: "#047857" }}>
+                  <div className="flex items-start gap-2 text-[11px] sm:text-xs leading-snug" style={{ color: queuedSubmission ? "#A16207" : "#047857" }}>
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>
+                    <span className="min-w-0 break-words">
                       {completionTimestampLabel} {formatSessionTimestamp(
                         (existingSession?.lockedAt ?? existingSession?.createdAt) as Date | string | { toDate?: () => Date } | undefined
                       )}
@@ -1048,10 +1068,10 @@ export default function SecretaryAttendancePage() {
               )}
 
               <div
-                className="rounded-2xl overflow-hidden border"
+                className="flex min-h-0 flex-1 flex-col rounded-2xl overflow-hidden border"
                 style={{ backgroundColor: "#FFFFFF", borderColor: "#E5E7EB" }}
               >
-                <div className="hidden md:block">
+                <div className="hidden min-h-0 flex-1 flex-col md:flex">
                   <div
                     className="grid grid-cols-12 gap-4 px-6 py-4 text-xs font-semibold uppercase tracking-wide"
                     style={{ backgroundColor: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}
@@ -1067,39 +1087,43 @@ export default function SecretaryAttendancePage() {
                     </div>
                   </div>
 
+                  <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="divide-y divide-[#E5E7EB]">
+                      {paginatedStudents.map((record, index) => (
+                        <StudentAttendanceRow
+                          key={record.lrn}
+                          lrn={record.lrn}
+                          studentName={record.studentName}
+                          status={record.status}
+                          index={index}
+                          isEditable={canEditAttendance}
+                          onStatusChange={handleStatusChange}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto md:hidden">
                   <div className="divide-y divide-[#E5E7EB]">
                     {paginatedStudents.map((record, index) => (
-                      <StudentAttendanceRow
+                      <MobileStudentAttendanceCard
                         key={record.lrn}
                         lrn={record.lrn}
                         studentName={record.studentName}
                         status={record.status}
-                        index={index}
                         isEditable={canEditAttendance}
                         onStatusChange={handleStatusChange}
+                        index={index}
                       />
                     ))}
                   </div>
-                </div>
-
-                <div className="md:hidden divide-y divide-[#E5E7EB]">
-                  {paginatedStudents.map((record, index) => (
-                    <MobileStudentAttendanceCard
-                      key={record.lrn}
-                      lrn={record.lrn}
-                      studentName={record.studentName}
-                      status={record.status}
-                      isEditable={canEditAttendance}
-                      onStatusChange={handleStatusChange}
-                      index={index}
-                    />
-                  ))}
                 </div>
               </div>
 
               {totalPages > 1 && (
                 <motion.div
-                  className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                  className="mt-4 flex min-w-0 flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
@@ -1109,7 +1133,7 @@ export default function SecretaryAttendancePage() {
                     <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{getDisplayEndIndex(endIndex, attendanceRecords.length)}</span> of{" "}
                     <span style={{ color: "#1F1F1F", fontWeight: 600 }}>{attendanceRecords.length}</span>
                   </p>
-                  <div className="flex items-center gap-1">
+                  <div className="flex max-w-full flex-wrap items-center gap-1">
                     <button
                       onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
@@ -1121,7 +1145,7 @@ export default function SecretaryAttendancePage() {
                     >
                       <ChevronLeft className="w-4 h-4" style={{ color: "#374151" }} />
                     </button>
-                    <div className="flex items-center gap-1">
+                    <div className="flex max-w-full flex-wrap items-center gap-1">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                         <button
                           key={page}
@@ -1232,14 +1256,6 @@ export default function SecretaryAttendancePage() {
                       year: "numeric",
                     })}
                   </p>
-                  <button
-                    onClick={handleStartSession}
-                    disabled={!hasLoadedStudents}
-                    className="w-full sm:w-auto px-6 py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: "#1e3a5f", color: "#FFFFFF" }}
-                  >
-                    Start Session
-                  </button>
                 </>
               )}
             </motion.div>

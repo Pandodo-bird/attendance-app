@@ -14,6 +14,7 @@ import { createUserProfile, getUserProfile, UserData } from "../lib/firestore";
 import { getIsOnline, subscribeToNetworkStatus } from "@/lib/networkStatus";
 import { clearQueueUiForUser } from "@/lib/offlineQueue";
 import { clearSecretaryBootstrapCache } from "@/lib/secretaryOfflineBootstrap";
+import { clearSecretaryHistoryCache } from "@/lib/secretaryOfflineHistory";
 import { stopSecretarySync } from "@/lib/syncManager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -205,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await stopSecretarySync(user.uid);
       await clearQueueUiForUser(user.uid);
       clearSecretaryBootstrapCache(user.uid);
+      await clearSecretaryHistoryCache(user.uid);
     }
 
     if (typeof window !== "undefined") {

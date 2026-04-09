@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Attendance System",
     short_name: "Attendance",
-    description: "Offline-capable secretary attendance for EduAttend Pro.",
+    description: "Offline-capable secretary attendance for SchoolSync.",
     start_url: "/dashboard/secretary/dashboard",
     display: "standalone",
     background_color: "#F5F3FA",
@@ -12,15 +12,21 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     icons: [
       {
-        src: "/icons/app-icon-192.svg",
+        src: "/icons/app-icon-192.png",
         sizes: "192x192",
-        type: "image/svg+xml",
-        purpose: "maskable",
+        type: "image/png",
+        purpose: "any",
       },
       {
-        src: "/icons/app-icon-512.svg",
+        src: "/icons/app-icon-512.png",
         sizes: "512x512",
-        type: "image/svg+xml",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/app-icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable",
       },
     ],

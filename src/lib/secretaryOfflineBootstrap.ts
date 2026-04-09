@@ -1,4 +1,4 @@
-import type { Appointment, Section, Student } from "@/lib/firestore";
+import type { Appointment, Attendance, Section, Student } from "@/lib/firestore";
 
 const SECRETARY_BOOTSTRAP_PREFIX = "secretary-attendance-bootstrap";
 
@@ -6,6 +6,7 @@ export interface SecretaryBootstrapCache {
   appointments: Appointment[];
   sectionsById: Record<string, Section>;
   studentsBySectionId: Record<string, Student[]>;
+  attendanceHistorySessions: Attendance[];
   updatedAt: number;
 }
 
@@ -66,6 +67,7 @@ export function mergeSecretaryBootstrapCache(
       ...(existing?.studentsBySectionId ?? {}),
       ...(data.studentsBySectionId ?? {}),
     },
+    attendanceHistorySessions: data.attendanceHistorySessions ?? existing?.attendanceHistorySessions ?? [],
     updatedAt: Date.now(),
   };
 
