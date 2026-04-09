@@ -14,6 +14,10 @@ import {
   updateDoc,
   increment,
   deleteField,
+  orderBy,
+  limit,
+  startAfter,
+  documentId,
 } from "firebase/firestore";
 
 // ==================== User Profile Types ====================
@@ -1211,6 +1215,171 @@ export async function getTeacherAttendanceSessions(
   }
 
   return sessions;
+}
+
+export interface AttendanceHistoryCursor {
+  date: string;
+  id: string;
+}
+
+export async function getTeacherSectionAttendanceHistoryPaginated(
+  teacherId: string,
+  sectionId: string,
+  options?: {
+    startDate?: string;
+    endDate?: string;
+    pageSize?: number;
+    cursor?: AttendanceHistoryCursor | null;
+  }
+): Promise<{
+  sessions: Attendance[];
+  nextCursor: AttendanceHistoryCursor | null;
+  hasMore: boolean;
+}> {
+  const pageSize = options?.pageSize ?? 10;
+  const attendanceRef = collection(db, "attendance");
+
+  let attendanceQuery = query(
+    attendanceRef,
+    where("teacherId", "==", teacherId),
+    where("sectionId", "==", sectionId)
+  );
+
+  if (options?.startDate) {
+    attendanceQuery = query(attendanceQuery, where("date", ">=", options.startDate));
+  }
+
+  if (options?.endDate) {
+    attendanceQuery = query(attendanceQuery, where("date", "<=", options.endDate));
+  }
+
+  attendanceQuery = query(
+    attendanceQuery,
+    orderBy("date", "desc"),
+    orderBy(documentId(), "desc")
+  );
+
+  if (options?.cursor) {
+    attendanceQuery = query(
+      attendanceQuery,
+      startAfter(options.cursor.date, options.cursor.id)
+    );
+  }
+
+  attendanceQuery = query(attendanceQuery, limit(pageSize + 1));
+
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (teacherId + sectionId paginated history)", {
+    teacherId,
+    sectionId,
+    startDate: options?.startDate ?? null,
+    endDate: options?.endDate ?? null,
+    pageSize,
+    cursor: options?.cursor ?? null,
+  });
+
+  const snapshot = await getDocs(attendanceQuery);
+  const docs = snapshot.docs;
+  const hasMore = docs.length > pageSize;
+  const visibleDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+  const sessions = visibleDocs.map((attendanceDoc) => ({
+    id: attendanceDoc.id,
+    ...attendanceDoc.data(),
+  } as Attendance));
+
+  const lastDoc = visibleDocs[visibleDocs.length - 1];
+  const nextCursor = hasMore && lastDoc
+    ? {
+        date: lastDoc.get("date") as string,
+        id: lastDoc.id,
+      }
+    : null;
+
+  return {
+    sessions,
+    nextCursor,
+    hasMore,
+  };
+}
+
+export async function getTeacherSecretaryAttendanceHistoryPaginated(
+  teacherId: string,
+  secretaryUid: string,
+  options?: {
+    startDate?: string;
+    endDate?: string;
+    pageSize?: number;
+    cursor?: AttendanceHistoryCursor | null;
+  }
+): Promise<{
+  sessions: Attendance[];
+  nextCursor: AttendanceHistoryCursor | null;
+  hasMore: boolean;
+}> {
+  const pageSize = options?.pageSize ?? 10;
+  const attendanceRef = collection(db, "attendance");
+
+  let attendanceQuery = query(
+    attendanceRef,
+    where("teacherId", "==", teacherId),
+    where("secretaryUid", "==", secretaryUid)
+  );
+
+  if (options?.startDate) {
+    attendanceQuery = query(attendanceQuery, where("date", ">=", options.startDate));
+  }
+
+  if (options?.endDate) {
+    attendanceQuery = query(attendanceQuery, where("date", "<=", options.endDate));
+  }
+
+  attendanceQuery = query(
+    attendanceQuery,
+    orderBy("date", "desc"),
+    orderBy(documentId(), "desc")
+  );
+
+  if (options?.cursor) {
+    attendanceQuery = query(
+      attendanceQuery,
+      startAfter(options.cursor.date, options.cursor.id)
+    );
+  }
+
+  attendanceQuery = query(attendanceQuery, limit(pageSize + 1));
+
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (teacherId + secretaryUid paginated history)", {
+    teacherId,
+    secretaryUid,
+    startDate: options?.startDate ?? null,
+    endDate: options?.endDate ?? null,
+    pageSize,
+    cursor: options?.cursor ?? null,
+  });
+
+  const snapshot = await getDocs(attendanceQuery);
+  const docs = snapshot.docs;
+  const hasMore = docs.length > pageSize;
+  const visibleDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+  const sessions = visibleDocs.map((attendanceDoc) => ({
+    id: attendanceDoc.id,
+    ...attendanceDoc.data(),
+  } as Attendance));
+
+  const lastDoc = visibleDocs[visibleDocs.length - 1];
+  const nextCursor = hasMore && lastDoc
+    ? {
+        date: lastDoc.get("date") as string,
+        id: lastDoc.id,
+      }
+    : null;
+
+  return {
+    sessions,
+    nextCursor,
+    hasMore,
+  };
 }
 
 /**

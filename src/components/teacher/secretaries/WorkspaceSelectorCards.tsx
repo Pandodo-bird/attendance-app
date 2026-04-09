@@ -47,7 +47,7 @@ export function WorkspaceSelectorCards({
       key: "section-history",
       label: "Shared Section History",
       description: "Open a section to view all recorded attendance days for that class.",
-      countLabel: `${sharedSectionGroupsCount} section${sharedSectionGroupsCount === 1 ? "" : "s"} with history`,
+      countLabel: `${sharedSectionGroupsCount} available section${sharedSectionGroupsCount === 1 ? "" : "s"}`,
       icon: <Calendar size={18} />,
     },
   ];
