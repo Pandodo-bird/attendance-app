@@ -106,7 +106,7 @@ export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void):
 }
 
 export function useNetworkStatus(): { isOnline: boolean } {
-  const [isOnline, setIsOnline] = useState<boolean>(() => getIsOnline());
+  const [isOnline, setIsOnline] = useState<boolean>(true);
 
   useEffect(() => {
     let cancelled = false;
