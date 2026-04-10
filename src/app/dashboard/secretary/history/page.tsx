@@ -77,7 +77,7 @@ function getLocalBadge(status: OfflineAttendanceQueueItem["status"]): { label: s
 
 export default function HistoryPage() {
   const { user } = useAuth();
-  const { isOnline } = useNetworkStatus();
+  const { isOnline, hasResolved } = useNetworkStatus();
   const [selectedSession, setSelectedSession] = useState<Attendance | null>(null);
   const [dismissedFetchError, setDismissedFetchError] = useState<string | null>(null);
   const [cachedSessions, setCachedSessions] = useState<Attendance[]>([]);
@@ -110,7 +110,7 @@ export default function HistoryPage() {
     }),
     initialPageParam: null as AttendanceHistoryCursor | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!user?.uid && isOnline,
+    enabled: !!user?.uid && hasResolved && isOnline,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
