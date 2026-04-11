@@ -21,6 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import {
+  AttendanceHistoryCursor,
   calculateAttendanceStats,
   getSectionById,
   getSecretaryAppointments,
@@ -86,7 +87,10 @@ function SecretaryDashboardContent() {
 
   const { data: recentHistoryData, isLoading: recentHistoryLoading } = useQuery({
     queryKey: ["attendanceHistoryRecent", user?.uid],
-    queryFn: () => getSecretaryAttendanceHistoryPaginated(user?.uid || "", 5, 0),
+    queryFn: () => getSecretaryAttendanceHistoryPaginated(user?.uid || "", {
+      pageSize: 5,
+      cursor: null as AttendanceHistoryCursor | null,
+    }),
     enabled: !!user?.uid && isOnline,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,

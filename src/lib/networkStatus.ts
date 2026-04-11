@@ -105,8 +105,9 @@ export function subscribeToNetworkStatus(listener: (isOnline: boolean) => void):
   };
 }
 
-export function useNetworkStatus(): { isOnline: boolean } {
-  const [isOnline, setIsOnline] = useState<boolean>(() => getIsOnline());
+export function useNetworkStatus(): { isOnline: boolean; hasResolved: boolean } {
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [hasResolved, setHasResolved] = useState<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +116,7 @@ export function useNetworkStatus(): { isOnline: boolean } {
       const nextIsOnline = await refreshNetworkStatus();
       if (!cancelled) {
         setIsOnline(nextIsOnline);
+        setHasResolved(true);
       }
     };
 
@@ -124,6 +126,7 @@ export function useNetworkStatus(): { isOnline: boolean } {
     const handleOffline = () => {
       setLastKnownIsOnline(false);
       setIsOnline(false);
+      setHasResolved(true);
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -155,5 +158,5 @@ export function useNetworkStatus(): { isOnline: boolean } {
     };
   }, []);
 
-  return { isOnline };
+  return { isOnline, hasResolved };
 }

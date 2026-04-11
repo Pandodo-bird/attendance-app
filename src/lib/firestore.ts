@@ -1851,17 +1851,74 @@ export async function getSectionSlug(sectionId: string): Promise<string | null> 
  */
 export async function getSecretaryAttendanceHistoryPaginated(
   secretaryUid: string,
-  limitCount: number = 10,
-  offset: number = 0
-): Promise<{ sessions: Attendance[]; nextOffset: number | null; hasMore: boolean }> {
-  const allSessions = await getSecretaryAttendanceHistory(secretaryUid);
-  const sessions = allSessions.slice(offset, offset + limitCount);
-  const nextOffset = offset + limitCount < allSessions.length ? offset + limitCount : null;
+  options?: {
+    startDate?: string;
+    endDate?: string;
+    pageSize?: number;
+    cursor?: AttendanceHistoryCursor | null;
+  }
+): Promise<{ sessions: Attendance[]; nextCursor: AttendanceHistoryCursor | null; hasMore: boolean }> {
+  const pageSize = options?.pageSize ?? 10;
+  const attendanceRef = collection(db, "attendance");
+
+  let attendanceQuery = query(
+    attendanceRef,
+    where("secretaryUid", "==", secretaryUid)
+  );
+
+  if (options?.startDate) {
+    attendanceQuery = query(attendanceQuery, where("date", ">=", options.startDate));
+  }
+
+  if (options?.endDate) {
+    attendanceQuery = query(attendanceQuery, where("date", "<=", options.endDate));
+  }
+
+  attendanceQuery = query(
+    attendanceQuery,
+    orderBy("date", "desc"),
+    orderBy(documentId(), "desc")
+  );
+
+  if (options?.cursor) {
+    attendanceQuery = query(
+      attendanceQuery,
+      startAfter(options.cursor.date, options.cursor.id)
+    );
+  }
+
+  attendanceQuery = query(attendanceQuery, limit(pageSize + 1));
+
+  console.log("🔥 FIRESTORE | [firestore.ts] | [getDocs] | [attendance] (secretaryUid paginated history)", {
+    secretaryUid,
+    startDate: options?.startDate ?? null,
+    endDate: options?.endDate ?? null,
+    pageSize,
+    cursor: options?.cursor ?? null,
+  });
+
+  const snapshot = await getDocs(attendanceQuery);
+  const docs = snapshot.docs;
+  const hasMore = docs.length > pageSize;
+  const visibleDocs = hasMore ? docs.slice(0, pageSize) : docs;
+
+  const sessions = visibleDocs.map((attendanceDoc) => ({
+    id: attendanceDoc.id,
+    ...attendanceDoc.data(),
+  } as Attendance));
+
+  const lastDoc = visibleDocs[visibleDocs.length - 1];
+  const nextCursor = hasMore && lastDoc
+    ? {
+        date: lastDoc.get("date") as string,
+        id: lastDoc.id,
+      }
+    : null;
 
   return {
     sessions,
-    nextOffset,
-    hasMore: nextOffset !== null,
+    nextCursor,
+    hasMore,
   };
 }
 
